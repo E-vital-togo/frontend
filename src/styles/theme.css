@@ -1,0 +1,173 @@
+/*
+  Tokens repris tels quels du Cahier d'identite E-Vital v.1 (09.2026).
+  Ne jamais coder une couleur ou une police en dur ailleurs dans le
+  projet : tout passe par ces variables, pour rester coherent avec le
+  backend (voir apps/core/context_processors.py cote Django) et pouvoir
+  suivre toute evolution future de la charte en un seul endroit.
+*/
+:root {
+  --couleur-emeraude: #0B7A57;
+  --couleur-emeraude-actif: #16B37D;
+  --couleur-citron: #C8D92F;
+  --couleur-citron-profond: #A8BB1E;
+  --couleur-encre: #14231C;
+  --couleur-gris-service-1: #40534B;
+  --couleur-gris-service-2: #6B7A73;
+  --couleur-papier: #FBFDF6;
+  --couleur-blanc: #FFFFFF;
+  --couleur-vert-profond: #0B4A3B;
+  --couleur-erreur: #B3261E;
+
+  --police-titrage: "Instrument Sans", -apple-system, "Segoe UI", sans-serif;
+  --police-donnees: "IBM Plex Mono", ui-monospace, "Courier New", monospace;
+
+  --rayon-standard: 8px;
+  --ombre-carte: 0 1px 2px rgba(20, 35, 28, 0.06);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--police-titrage);
+  background: var(--couleur-papier);
+  color: var(--couleur-encre);
+}
+
+.texte-mono {
+  font-family: var(--police-donnees);
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font-family: inherit;
+}
+
+.bouton-principal {
+  background: var(--couleur-emeraude);
+  color: var(--couleur-blanc);
+  border: none;
+  border-radius: 6px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.bouton-principal:hover { background: var(--couleur-emeraude-actif); }
+.bouton-principal:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.bouton-secondaire {
+  background: transparent;
+  color: var(--couleur-emeraude);
+  border: 1px solid var(--couleur-emeraude);
+  border-radius: 6px;
+  padding: 9px 17px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.bouton-secondaire:hover { background: rgba(11, 122, 87, 0.06); }
+
+.bouton-accent {
+  background: var(--couleur-citron-profond);
+  color: var(--couleur-vert-profond);
+  border: none;
+  border-radius: 6px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.carte {
+  background: var(--couleur-blanc);
+  border: 1px solid #E2E7DF;
+  border-radius: var(--rayon-standard);
+  box-shadow: var(--ombre-carte);
+  padding: 18px 20px;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 11px;
+  font-family: var(--police-donnees);
+  padding: 2px 9px;
+  border-radius: 10px;
+  background: var(--couleur-gris-service-2);
+  color: var(--couleur-blanc);
+}
+.badge--actif { background: var(--couleur-emeraude-actif); }
+.badge--alerte { background: var(--couleur-erreur); }
+.badge--attente { background: var(--couleur-citron-profond); color: var(--couleur-vert-profond); }
+
+.champ label {
+  display: block;
+  font-size: 13px;
+  color: var(--couleur-gris-service-1);
+  margin-bottom: 4px;
+}
+.champ input, .champ select, .champ textarea {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid #C9D2C6;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--couleur-blanc);
+}
+.champ input:disabled, .champ select:disabled, .champ textarea:disabled {
+  background: #F1F3EF;
+  color: var(--couleur-gris-service-2);
+}
+.champ { margin-bottom: 14px; }
+
+.message-erreur {
+  color: var(--couleur-erreur);
+  font-size: 13px;
+  margin: 8px 0;
+}
+
+.grille-cartes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 14px;
+}
+
+.chiffre-cle {
+  font-family: var(--police-donnees);
+  font-size: 26px;
+  color: var(--couleur-emeraude);
+}
+
+.libelle-cle {
+  font-size: 12px;
+  color: var(--couleur-gris-service-2);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+table.tableau-standard {
+  width: 100%;
+  border-collapse: collapse;
+}
+table.tableau-standard th, table.tableau-standard td {
+  text-align: left;
+  padding: 9px 10px;
+  border-bottom: 1px solid #E2E7DF;
+  font-size: 13px;
+}
+table.tableau-standard th {
+  color: var(--couleur-gris-service-1);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+}
