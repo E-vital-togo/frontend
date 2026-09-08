@@ -10,11 +10,13 @@
     "type-check": "tsc -b --noEmit"
   },
   "dependencies": {
+    "dexie": "^4.0.8",
+    "lucide-react": "^1.42.0",
+    "qrcode.react": "^3.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.0",
-    "dexie": "^4.0.8",
-    "qrcode.react": "^3.1.0"
+    "recharts": "^3.10.1"
   },
   "devDependencies": {
     "@types/react": "^18.3.5",

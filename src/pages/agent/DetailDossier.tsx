@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import MiseEnPage from "../../components/MiseEnPage";
+import PageHeader from "../../components/PageHeader";
 import BadgeStatut from "../../components/BadgeStatut";
 import ChampDynamique from "../../components/ChampDynamique";
+import ModaleNouvelleVersionDhis2 from "../../components/ModaleNouvelleVersionDhis2";
+import Squelette from "../../components/Squelette";
+import { useToast } from "../../context/ToastContext";
 import { appelApi, ErreurApi } from "../../lib/apiClient";
 import { mettreEnFileAction, mettreEnCacheDossier, dossierEnCache } from "../../lib/db";
 import { LIENS_AGENT } from "./navigation";
@@ -12,20 +16,17 @@ interface ReponseFormulaireEffectif {
   champs: ChampFormulaireEffectif[];
 }
 
-interface MessageEcran {
-  type: "succes" | "info" | "erreur";
-  texte: string;
-}
-
 export default function DetailDossier() {
   const { idDossier } = useParams<{ idDossier: string }>();
   const navigate = useNavigate();
+  const { notifier } = useToast();
   const [dossier, setDossier] = useState<Dossier | null>(null);
   const [champs, setChamps] = useState<ChampFormulaireEffectif[]>([]);
   const [valeursModifiees, setValeursModifiees] = useState<Record<string, string>>({});
   const [enregistrement, setEnregistrement] = useState(false);
-  const [message, setMessage] = useState<MessageEcran | null>(null);
   const [horsLigne, setHorsLigne] = useState(!navigator.onLine);
+  const [modaleNouvelleVersionOuverte, setModaleNouvelleVersionOuverte] = useState(false);
+  const [decisionEnCours, setDecisionEnCours] = useState(false);
 
   async function charger() {
     if (!idDossier) return;
@@ -64,7 +65,6 @@ export default function DetailDossier() {
   async function enregistrer() {
     if (!idDossier || !dossier) return;
     setEnregistrement(true);
-    setMessage(null);
     const entrees = Object.entries(valeursModifiees);
 
     try {
@@ -75,7 +75,7 @@ export default function DetailDossier() {
             corps: { data_element_code: dataElementCode, valeur }
           });
         }
-        setMessage({ type: "succes", texte: "Modifications enregistrees." });
+        notifier("Modifications enregistrees.", "succes");
       } else {
         for (const [dataElementCode, valeur] of entrees) {
           await mettreEnFileAction({
@@ -85,15 +85,12 @@ export default function DetailDossier() {
             payload: { data_element_code: dataElementCode, valeur }
           });
         }
-        setMessage({
-          type: "info",
-          texte: "Hors-ligne : modifications mises en file, elles seront envoyees au retour du reseau."
-        });
+        notifier("Hors-ligne : modifications mises en file, elles seront envoyees au retour du reseau.", "info");
       }
       setValeursModifiees({});
       await charger();
     } catch (e) {
-      setMessage({ type: "erreur", texte: e instanceof ErreurApi ? e.message : "Erreur inattendue." });
+      notifier(e instanceof ErreurApi ? e.message : "Erreur inattendue.", "erreur");
     } finally {
       setEnregistrement(false);
     }
@@ -103,16 +100,47 @@ export default function DetailDossier() {
     if (!idDossier) return;
     try {
       await appelApi(`/dossiers/${idDossier}/valider/`, { methode: "POST" });
+      notifier("Dossier marque comme complete.", "succes");
       await charger();
     } catch (e) {
-      setMessage({ type: "erreur", texte: e instanceof ErreurApi ? e.message : "Erreur inattendue." });
+      notifier(e instanceof ErreurApi ? e.message : "Erreur inattendue.", "erreur");
+    }
+  }
+
+  async function accepterNouvelleVersion() {
+    if (!idDossier) return;
+    setDecisionEnCours(true);
+    try {
+      await appelApi(`/dossiers/${idDossier}/nouvelle-version/accepter/`, { methode: "POST" });
+      notifier("Modification DHIS2 appliquee au dossier.", "succes");
+      setModaleNouvelleVersionOuverte(false);
+      await charger();
+    } catch (e) {
+      notifier(e instanceof ErreurApi ? e.message : "Erreur inattendue.", "erreur");
+    } finally {
+      setDecisionEnCours(false);
+    }
+  }
+
+  async function refuserNouvelleVersion() {
+    if (!idDossier) return;
+    setDecisionEnCours(true);
+    try {
+      await appelApi(`/dossiers/${idDossier}/nouvelle-version/refuser/`, { methode: "POST" });
+      notifier("Modification DHIS2 refusee, dossier inchange.", "info");
+      setModaleNouvelleVersionOuverte(false);
+      await charger();
+    } catch (e) {
+      notifier(e instanceof ErreurApi ? e.message : "Erreur inattendue.", "erreur");
+    } finally {
+      setDecisionEnCours(false);
     }
   }
 
   if (!dossier) {
     return (
       <MiseEnPage liens={LIENS_AGENT}>
-        <p>Chargement du dossier...</p>
+        <Squelette lignes={6} />
       </MiseEnPage>
     );
   }
@@ -123,23 +151,37 @@ export default function DetailDossier() {
 
   return (
     <MiseEnPage liens={LIENS_AGENT}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1 style={{ color: "var(--couleur-emeraude)" }}>
-          Dossier {dossier.event_type === "naissance" ? "naissance" : "deces"}
-        </h1>
-        <BadgeStatut statut={dossier.statut} />
-      </div>
+      <PageHeader
+        titre={`Dossier ${dossier.event_type === "naissance" ? "naissance" : "deces"}`}
+        actions={<BadgeStatut statut={dossier.statut} />}
+      />
 
       {horsLigne && (
-        <div className="carte" style={{ background: "#FBF6E8", borderColor: "var(--couleur-citron-profond)", marginBottom: 16 }}>
+        <div className="carte carte--avertissement" style={{ marginBottom: 16 }}>
           Vous consultez une version mise en cache localement. Les modifications seront envoyees au retour du reseau.
         </div>
       )}
 
-      {message && (
-        <div className={message.type === "erreur" ? "message-erreur" : "carte"} style={{ marginBottom: 16 }}>
-          {message.texte}
+      {dossier.nouvelle_version && (
+        <div
+          className="carte carte--avertissement"
+          style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}
+        >
+          <span>Une modification recue de DHIS2 est en attente de votre decision sur ce dossier.</span>
+          <button className="bouton-principal" onClick={() => setModaleNouvelleVersionOuverte(true)}>
+            Voir la modification
+          </button>
         </div>
+      )}
+
+      {modaleNouvelleVersionOuverte && dossier.nouvelle_version && (
+        <ModaleNouvelleVersionDhis2
+          nouvelleVersion={dossier.nouvelle_version}
+          enCours={decisionEnCours}
+          onAccepter={accepterNouvelleVersion}
+          onRefuser={refuserNouvelleVersion}
+          onFermer={() => setModaleNouvelleVersionOuverte(false)}
+        />
       )}
 
       <div className="carte" style={{ marginBottom: 20 }}>

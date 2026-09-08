@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import MiseEnPage from "../../components/MiseEnPage";
+import PageHeader from "../../components/PageHeader";
+import { useToast } from "../../context/ToastContext";
 import { appelApi, ErreurApi } from "../../lib/apiClient";
 import { LIENS_AGENT } from "./navigation";
 import type { NumerosActeProposes } from "../../types/domaine";
@@ -16,6 +18,7 @@ export default function EmissionActe() {
   const [dateEtablissement, setDateEtablissement] = useState(new Date().toISOString().slice(0, 10));
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const { notifier } = useToast();
 
   useEffect(() => {
     if (!idDossier) return;
@@ -32,7 +35,6 @@ export default function EmissionActe() {
     evenement.preventDefault();
     if (!idDossier || !numeros) return;
     setEnCours(true);
-    setErreur(null);
     try {
       await appelApi(`/dossiers/${idDossier}/acte/emettre`, {
         methode: "POST",
@@ -43,9 +45,10 @@ export default function EmissionActe() {
           date_etablissement: dateEtablissement
         }
       });
+      notifier("Acte emis avec succes.", "succes");
       navigate(`/agent/dossiers/${idDossier}/acte-pdf`);
     } catch (e) {
-      setErreur(e instanceof ErreurApi ? e.message : "Erreur inattendue.");
+      notifier(e instanceof ErreurApi ? e.message : "Erreur inattendue.", "erreur");
     } finally {
       setEnCours(false);
     }
@@ -61,13 +64,12 @@ export default function EmissionActe() {
 
   return (
     <MiseEnPage liens={LIENS_AGENT}>
-      <h1 style={{ color: "var(--couleur-emeraude)" }}>Emission de l'acte</h1>
-      <p style={{ color: "var(--couleur-gris-service-2)", fontSize: 13 }}>
-        Les numeros sont proposes automatiquement, en sequence pour votre mairie et l'annee en cours. Ils restent
-        modifiables avant validation finale. Une fois emis, l'acte ne peut plus etre corrige directement : toute
-        erreur passera par une demande de modification.
-      </p>
-      {erreur && <div className="message-erreur">{erreur}</div>}
+      <PageHeader
+        titre="Emission de l'acte"
+        description="Les numeros sont proposes automatiquement, en sequence pour votre mairie et l'annee en cours. Ils
+        restent modifiables avant validation finale. Une fois emis, l'acte ne peut plus etre corrige directement :
+        toute erreur passera par une demande de modification."
+      />
       <form onSubmit={emettre} className="carte" style={{ maxWidth: 460 }}>
         <div className="champ">
           <label htmlFor="numero-registre">Numero de registre</label>

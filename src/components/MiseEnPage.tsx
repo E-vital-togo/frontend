@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { Wifi, WifiOff } from "lucide-react";
 import Logo from "./Logo";
-import { useAuth } from "../context/AuthContext";
+import MenuUtilisateur from "./MenuUtilisateur";
 import { listerActionsEnAttente } from "../lib/db";
 import { synchroniser, surRetourConnexion } from "../lib/syncService";
 import type { LienNavigation } from "../types/domaine";
@@ -12,8 +13,6 @@ interface ProprietesMiseEnPage {
 }
 
 export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
-  const { utilisateur, deconnecter } = useAuth();
-  const navigate = useNavigate();
   const [nombreEnAttente, setNombreEnAttente] = useState(0);
   const [enLigne, setEnLigne] = useState(navigator.onLine);
 
@@ -41,11 +40,6 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
     };
   }, []);
 
-  function seDeconnecter() {
-    deconnecter();
-    navigate("/connexion");
-  }
-
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <header
@@ -65,20 +59,12 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
               {lien.libelle}
             </Link>
           ))}
-          <span className="texte-mono" title={enLigne ? "Connecte" : "Hors-ligne"} style={{ fontSize: 12, opacity: 0.9 }}>
+          <span className="indicateur-connexion texte-mono" title={enLigne ? "Connecte" : "Hors-ligne"}>
+            {enLigne ? <Wifi size={14} /> : <WifiOff size={14} />}
             {enLigne ? "EN LIGNE" : "HORS-LIGNE"}
             {nombreEnAttente > 0 && ` - ${nombreEnAttente} EN ATTENTE`}
           </span>
-          <span style={{ opacity: 0.85, fontSize: 13 }}>
-            {utilisateur?.prenoms} {utilisateur?.nom}
-          </span>
-          <button
-            onClick={seDeconnecter}
-            className="bouton-secondaire"
-            style={{ borderColor: "var(--couleur-blanc)", color: "var(--couleur-blanc)" }}
-          >
-            Deconnexion
-          </button>
+          <MenuUtilisateur />
         </nav>
       </header>
       <main style={{ flex: 1, maxWidth: 1100, margin: "0 auto", width: "100%", padding: "28px 20px 60px" }}>

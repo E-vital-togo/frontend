@@ -31,6 +31,33 @@ export type TypeEvenement = "naissance" | "deces";
 export type OrigineDossier = "dhis2" | "manuel";
 export type TypeDossier = "declaration" | "jugement";
 
+export type StatutNouvelleVersionDossier = "en_attente" | "acceptee" | "refusee";
+
+export interface ChampModifieDhis2 {
+  data_element_code: string;
+  label: string;
+  valeur_actuelle: unknown;
+  valeur_proposee: unknown;
+}
+
+/**
+ * Proposition de mise a jour recue de DHIS2 sur un dossier deja cree
+ * (correction faite dans dhis2-app apres la premiere synchronisation). Ne
+ * s'obtient que via Dossier.nouvelle_version (detail dossier) : jamais
+ * modifiee/creee directement depuis le frontend, uniquement via les actions
+ * dediees /nouvelle-version/accepter et /nouvelle-version/refuser.
+ */
+export interface NouvelleVersionDossier {
+  id: string;
+  dossier: string;
+  statut: StatutNouvelleVersionDossier;
+  champs_modifies: ChampModifieDhis2[];
+  decidee_par: string | null;
+  decidee_le: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Dossier {
   id: string;
   origine: OrigineDossier;
@@ -47,6 +74,9 @@ export interface Dossier {
   created_at: string;
   raw_data?: unknown;
   dossier_lie?: string | null;
+  a_une_nouvelle_version: boolean;
+  /** Present (non null) uniquement sur le detail d'un dossier, et seulement si le statut est "en_attente". */
+  nouvelle_version?: NouvelleVersionDossier | null;
 }
 
 export interface ChampFormulaireEffectif {

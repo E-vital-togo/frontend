@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import MiseEnPage from "../../components/MiseEnPage";
+import PageHeader from "../../components/PageHeader";
+import { useToast } from "../../context/ToastContext";
 import { appelApi, ErreurApi } from "../../lib/apiClient";
 import { mettreEnFileAction } from "../../lib/db";
 import { LIENS_AGENT } from "./navigation";
@@ -11,12 +13,11 @@ export default function CreationDossier() {
   const [eventType, setEventType] = useState<TypeEvenement>("naissance");
   const [dateDeclaration, setDateDeclaration] = useState("");
   const [enCours, setEnCours] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
+  const { notifier } = useToast();
 
   async function soumettre(evenement: FormEvent<HTMLFormElement>) {
     evenement.preventDefault();
     setEnCours(true);
-    setErreur(null);
 
     try {
       if (navigator.onLine) {
@@ -33,7 +34,7 @@ export default function CreationDossier() {
         navigate("/agent", { state: { messageCreationHorsLigne: true } });
       }
     } catch (e) {
-      setErreur(e instanceof ErreurApi ? e.message : "Erreur inattendue.");
+      notifier(e instanceof ErreurApi ? e.message : "Erreur inattendue.", "erreur");
     } finally {
       setEnCours(false);
     }
@@ -41,11 +42,10 @@ export default function CreationDossier() {
 
   return (
     <MiseEnPage liens={LIENS_AGENT}>
-      <h1 style={{ color: "var(--couleur-emeraude)" }}>Nouveau dossier (declaration papier)</h1>
-      <p style={{ color: "var(--couleur-gris-service-2)", fontSize: 13 }}>
-        A utiliser quand le parent/declarant se presente directement, sans Tracker Event DHIS2 disponible.
-      </p>
-      {erreur && <div className="message-erreur">{erreur}</div>}
+      <PageHeader
+        titre="Nouveau dossier (declaration papier)"
+        description="A utiliser quand le parent/declarant se presente directement, sans Tracker Event DHIS2 disponible."
+      />
       <form onSubmit={soumettre} className="carte" style={{ maxWidth: 420 }}>
         <div className="champ">
           <label htmlFor="event-type">Type d'evenement</label>

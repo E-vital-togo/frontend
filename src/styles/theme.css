@@ -171,3 +171,352 @@ table.tableau-standard th {
   font-size: 11px;
   letter-spacing: 0.4px;
 }
+table.tableau-standard tbody tr:hover {
+  background: rgba(11, 122, 87, 0.04);
+}
+
+:focus-visible {
+  outline: 2px solid var(--couleur-emeraude-actif);
+  outline-offset: 2px;
+}
+
+/* En-tete de page : titre + actions, remplace les <h1 style={{color:...}}> repetes */
+.entete-page {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.entete-page h1 {
+  color: var(--couleur-emeraude);
+  font-size: 22px;
+  margin: 0 0 4px;
+}
+.entete-page p {
+  color: var(--couleur-gris-service-2);
+  font-size: 13px;
+  margin: 0;
+  max-width: 60ch;
+}
+.entete-page__actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Barre de recherche */
+.barre-recherche {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+.barre-recherche svg {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--couleur-gris-service-2);
+  pointer-events: none;
+}
+.barre-recherche input {
+  width: 100%;
+  padding: 9px 11px 9px 34px;
+  border: 1px solid #C9D2C6;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--couleur-blanc);
+}
+
+/* Etat vide : remplace les lignes de texte brut dans les tableaux */
+.etat-vide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 36px 16px;
+  color: var(--couleur-gris-service-2);
+  text-align: center;
+}
+.etat-vide svg { color: #C9D2C6; }
+.etat-vide span { font-size: 13px; }
+
+/* Squelette de chargement : pulsation d'opacite sur aplat gris, jamais de balayage degrade */
+@keyframes pulsation-squelette {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+.squelette {
+  background: #E9EDE7;
+  border-radius: 4px;
+  animation: pulsation-squelette 1.4s ease-in-out infinite;
+}
+.squelette-ligne {
+  height: 14px;
+  margin-bottom: 8px;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #E2E7DF;
+  font-size: 13px;
+  color: var(--couleur-gris-service-1);
+}
+.pagination__controles {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pagination__bouton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #C9D2C6;
+  border-radius: 6px;
+  background: var(--couleur-blanc);
+  color: var(--couleur-encre);
+  cursor: pointer;
+}
+.pagination__bouton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.pagination__bouton:not(:disabled):hover {
+  border-color: var(--couleur-emeraude);
+  color: var(--couleur-emeraude);
+}
+
+/* Menu utilisateur (en-tete) */
+.menu-utilisateur {
+  position: relative;
+}
+.menu-utilisateur__declencheur {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  color: var(--couleur-blanc);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+}
+.menu-utilisateur__declencheur:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.menu-utilisateur__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--couleur-citron-profond);
+  color: var(--couleur-vert-profond);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--police-donnees);
+}
+.menu-utilisateur__volet {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  background: var(--couleur-blanc);
+  border: 1px solid #E2E7DF;
+  border-radius: var(--rayon-standard);
+  box-shadow: 0 4px 16px rgba(20, 35, 28, 0.12);
+  min-width: 200px;
+  overflow: hidden;
+  z-index: 20;
+  color: var(--couleur-encre);
+}
+.menu-utilisateur__entete {
+  padding: 12px 14px;
+  border-bottom: 1px solid #E2E7DF;
+}
+.menu-utilisateur__nom {
+  font-size: 13px;
+  font-weight: 600;
+}
+.menu-utilisateur__role {
+  font-size: 11px;
+  color: var(--couleur-gris-service-2);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.menu-utilisateur__lien, .menu-utilisateur__bouton {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 13px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: var(--couleur-encre);
+  text-decoration: none;
+}
+.menu-utilisateur__lien:hover, .menu-utilisateur__bouton:hover {
+  background: rgba(11, 122, 87, 0.06);
+}
+.menu-utilisateur__bouton {
+  color: var(--couleur-erreur);
+  border-top: 1px solid #E2E7DF;
+}
+
+.indicateur-connexion {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+/* Onglets (page Compte, etc.) */
+.onglets {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid #E2E7DF;
+  margin-bottom: 20px;
+}
+.onglets__bouton {
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--couleur-gris-service-1);
+  cursor: pointer;
+}
+.onglets__bouton--actif {
+  color: var(--couleur-emeraude);
+  border-bottom-color: var(--couleur-emeraude);
+}
+
+.carte--avertissement {
+  background: rgba(200, 217, 47, 0.12);
+  border-color: var(--couleur-citron-profond);
+}
+
+/* Graphiques : grille/axes recessifs, jamais la couleur de marque (voir lib/paletteGraphiques.ts) */
+.graphique-grille { stroke: #E2E7DF; }
+.graphique-axe { stroke: #C9D2C6; }
+.graphique-texte { fill: var(--couleur-gris-service-2); font-family: var(--police-titrage); font-size: 11px; }
+
+.barre-outils-graphique {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.groupe-segmente {
+  display: inline-flex;
+  border: 1px solid #C9D2C6;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.groupe-segmente button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+  font-size: 13px;
+  background: var(--couleur-blanc);
+  border: none;
+  border-right: 1px solid #C9D2C6;
+  color: var(--couleur-gris-service-1);
+  cursor: pointer;
+}
+.groupe-segmente button:last-child { border-right: none; }
+.groupe-segmente button:hover { background: rgba(11, 122, 87, 0.06); }
+.groupe-segmente button[aria-pressed="true"] {
+  background: var(--couleur-emeraude);
+  color: var(--couleur-blanc);
+}
+.selecteur-simple {
+  padding: 8px 10px;
+  border: 1px solid #C9D2C6;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--couleur-blanc);
+  color: var(--couleur-encre);
+}
+.info-bulle-graphique {
+  background: var(--couleur-blanc);
+  border: 1px solid #E2E7DF;
+  border-radius: 6px;
+  box-shadow: var(--ombre-carte);
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.info-bulle-graphique .titre { font-weight: 600; margin-bottom: 4px; }
+.info-bulle-graphique .ligne { display: flex; align-items: center; gap: 6px; }
+.info-bulle-graphique .puce { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+.conteneur-toasts {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 360px;
+}
+@keyframes entree-toast {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--couleur-blanc);
+  border: 1px solid #E2E7DF;
+  border-left: 3px solid var(--couleur-gris-service-2);
+  border-radius: var(--rayon-standard);
+  box-shadow: 0 4px 16px rgba(20, 35, 28, 0.12);
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--couleur-encre);
+  animation: entree-toast 0.18s ease-out;
+}
+.toast span { flex: 1; }
+.toast button {
+  background: none;
+  border: none;
+  color: var(--couleur-gris-service-2);
+  cursor: pointer;
+  padding: 2px;
+  flex-shrink: 0;
+}
+.toast--succes { border-left-color: var(--couleur-emeraude-actif); }
+.toast--succes svg { color: var(--couleur-emeraude-actif); }
+.toast--erreur { border-left-color: var(--couleur-erreur); }
+.toast--erreur svg { color: var(--couleur-erreur); }
+.toast--info { border-left-color: var(--couleur-citron-profond); }
+.toast--info svg { color: var(--couleur-citron-profond); }
+
+.message-succes {
+  color: var(--couleur-vert-profond);
+  background: rgba(168, 187, 30, 0.15);
+  border: 1px solid var(--couleur-citron-profond);
+  border-radius: 6px;
+  font-size: 13px;
+  padding: 9px 12px;
+  margin: 8px 0;
+}

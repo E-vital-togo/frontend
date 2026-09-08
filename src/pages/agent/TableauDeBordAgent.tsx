@@ -1,10 +1,22 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { CalendarClock } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
+import PageHeader from "../../components/PageHeader";
 import BadgeStatut from "../../components/BadgeStatut";
+import EtatVide from "../../components/EtatVide";
+import Squelette from "../../components/Squelette";
+import TableauStatistiques from "../../components/graphiques/TableauStatistiques";
 import { appelApi } from "../../lib/apiClient";
 import { LIENS_AGENT } from "./navigation";
 import { listeDepuis, type Dossier, type ListeOuPaginee } from "../../types/domaine";
+
+const DIMENSIONS_AGENT = [
+  { valeur: "statut" as const, libelle: "Statut" },
+  { valeur: "event_type" as const, libelle: "Type d'evenement" },
+  { valeur: "origine" as const, libelle: "Origine" },
+  { valeur: "type_dossier" as const, libelle: "Type de dossier" }
+];
 
 export default function TableauDeBordAgent() {
   const [dossiersProches, setDossiersProches] = useState<Dossier[]>([]);
@@ -20,7 +32,7 @@ export default function TableauDeBordAgent() {
 
   return (
     <MiseEnPage liens={LIENS_AGENT}>
-      <h1 style={{ color: "var(--couleur-emeraude)" }}>Tableau de bord</h1>
+      <PageHeader titre="Tableau de bord" />
       <div className="grille-cartes" style={{ marginBottom: 28 }}>
         <div className="carte">
           <div className="chiffre-cle">{dossiersProches.length}</div>
@@ -40,10 +52,14 @@ export default function TableauDeBordAgent() {
         </Link>
       </div>
 
+      <div style={{ marginBottom: 28 }}>
+        <TableauStatistiques titre="Statistiques de ma mairie" dimensionsDisponibles={DIMENSIONS_AGENT} />
+      </div>
+
       <h2 style={{ fontSize: 16, color: "var(--couleur-emeraude)" }}>Dossiers proches de l'echeance</h2>
       {erreur && <div className="message-erreur">{erreur}</div>}
       {chargement ? (
-        <p>Chargement...</p>
+        <Squelette lignes={3} />
       ) : (
         <table className="tableau-standard">
           <thead>
@@ -69,8 +85,8 @@ export default function TableauDeBordAgent() {
             ))}
             {dossiersProches.length === 0 && (
               <tr>
-                <td colSpan={4} style={{ color: "var(--couleur-gris-service-2)" }}>
-                  Aucun dossier proche de l'echeance.
+                <td colSpan={4}>
+                  <EtatVide icone={CalendarClock} message="Aucun dossier proche de l'echeance." />
                 </td>
               </tr>
             )}

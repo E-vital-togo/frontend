@@ -1,5 +1,7 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { FournisseurAuth } from "./context/AuthContext";
+import { FournisseurToast } from "./context/ToastContext";
+import ConteneurToasts from "./components/ConteneurToasts";
 import RouteProtegee from "./components/RouteProtegee";
 
 import PageAccueil from "./pages/PageAccueil";
@@ -23,10 +25,14 @@ import DemandesModificationAdminCec from "./pages/admin_cec/DemandesModification
 import PageCompletionParent from "./pages/parent/PageCompletionParent";
 import PageStatutCompletion from "./pages/parent/PageStatutCompletion";
 
+import PageCompte from "./pages/compte/PageCompte";
+
 export default function App() {
   return (
     <BrowserRouter>
+      <FournisseurToast>
       <FournisseurAuth>
+        <ConteneurToasts />
         <Routes>
           <Route path="/" element={<PageAccueil />} />
           <Route path="/connexion" element={<PageConnexion />} />
@@ -120,9 +126,20 @@ export default function App() {
             }
           />
 
+          {/* Mon compte : accessible a tout utilisateur authentifie (agent ou admin CEC) */}
+          <Route
+            path="/compte"
+            element={
+              <RouteProtegee rolesAutorises={["agent_cec", "admin_cec"]}>
+                <PageCompte />
+              </RouteProtegee>
+            }
+          />
+
           <Route path="*" element={<PageIntrouvable />} />
         </Routes>
       </FournisseurAuth>
+      </FournisseurToast>
     </BrowserRouter>
   );
 }

@@ -21,6 +21,7 @@ interface ContexteAuthValeur {
   demarrerConnexion: (email: string, motDePasse: string) => Promise<ReponseDemarrageConnexion>;
   validerCode: (email: string, code: string) => Promise<Utilisateur>;
   deconnecter: () => void;
+  mettreAJourUtilisateur: (utilisateur: Utilisateur) => void;
 }
 
 const ContexteAuth = createContext<ContexteAuthValeur | null>(null);
@@ -66,8 +67,15 @@ export function FournisseurAuth({ children }: { children: ReactNode }) {
     setUtilisateur(null);
   }
 
+  function mettreAJourUtilisateur(nouvelUtilisateur: Utilisateur) {
+    localStorage.setItem(CLE_UTILISATEUR, JSON.stringify(nouvelUtilisateur));
+    setUtilisateur(nouvelUtilisateur);
+  }
+
   return (
-    <ContexteAuth.Provider value={{ utilisateur, enChargement, demarrerConnexion, validerCode, deconnecter }}>
+    <ContexteAuth.Provider
+      value={{ utilisateur, enChargement, demarrerConnexion, validerCode, deconnecter, mettreAJourUtilisateur }}
+    >
       {children}
     </ContexteAuth.Provider>
   );

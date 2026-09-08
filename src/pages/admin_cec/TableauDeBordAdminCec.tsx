@@ -1,8 +1,19 @@
 import { useEffect, useState } from "react";
 import MiseEnPage from "../../components/MiseEnPage";
+import PageHeader from "../../components/PageHeader";
+import Squelette from "../../components/Squelette";
+import TableauStatistiques from "../../components/graphiques/TableauStatistiques";
 import { appelApi } from "../../lib/apiClient";
 import { LIENS_ADMIN_CEC } from "./navigation";
 import { listeDepuis, type Dossier, type ListeOuPaginee, type StatutDossier } from "../../types/domaine";
+
+const DIMENSIONS_ADMIN_CEC = [
+  { valeur: "statut" as const, libelle: "Statut" },
+  { valeur: "event_type" as const, libelle: "Type d'evenement" },
+  { valeur: "origine" as const, libelle: "Origine" },
+  { valeur: "type_dossier" as const, libelle: "Type de dossier" },
+  { valeur: "mairie" as const, libelle: "Mairie" }
+];
 
 const LIBELLES_STATUT: Record<StatutDossier, string> = {
   recu: "Recu",
@@ -30,9 +41,9 @@ export default function TableauDeBordAdminCec() {
 
   return (
     <MiseEnPage liens={LIENS_ADMIN_CEC}>
-      <h1 style={{ color: "var(--couleur-emeraude)" }}>Vue d'ensemble de la zone</h1>
+      <PageHeader titre="Vue d'ensemble de la zone" />
       {chargement ? (
-        <p>Chargement...</p>
+        <Squelette lignes={4} />
       ) : (
         <div className="grille-cartes">
           <div className="carte">
@@ -47,6 +58,10 @@ export default function TableauDeBordAdminCec() {
           ))}
         </div>
       )}
+
+      <div style={{ marginTop: 28 }}>
+        <TableauStatistiques titre="Statistiques de la zone" dimensionsDisponibles={DIMENSIONS_ADMIN_CEC} />
+      </div>
     </MiseEnPage>
   );
 }

@@ -1,60 +1,78 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { ShieldCheck } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
-import { appelApi } from "../../lib/apiClient";
+import PageHeader from "../../components/PageHeader";
+import BarreRecherche from "../../components/BarreRecherche";
+import Pagination from "../../components/Pagination";
+import EtatVide from "../../components/EtatVide";
+import Squelette from "../../components/Squelette";
+import { useListePaginee } from "../../hooks/useListePaginee";
 import { LIENS_AGENT } from "./navigation";
-import { listeDepuis, type ConflitSync, type ListeOuPaginee } from "../../types/domaine";
+import type { ConflitSync } from "../../types/domaine";
+
+const TAILLE_PAGE = 25;
 
 export default function ConflitsSynchronisation() {
-  const [conflits, setConflits] = useState<ConflitSync[]>([]);
-  const [chargement, setChargement] = useState(true);
+  const [recherche, setRecherche] = useState("");
 
-  useEffect(() => {
-    appelApi<ListeOuPaginee<ConflitSync>>("/sync/conflits/")
-      .then((donnees) => setConflits(listeDepuis(donnees)))
-      .finally(() => setChargement(false));
-  }, []);
+  const cheminBase = useMemo(() => {
+    return recherche ? `/sync/conflits/?search=${encodeURIComponent(recherche)}` : "/sync/conflits/";
+  }, [recherche]);
+
+  const { items: conflits, count, page, setPage, totalPages, chargement } = useListePaginee<ConflitSync>(
+    cheminBase,
+    TAILLE_PAGE
+  );
 
   return (
     <MiseEnPage liens={LIENS_AGENT}>
-      <h1 style={{ color: "var(--couleur-emeraude)" }}>Conflits de synchronisation</h1>
-      <p style={{ color: "var(--couleur-gris-service-2)", fontSize: 13 }}>
-        Une action faite hors-ligne n'a pas pu s'appliquer car le dossier avait deja ete modifie en ligne entre-temps
-        par un collegue. La version en ligne est toujours conservee : aucune donnee n'est perdue silencieusement,
-        mais la correction hors-ligne doit etre reprise manuellement si elle reste pertinente.
-      </p>
+      <PageHeader
+        titre="Conflits de synchronisation"
+        description="Une action faite hors-ligne n'a pas pu s'appliquer car le dossier avait deja ete modifie en ligne
+        entre-temps par un collegue. La version en ligne est toujours conservee : aucune donnee n'est perdue
+        silencieusement, mais la correction hors-ligne doit etre reprise manuellement si elle reste pertinente."
+      />
+
+      <div style={{ marginBottom: 16 }}>
+        <BarreRecherche valeur={recherche} onChange={setRecherche} placeholder="Rechercher dans la raison du conflit..." />
+      </div>
+
       {chargement ? (
-        <p>Chargement...</p>
+        <Squelette lignes={4} />
       ) : (
-        <table className="tableau-standard">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Dossier</th>
-              <th>Raison</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {conflits.map((conflit) => (
-              <tr key={conflit.id}>
-                <td className="texte-mono">{new Date(conflit.created_at).toLocaleString("fr-FR")}</td>
-                <td className="texte-mono">{conflit.dossier.slice(0, 8)}</td>
-                <td>{conflit.raison}</td>
-                <td>
-                  <Link to={`/agent/dossiers/${conflit.dossier}`}>Reprendre le dossier</Link>
-                </td>
-              </tr>
-            ))}
-            {conflits.length === 0 && (
+        <>
+          <table className="tableau-standard">
+            <thead>
               <tr>
-                <td colSpan={4} style={{ color: "var(--couleur-gris-service-2)" }}>
-                  Aucun conflit en attente.
-                </td>
+                <th>Date</th>
+                <th>Dossier</th>
+                <th>Raison</th>
+                <th></th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {conflits.map((conflit) => (
+                <tr key={conflit.id}>
+                  <td className="texte-mono">{new Date(conflit.created_at).toLocaleString("fr-FR")}</td>
+                  <td className="texte-mono">{conflit.dossier.slice(0, 8)}</td>
+                  <td>{conflit.raison}</td>
+                  <td>
+                    <Link to={`/agent/dossiers/${conflit.dossier}`}>Reprendre le dossier</Link>
+                  </td>
+                </tr>
+              ))}
+              {conflits.length === 0 && (
+                <tr>
+                  <td colSpan={4}>
+                    <EtatVide icone={ShieldCheck} message="Aucun conflit en attente." />
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+          <Pagination page={page} totalPages={totalPages} total={count} taillePage={TAILLE_PAGE} onChangerPage={setPage} />
+        </>
       )}
     </MiseEnPage>
   );
