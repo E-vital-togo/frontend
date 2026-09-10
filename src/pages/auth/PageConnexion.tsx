@@ -1,7 +1,10 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { LogIn } from "lucide-react";
 import Logo from "../../components/Logo";
+import { Bouton, Champ } from "../../components/ui";
 import { useAuth } from "../../context/AuthContext";
+import { appelApi } from "../../lib/apiClient";
 
 export default function PageConnexion() {
   const { demarrerConnexion } = useAuth();
@@ -10,6 +13,7 @@ export default function PageConnexion() {
   const [motDePasse, setMotDePasse] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  const [ecranMotDePasseOublie, setEcranMotDePasseOublie] = useState(false);
 
   async function soumettre(evenement: FormEvent<HTMLFormElement>) {
     evenement.preventDefault();
@@ -25,21 +29,24 @@ export default function PageConnexion() {
     }
   }
 
+  if (ecranMotDePasseOublie) {
+    return <FormulaireMotDePasseOublie onRetour={() => setEcranMotDePasseOublie(false)} />;
+  }
+
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div className="carte" style={{ width: 360, textAlign: "center" }}>
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
-          <Logo variante="vertical" hauteur={110} />
+    <div className="eva-ecran-centre">
+      <div className="eva-carte eva-ecran-centre__carte">
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
+          <Logo variante="vertical" hauteur={100} />
         </div>
-        <h1 style={{ textAlign: "left", fontSize: 20, color: "var(--couleur-emeraude)" }}>Connexion agent</h1>
+        <h1 style={{ fontSize: 19, color: "var(--couleur-emeraude)", marginBottom: 4 }}>Connexion</h1>
+        <p className="eva-sous-titre" style={{ marginBottom: 18 }}>Espace agent et administrateur de l'etat civil</p>
         {erreur && <div className="message-erreur">{erreur}</div>}
-        <form onSubmit={soumettre} style={{ textAlign: "left" }}>
-          <div className="champ">
-            <label htmlFor="email">Email</label>
-            <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-          </div>
-          <div className="champ">
-            <label htmlFor="mot-de-passe">Mot de passe</label>
+        <form onSubmit={soumettre}>
+          <Champ id="email" label="Email" requis>
+            <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
+          </Champ>
+          <Champ id="mot-de-passe" label="Mot de passe" requis>
             <input
               id="mot-de-passe"
               type="password"
@@ -47,11 +54,69 @@ export default function PageConnexion() {
               value={motDePasse}
               onChange={(e) => setMotDePasse(e.target.value)}
             />
-          </div>
-          <button type="submit" className="bouton-principal" style={{ width: "100%" }} disabled={enCours}>
+          </Champ>
+          <Bouton type="submit" chargement={enCours} style={{ width: "100%" }} iconeGauche={!enCours && <LogIn size={16} />}>
             {enCours ? "Envoi en cours..." : "Recevoir mon code de connexion"}
-          </button>
+          </Bouton>
         </form>
+        <button
+          type="button"
+          onClick={() => setEcranMotDePasseOublie(true)}
+          style={{ background: "none", border: "none", color: "var(--couleur-gris-service-2)", fontSize: 12.5, marginTop: 16, cursor: "pointer", width: "100%", textAlign: "center" }}
+        >
+          Mot de passe oublie ?
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function FormulaireMotDePasseOublie({ onRetour }: { onRetour: () => void }) {
+  const [email, setEmail] = useState("");
+  const [envoye, setEnvoye] = useState(false);
+  const [enCours, setEnCours] = useState(false);
+
+  async function soumettre(evenement: FormEvent<HTMLFormElement>) {
+    evenement.preventDefault();
+    setEnCours(true);
+    try {
+      await appelApi("/auth/mot-de-passe-oublie/demander", { methode: "POST", corps: { email } });
+    } catch {
+      // Message identique que la demande aboutisse ou non : evite de reveler si un email existe en base.
+    } finally {
+      setEnvoye(true);
+      setEnCours(false);
+    }
+  }
+
+  return (
+    <div className="eva-ecran-centre">
+      <div className="eva-carte eva-ecran-centre__carte">
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
+          <Logo variante="symbole" hauteur={44} />
+        </div>
+        <h1 style={{ fontSize: 18, color: "var(--couleur-emeraude)", marginBottom: 10 }}>Mot de passe oublie</h1>
+        {envoye ? (
+          <p style={{ fontSize: 14 }}>
+            Si un compte existe avec cet email, un lien de reinitialisation vient de lui etre envoye. Verifiez votre
+            messagerie.
+          </p>
+        ) : (
+          <form onSubmit={soumettre}>
+            <p className="eva-sous-titre" style={{ marginBottom: 14 }}>
+              Indiquez votre email professionnel : un lien de reinitialisation vous sera envoye.
+            </p>
+            <Champ id="email-oublie" label="Email" requis>
+              <input id="email-oublie" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
+            </Champ>
+            <Bouton type="submit" chargement={enCours} style={{ width: "100%" }}>
+              Envoyer le lien
+            </Bouton>
+          </form>
+        )}
+        <Link to="#" onClick={onRetour} style={{ display: "block", textAlign: "center", fontSize: 12.5, color: "var(--couleur-gris-service-2)", marginTop: 16 }}>
+          Retour a la connexion
+        </Link>
       </div>
     </div>
   );

@@ -4,6 +4,7 @@
  * reponse JSON reelle, plutot que des classes riches : ce sont des
  * contrats d'API, pas un modele de domaine cote frontend.
  */
+import type { LucideIcon } from "lucide-react";
 
 export type Role = "agent_cec" | "admin_cec" | "admin_inseed" | "admin_general";
 
@@ -31,8 +32,27 @@ export type TypeEvenement = "naissance" | "deces";
 export type OrigineDossier = "dhis2" | "manuel";
 export type TypeDossier = "declaration" | "jugement";
 
+export interface ChampModifieDiff {
+  data_element_code?: string;
+  label?: string;
+  ancienne_valeur: unknown;
+  nouvelle_valeur: unknown;
+}
+
+export interface NouvelleVersionDossier {
+  id: string;
+  dossier: string;
+  statut: "en_attente" | "acceptee" | "refusee";
+  champs_modifies: ChampModifieDiff[];
+  decidee_par: string | null;
+  decidee_le: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Dossier {
   id: string;
+  nom?: string | null;
   origine: OrigineDossier;
   type_dossier: TypeDossier;
   event_type: TypeEvenement;
@@ -47,6 +67,9 @@ export interface Dossier {
   created_at: string;
   raw_data?: unknown;
   dossier_lie?: string | null;
+  a_une_nouvelle_version?: boolean;
+  nouvelle_version?: NouvelleVersionDossier | null;
+  valeurs?: ValeurChamp[];
 }
 
 export interface ChampFormulaireEffectif {
@@ -104,6 +127,45 @@ export interface DemandeModificationActe {
   decided_at: string | null;
 }
 
+export interface NotificationDossier {
+  id: string;
+  dossier: string;
+  type: "initiale" | "relance" | "confirmation";
+  canal: "sms" | "whatsapp";
+  fournisseur_utilise: string;
+  statut: "envoye" | "echec" | "en_attente";
+  contenu: string;
+  created_at: string;
+}
+
+export interface NotificationEchouee extends NotificationDossier {
+  dossier_event_type: TypeEvenement;
+  dossier_statut: StatutDossier;
+  dossier_mairie_nom: string;
+}
+
+export interface CodeRetraitTrouve {
+  code: string;
+  dossier_id: string;
+  created_at: string;
+}
+
+export interface StatistiqueRepartitionItem {
+  cle: string;
+  libelle: string;
+  valeur: number;
+}
+
+export interface StatistiqueEvolutionPoint {
+  periode: string;
+  [serie: string]: string | number;
+}
+
+export interface StatistiqueEvolutionReponse {
+  donnees: StatistiqueEvolutionPoint[];
+  series: string[];
+}
+
 export interface ConflitSync {
   id: string;
   dossier: string;
@@ -120,6 +182,53 @@ export interface Mairie {
   nom: string;
   adresse: string;
   telephone: string;
+  logo: string | null;
+}
+
+export type TypeTerritoire = "pays" | "region" | "prefecture" | "commune";
+
+export interface Territoire {
+  id: string;
+  nom: string;
+  type: TypeTerritoire;
+  parent: string | null;
+  dhis2_org_unit_uid: string;
+}
+
+export const NIVEAU_ENFANT_TERRITOIRE: Partial<Record<TypeTerritoire, TypeTerritoire>> = {
+  pays: "region",
+  region: "prefecture",
+  prefecture: "commune"
+};
+
+export interface CampagneRelance {
+  id: string;
+  territoire: string;
+  territoire_nom: string;
+  event_type: TypeEvenement | null;
+  seuils_jours: number[];
+  message_modele: string;
+  actif: boolean;
+  modifie_par: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EntreeJournalZone {
+  created_at: string;
+  auteur: string;
+  methode: string;
+  chemin: string;
+  statut: number;
+  succes: boolean;
+  libelle: string;
+}
+
+export interface ReponseJournalZone {
+  count: number;
+  page: number;
+  page_size: number;
+  results: EntreeJournalZone[];
 }
 
 export interface ReponsePaginee<T> {
@@ -139,4 +248,6 @@ export function listeDepuis<T>(donnees: ListeOuPaginee<T>): T[] {
 export interface LienNavigation {
   chemin: string;
   libelle: string;
+  icone: LucideIcon;
+  cleCompteur?: "echeances" | "conflits" | "demandes" | "notificationsEchouees";
 }

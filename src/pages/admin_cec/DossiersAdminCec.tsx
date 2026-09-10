@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
 import { Download, Search } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
 import BadgeStatut from "../../components/BadgeStatut";
@@ -7,8 +6,16 @@ import { Bouton, Champ, ChargementPage, EnteteDePage, EtatVide, Pagination, Tabl
 import { LienBouton } from "../../components/ui/Bouton";
 import { appelApi } from "../../lib/apiClient";
 import { telechargerBlob } from "../../lib/telechargerBlob";
-import { LIENS_AGENT } from "./navigation";
-import type { Dossier, ReponsePaginee, StatutDossier, TypeEvenement } from "../../types/domaine";
+import { LIENS_ADMIN_CEC } from "./navigation";
+import {
+  listeDepuis,
+  type Dossier,
+  type ListeOuPaginee,
+  type Mairie,
+  type ReponsePaginee,
+  type StatutDossier,
+  type TypeEvenement
+} from "../../types/domaine";
 
 const STATUTS: Array<{ valeur: StatutDossier | ""; libelle: string }> = [
   { valeur: "", libelle: "Tous les statuts" },
@@ -22,23 +29,29 @@ const STATUTS: Array<{ valeur: StatutDossier | ""; libelle: string }> = [
 
 const TAILLE_PAGE = 25;
 
-export default function ListeDossiers() {
-  const [parametresUrl] = useSearchParams();
+export default function DossiersAdminCec() {
   const [dossiers, setDossiers] = useState<ReponsePaginee<Dossier> | null>(null);
+  const [mairies, setMairies] = useState<Mairie[]>([]);
   const [statutFiltre, setStatutFiltre] = useState<StatutDossier | "">("");
   const [evenementFiltre, setEvenementFiltre] = useState<TypeEvenement | "">("");
+  const [mairieFiltre, setMairieFiltre] = useState("");
   const [recherche, setRecherche] = useState("");
-  const [echeanceUniquement, setEcheanceUniquement] = useState(parametresUrl.get("echeance") === "1");
   const [page, setPage] = useState(1);
   const [chargement, setChargement] = useState(true);
   const [exportEnCours, setExportEnCours] = useState<"xlsx" | "pdf" | null>(null);
+
+  useEffect(() => {
+    appelApi<ListeOuPaginee<Mairie>>("/mairies/")
+      .then((donnees) => setMairies(listeDepuis(donnees)))
+      .catch(() => setMairies([]));
+  }, []);
 
   function construireParametres(): URLSearchParams {
     const parametres = new URLSearchParams();
     if (statutFiltre) parametres.set("statut", statutFiltre);
     if (evenementFiltre) parametres.set("event_type", evenementFiltre);
+    if (mairieFiltre) parametres.set("mairie", mairieFiltre);
     if (recherche) parametres.set("search", recherche);
-    if (echeanceUniquement) parametres.set("echeance_proche", "true");
     return parametres;
   }
 
@@ -51,7 +64,7 @@ export default function ListeDossiers() {
       .then(setDossiers)
       .finally(() => setChargement(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statutFiltre, evenementFiltre, recherche, echeanceUniquement, page]);
+  }, [statutFiltre, evenementFiltre, mairieFiltre, recherche, page]);
 
   async function exporter(format: "xlsx" | "pdf") {
     setExportEnCours(format);
@@ -66,32 +79,19 @@ export default function ListeDossiers() {
   }
 
   const resultats = dossiers?.results ?? [];
+  const affichageMairie = mairies.length > 1;
 
   return (
-    <MiseEnPage liens={LIENS_AGENT}>
+    <MiseEnPage liens={LIENS_ADMIN_CEC}>
       <EnteteDePage
-        titre="Dossiers"
-        sousTitre="Naissances et deces de votre mairie"
+        titre="Dossiers de la zone"
+        sousTitre="Tous les dossiers de votre perimetre territorial"
         actions={
           <>
-            <Bouton
-              variante="secondaire"
-              taille="petit"
-              onClick={() => exporter("xlsx")}
-              chargement={exportEnCours === "xlsx"}
-              disabled={exportEnCours !== null}
-              iconeGauche={exportEnCours !== "xlsx" && <Download size={14} />}
-            >
+            <Bouton variante="secondaire" taille="petit" onClick={() => exporter("xlsx")} chargement={exportEnCours === "xlsx"} disabled={exportEnCours !== null} iconeGauche={exportEnCours !== "xlsx" && <Download size={14} />}>
               Excel
             </Bouton>
-            <Bouton
-              variante="secondaire"
-              taille="petit"
-              onClick={() => exporter("pdf")}
-              chargement={exportEnCours === "pdf"}
-              disabled={exportEnCours !== null}
-              iconeGauche={exportEnCours !== "pdf" && <Download size={14} />}
-            >
+            <Bouton variante="secondaire" taille="petit" onClick={() => exporter("pdf")} chargement={exportEnCours === "pdf"} disabled={exportEnCours !== null} iconeGauche={exportEnCours !== "pdf" && <Download size={14} />}>
               PDF
             </Bouton>
           </>
@@ -103,13 +103,12 @@ export default function ListeDossiers() {
           <Champ id="recherche" label="Rechercher">
             <input
               id="recherche"
-              type="text"
-              placeholder="Nom, identifiant, code de retrait..."
               value={recherche}
               onChange={(e) => {
                 setPage(1);
                 setRecherche(e.target.value);
               }}
+              placeholder="Nom, identifiant..."
             />
           </Champ>
         </div>
@@ -147,17 +146,27 @@ export default function ListeDossiers() {
             </select>
           </Champ>
         </div>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13.5, paddingBottom: 14, cursor: "pointer" }}>
-          <input
-            type="checkbox"
-            checked={echeanceUniquement}
-            onChange={(e) => {
-              setPage(1);
-              setEcheanceUniquement(e.target.checked);
-            }}
-          />
-          Echeance proche uniquement
-        </label>
+        {affichageMairie && (
+          <div style={{ flex: "0 1 200px" }}>
+            <Champ id="filtre-mairie" label="Mairie">
+              <select
+                id="filtre-mairie"
+                value={mairieFiltre}
+                onChange={(e) => {
+                  setPage(1);
+                  setMairieFiltre(e.target.value);
+                }}
+              >
+                <option value="">Toutes</option>
+                {mairies.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.nom}
+                  </option>
+                ))}
+              </select>
+            </Champ>
+          </div>
+        )}
       </div>
 
       {chargement ? (
@@ -170,9 +179,8 @@ export default function ListeDossiers() {
             <thead>
               <tr>
                 <th>Identifiant</th>
-                <th>Nom</th>
                 <th>Evenement</th>
-                <th>Origine</th>
+                <th>Mairie</th>
                 <th>Statut</th>
                 <th>Date de declaration</th>
                 <th></th>
@@ -182,20 +190,14 @@ export default function ListeDossiers() {
               {resultats.map((dossier) => (
                 <tr key={dossier.id}>
                   <td className="texte-mono">{dossier.id.slice(0, 8)}</td>
-                  <td>{dossier.nom || "—"}</td>
                   <td>{dossier.event_type === "naissance" ? "Naissance" : "Deces"}</td>
-                  <td>{dossier.origine === "dhis2" ? "DHIS2" : "Manuel"}</td>
+                  <td>{dossier.mairie_nom || "—"}</td>
                   <td>
                     <BadgeStatut statut={dossier.statut} />
-                    {dossier.a_une_nouvelle_version && (
-                      <span className="eva-badge eva-badge--info" style={{ marginLeft: 6 }}>
-                        Nouvelle version
-                      </span>
-                    )}
                   </td>
                   <td className="texte-mono">{dossier.date_declaration}</td>
                   <td>
-                    <LienBouton to={`/agent/dossiers/${dossier.id}`} variante="fantome" taille="petit">
+                    <LienBouton to={`/admin-cec/dossiers/${dossier.id}`} variante="fantome" taille="petit">
                       Ouvrir
                     </LienBouton>
                   </td>

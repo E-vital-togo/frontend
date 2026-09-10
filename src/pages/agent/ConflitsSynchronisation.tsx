@@ -1,11 +1,20 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { CheckCircle2 } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
+import { ChargementPage, EnteteDePage, EtatVide, Tableau } from "../../components/ui";
+import { LienBouton } from "../../components/ui/Bouton";
+import { useAuth } from "../../context/AuthContext";
 import { appelApi } from "../../lib/apiClient";
 import { LIENS_AGENT } from "./navigation";
+import { LIENS_ADMIN_CEC } from "../admin_cec/navigation";
 import { listeDepuis, type ConflitSync, type ListeOuPaginee } from "../../types/domaine";
 
 export default function ConflitsSynchronisation() {
+  const { utilisateur } = useAuth();
+  const estAgent = utilisateur?.role === "agent_cec";
+  const liens = estAgent ? LIENS_AGENT : LIENS_ADMIN_CEC;
+  const basePath = estAgent ? "/agent" : "/admin-cec";
+
   const [conflits, setConflits] = useState<ConflitSync[]>([]);
   const [chargement, setChargement] = useState(true);
 
@@ -16,17 +25,17 @@ export default function ConflitsSynchronisation() {
   }, []);
 
   return (
-    <MiseEnPage liens={LIENS_AGENT}>
-      <h1 style={{ color: "var(--couleur-emeraude)" }}>Conflits de synchronisation</h1>
-      <p style={{ color: "var(--couleur-gris-service-2)", fontSize: 13 }}>
-        Une action faite hors-ligne n'a pas pu s'appliquer car le dossier avait deja ete modifie en ligne entre-temps
-        par un collegue. La version en ligne est toujours conservee : aucune donnee n'est perdue silencieusement,
-        mais la correction hors-ligne doit etre reprise manuellement si elle reste pertinente.
-      </p>
+    <MiseEnPage liens={liens}>
+      <EnteteDePage
+        titre="Conflits de synchronisation"
+        sousTitre="Une action faite hors-ligne n'a pas pu s'appliquer car le dossier avait deja ete modifie en ligne entre-temps par un collegue. La version en ligne est toujours conservee : aucune donnee n'est perdue silencieusement, mais la correction hors-ligne doit etre reprise manuellement si elle reste pertinente."
+      />
       {chargement ? (
-        <p>Chargement...</p>
+        <ChargementPage />
+      ) : conflits.length === 0 ? (
+        <EtatVide icone={<CheckCircle2 size={28} />} titre="Aucun conflit en attente" description="Toutes les actions hors-ligne ont ete synchronisees sans probleme." />
       ) : (
-        <table className="tableau-standard">
+        <Tableau>
           <thead>
             <tr>
               <th>Date</th>
@@ -40,21 +49,16 @@ export default function ConflitsSynchronisation() {
               <tr key={conflit.id}>
                 <td className="texte-mono">{new Date(conflit.created_at).toLocaleString("fr-FR")}</td>
                 <td className="texte-mono">{conflit.dossier.slice(0, 8)}</td>
-                <td>{conflit.raison}</td>
+                <td className="eva-tableau__cellule-large">{conflit.raison}</td>
                 <td>
-                  <Link to={`/agent/dossiers/${conflit.dossier}`}>Reprendre le dossier</Link>
+                  <LienBouton to={`${basePath}/dossiers/${conflit.dossier}`} variante="fantome" taille="petit">
+                    Reprendre le dossier
+                  </LienBouton>
                 </td>
               </tr>
             ))}
-            {conflits.length === 0 && (
-              <tr>
-                <td colSpan={4} style={{ color: "var(--couleur-gris-service-2)" }}>
-                  Aucun conflit en attente.
-                </td>
-              </tr>
-            )}
           </tbody>
-        </table>
+        </Tableau>
       )}
     </MiseEnPage>
   );

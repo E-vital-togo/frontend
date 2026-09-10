@@ -43,11 +43,16 @@ export const baseLocale = new BaseLocaleEVital();
 export async function mettreEnFileAction(
   action: Omit<ActionEnAttente, "idClient" | "horodatageClient"> & { idClient?: string }
 ): Promise<number> {
-  return baseLocale.actionsEnAttente.add({
-    ...action,
+  const { localId: _localId, ...reste } = action as ActionEnAttente;
+  const id = await baseLocale.actionsEnAttente.add({
+    ...reste,
     idClient: action.idClient || crypto.randomUUID(),
     horodatageClient: new Date().toISOString()
   });
+  // Dexie type le retour de .add() sur le type du champ cle primaire tel que
+  // declare dans l'interface (localId?: number, donc number|undefined) ;
+  // Dexie garantit neanmoins toujours un id numerique reel a l'insertion.
+  return id as number;
 }
 
 export async function listerActionsEnAttente(): Promise<ActionEnAttente[]> {

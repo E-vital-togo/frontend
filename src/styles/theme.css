@@ -1,11 +1,17 @@
 /*
-  Tokens repris tels quels du Cahier d'identite E-Vital v.1 (09.2026).
-  Ne jamais coder une couleur ou une police en dur ailleurs dans le
-  projet : tout passe par ces variables, pour rester coherent avec le
-  backend (voir apps/core/context_processors.py cote Django) et pouvoir
-  suivre toute evolution future de la charte en un seul endroit.
+  Tokens repris tels quels du Cahier d'identite E-Vital v.1 (09.2026) pour
+  toute couleur/typo/logo. Ne jamais coder une couleur ou une police en dur
+  ailleurs dans le projet : tout passe par ces variables, pour rester
+  coherent avec le backend (voir apps/core/context_processors.py cote
+  Django) et pouvoir suivre toute evolution future de la charte en un seul
+  endroit.
+
+  Le reste (espacements, rayons, ombres, composants) est un systeme de
+  design maison, sobre et moderne, construit par-dessus ces tokens de
+  marque - libre d'evoluer sans jamais toucher aux couleurs/typo ci-dessus.
 */
 :root {
+  /* -- Couleurs de marque (cahier d'identite, ne pas modifier) -- */
   --couleur-emeraude: #0B7A57;
   --couleur-emeraude-actif: #16B37D;
   --couleur-citron: #C8D92F;
@@ -21,11 +27,49 @@
   --police-titrage: "Instrument Sans", -apple-system, "Segoe UI", sans-serif;
   --police-donnees: "IBM Plex Mono", ui-monospace, "Courier New", monospace;
 
-  --rayon-standard: 8px;
-  --ombre-carte: 0 1px 2px rgba(20, 35, 28, 0.06);
+  /* -- Derives de marque (memes teintes, usages etendus) -- */
+  --couleur-emeraude-fond: #E7F3EE;      /* fond tres clair, chips/hover sur blanc */
+  --couleur-emeraude-fond-vif: #DCEFE6;
+  --couleur-citron-fond: #F8FAE3;        /* fond tres clair pour alertes douces */
+  --couleur-erreur-fond: #FBEAE9;
+  --couleur-bordure: #E2E7DF;
+  --couleur-bordure-forte: #C9D2C6;
+  --couleur-fond-desactive: #F1F3EF;
+
+  /* -- Echelle d'espacement -- */
+  --espace-1: 4px;
+  --espace-2: 8px;
+  --espace-3: 12px;
+  --espace-4: 16px;
+  --espace-5: 20px;
+  --espace-6: 24px;
+  --espace-7: 32px;
+  --espace-8: 40px;
+  --espace-9: 48px;
+
+  /* -- Rayons -- */
+  --rayon-standard: 10px;
+  --rayon-petit: 6px;
+  --rayon-grand: 16px;
+  --rayon-plein: 999px;
+
+  /* -- Ombres -- */
+  --ombre-carte: 0 1px 2px rgba(20, 35, 28, 0.05), 0 1px 1px rgba(20, 35, 28, 0.04);
+  --ombre-flottante: 0 8px 24px rgba(20, 35, 28, 0.14), 0 2px 6px rgba(20, 35, 28, 0.08);
+  --ombre-anneau-focus: 0 0 0 3px rgba(11, 122, 87, 0.22);
+
+  /* -- Transitions -- */
+  --transition-rapide: 120ms ease;
+  --transition-normale: 180ms ease;
+
+  /* -- Largeurs -- */
+  --largeur-contenu: 1180px;
+  --largeur-barre-laterale: 240px;
 }
 
-* {
+/* ============================= RESET / BASE ============================= */
+
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
@@ -38,6 +82,18 @@ body {
   font-family: var(--police-titrage);
   background: var(--couleur-papier);
   color: var(--couleur-encre);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-weight: 600;
+  margin: 0;
+  color: var(--couleur-encre);
+}
+
+p {
+  margin: 0;
+  line-height: 1.5;
 }
 
 .texte-mono {
@@ -52,122 +108,521 @@ button {
   font-family: inherit;
 }
 
-.bouton-principal {
-  background: var(--couleur-emeraude);
-  color: var(--couleur-blanc);
-  border: none;
-  border-radius: 6px;
-  padding: 10px 18px;
+input, select, textarea {
+  font-family: inherit;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--ombre-anneau-focus);
+  border-radius: var(--rayon-petit);
+}
+
+::selection {
+  background: var(--couleur-citron);
+  color: var(--couleur-vert-profond);
+}
+
+/* Barre de defilement discrete, coherente avec le fond papier */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--couleur-bordure-forte) transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--couleur-bordure-forte); border-radius: var(--rayon-plein); }
+
+/* ============================== TYPOGRAPHIE =============================== */
+
+.eva-titre-page {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--couleur-encre);
+  letter-spacing: -0.01em;
+}
+
+.eva-sous-titre {
+  font-size: 14px;
+  color: var(--couleur-gris-service-2);
+  margin-top: var(--espace-1);
+}
+
+.eva-libelle-section {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--couleur-gris-service-2);
+}
+
+/* ================================ BOUTONS ================================= */
+
+.eva-bouton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-2);
+  border: 1px solid transparent;
+  border-radius: var(--rayon-petit);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--transition-rapide), border-color var(--transition-rapide), color var(--transition-rapide), opacity var(--transition-rapide);
+  line-height: 1.2;
+  text-decoration: none;
 }
+.eva-bouton:disabled, .eva-bouton[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.eva-bouton--moyen { padding: 9px 16px; }
+.eva-bouton--petit { padding: 6px 12px; font-size: 13px; }
+.eva-bouton--grand { padding: 12px 20px; font-size: 15px; }
+
+.eva-bouton--principal { background: var(--couleur-emeraude); color: var(--couleur-blanc); }
+.eva-bouton--principal:hover:not(:disabled) { background: var(--couleur-emeraude-actif); }
+
+.eva-bouton--secondaire { background: var(--couleur-blanc); color: var(--couleur-emeraude); border-color: var(--couleur-bordure-forte); }
+.eva-bouton--secondaire:hover:not(:disabled) { background: var(--couleur-emeraude-fond); border-color: var(--couleur-emeraude); }
+
+.eva-bouton--accent { background: var(--couleur-citron-profond); color: var(--couleur-vert-profond); font-weight: 600; }
+.eva-bouton--accent:hover:not(:disabled) { background: var(--couleur-citron); }
+
+.eva-bouton--danger { background: var(--couleur-blanc); color: var(--couleur-erreur); border-color: #F0C6C3; }
+.eva-bouton--danger:hover:not(:disabled) { background: var(--couleur-erreur-fond); }
+
+.eva-bouton--fantome { background: transparent; color: var(--couleur-gris-service-1); }
+.eva-bouton--fantome:hover:not(:disabled) { background: var(--couleur-fond-desactive); color: var(--couleur-encre); }
+
+/* Compat retro : anciennes classes encore utilisees pendant la migration page par page */
+.bouton-principal { background: var(--couleur-emeraude); color: var(--couleur-blanc); border: none; border-radius: var(--rayon-petit); padding: 10px 18px; font-size: 14px; font-weight: 500; cursor: pointer; }
 .bouton-principal:hover { background: var(--couleur-emeraude-actif); }
 .bouton-principal:disabled { opacity: 0.5; cursor: not-allowed; }
+.bouton-secondaire { background: transparent; color: var(--couleur-emeraude); border: 1px solid var(--couleur-emeraude); border-radius: var(--rayon-petit); padding: 9px 17px; font-size: 14px; font-weight: 500; cursor: pointer; }
+.bouton-secondaire:hover { background: var(--couleur-emeraude-fond); }
+.bouton-accent { background: var(--couleur-citron-profond); color: var(--couleur-vert-profond); border: none; border-radius: var(--rayon-petit); padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer; }
 
-.bouton-secondaire {
-  background: transparent;
-  color: var(--couleur-emeraude);
-  border: 1px solid var(--couleur-emeraude);
-  border-radius: 6px;
-  padding: 9px 17px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-}
-.bouton-secondaire:hover { background: rgba(11, 122, 87, 0.06); }
+/* ================================= CARTE =================================== */
 
-.bouton-accent {
-  background: var(--couleur-citron-profond);
-  color: var(--couleur-vert-profond);
-  border: none;
-  border-radius: 6px;
-  padding: 10px 18px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.carte {
+.carte, .eva-carte {
   background: var(--couleur-blanc);
-  border: 1px solid #E2E7DF;
+  border: 1px solid var(--couleur-bordure);
   border-radius: var(--rayon-standard);
   box-shadow: var(--ombre-carte);
-  padding: 18px 20px;
+  padding: var(--espace-5);
 }
 
-.badge {
-  display: inline-block;
+.eva-carte--interactive { transition: box-shadow var(--transition-normale), border-color var(--transition-normale); cursor: pointer; text-decoration: none; color: inherit; display: block; }
+.eva-carte--interactive:hover { box-shadow: var(--ombre-flottante); border-color: var(--couleur-emeraude); }
+
+/* ================================= BADGES =================================== */
+
+.badge, .eva-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11px;
   font-family: var(--police-donnees);
-  padding: 2px 9px;
-  border-radius: 10px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: var(--rayon-plein);
   background: var(--couleur-gris-service-2);
   color: var(--couleur-blanc);
 }
-.badge--actif { background: var(--couleur-emeraude-actif); }
-.badge--alerte { background: var(--couleur-erreur); }
-.badge--attente { background: var(--couleur-citron-profond); color: var(--couleur-vert-profond); }
+.badge--actif, .eva-badge--succes { background: var(--couleur-emeraude-actif); }
+.badge--alerte, .eva-badge--danger { background: var(--couleur-erreur); }
+.badge--attente, .eva-badge--attente { background: var(--couleur-citron-profond); color: var(--couleur-vert-profond); }
+.eva-badge--neutre { background: var(--couleur-fond-desactive); color: var(--couleur-gris-service-1); }
+.eva-badge--info { background: var(--couleur-emeraude-fond); color: var(--couleur-emeraude); }
 
-.champ label {
+/* Puce numerique de compteur (nav, cloche de notifications) */
+.eva-puce {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--rayon-plein);
+  background: var(--couleur-citron-profond);
+  color: var(--couleur-vert-profond);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--police-donnees);
+}
+.eva-puce--alerte { background: var(--couleur-erreur); color: var(--couleur-blanc); }
+
+/* ================================= CHAMPS =================================== */
+
+.champ, .eva-champ { margin-bottom: var(--espace-4); }
+.champ label, .eva-champ label {
   display: block;
   font-size: 13px;
+  font-weight: 500;
   color: var(--couleur-gris-service-1);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
-.champ input, .champ select, .champ textarea {
+.champ input, .champ select, .champ textarea,
+.eva-champ input, .eva-champ select, .eva-champ textarea {
   width: 100%;
-  padding: 9px 11px;
-  border: 1px solid #C9D2C6;
-  border-radius: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--couleur-bordure-forte);
+  border-radius: var(--rayon-petit);
   font-size: 14px;
   font-family: inherit;
   background: var(--couleur-blanc);
+  color: var(--couleur-encre);
+  transition: border-color var(--transition-rapide), box-shadow var(--transition-rapide);
 }
-.champ input:disabled, .champ select:disabled, .champ textarea:disabled {
-  background: #F1F3EF;
+.champ input:focus, .champ select:focus, .champ textarea:focus,
+.eva-champ input:focus, .eva-champ select:focus, .eva-champ textarea:focus {
+  border-color: var(--couleur-emeraude);
+  box-shadow: var(--ombre-anneau-focus);
+}
+.champ input:disabled, .champ select:disabled, .champ textarea:disabled,
+.eva-champ input:disabled, .eva-champ select:disabled, .eva-champ textarea:disabled {
+  background: var(--couleur-fond-desactive);
   color: var(--couleur-gris-service-2);
+  cursor: not-allowed;
 }
-.champ { margin-bottom: 14px; }
+.eva-champ__aide { font-size: 12px; color: var(--couleur-gris-service-2); margin-top: 5px; }
+.eva-champ__erreur { font-size: 12px; color: var(--couleur-erreur); margin-top: 5px; }
+.eva-champ--erreur input, .eva-champ--erreur select, .eva-champ--erreur textarea { border-color: var(--couleur-erreur); }
 
 .message-erreur {
   color: var(--couleur-erreur);
+  background: var(--couleur-erreur-fond);
+  border-radius: var(--rayon-petit);
   font-size: 13px;
-  margin: 8px 0;
+  padding: var(--espace-3) var(--espace-4);
+  margin: var(--espace-2) 0;
 }
+
+/* ================================= GRILLES ================================== */
 
 .grille-cartes {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--espace-4);
 }
 
-.chiffre-cle {
+.eva-grille-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--espace-5); }
+
+/* ============================ CHIFFRES CLES / KPI ============================ */
+
+.chiffre-cle, .eva-carte-stat__valeur {
   font-family: var(--police-donnees);
-  font-size: 26px;
+  font-size: 28px;
+  font-weight: 600;
   color: var(--couleur-emeraude);
+  line-height: 1.1;
 }
-
-.libelle-cle {
+.libelle-cle, .eva-carte-stat__libelle {
   font-size: 12px;
   color: var(--couleur-gris-service-2);
   text-transform: uppercase;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
 }
 
-table.tableau-standard {
+.eva-carte-stat { display: flex; flex-direction: column; gap: var(--espace-1); position: relative; overflow: hidden; }
+.eva-carte-stat__icone {
+  position: absolute;
+  top: var(--espace-4);
+  right: var(--espace-4);
+  color: var(--couleur-emeraude-fond-vif);
+}
+.eva-carte-stat--alerte .eva-carte-stat__valeur { color: var(--couleur-erreur); }
+
+/* ================================= TABLEAUX ================================== */
+
+.eva-tableau-conteneur {
+  overflow-x: auto;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-blanc);
+}
+
+table.tableau-standard, table.eva-tableau {
   width: 100%;
   border-collapse: collapse;
+  min-width: 520px;
 }
-table.tableau-standard th, table.tableau-standard td {
+table.tableau-standard th, table.tableau-standard td,
+table.eva-tableau th, table.eva-tableau td {
   text-align: left;
-  padding: 9px 10px;
-  border-bottom: 1px solid #E2E7DF;
-  font-size: 13px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--couleur-bordure);
+  font-size: 13.5px;
+  white-space: nowrap;
 }
-table.tableau-standard th {
-  color: var(--couleur-gris-service-1);
+table.eva-tableau td.eva-tableau__cellule-large { white-space: normal; }
+table.tableau-standard th, table.eva-tableau th {
+  color: var(--couleur-gris-service-2);
   text-transform: uppercase;
   font-size: 11px;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  background: var(--couleur-papier);
 }
+table.eva-tableau tbody tr:hover { background: var(--couleur-emeraude-fond); }
+table.eva-tableau tbody tr:last-child td { border-bottom: none; }
+
+/* ================================ ETAT VIDE ================================== */
+
+.eva-etat-vide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: var(--espace-2);
+  padding: var(--espace-8) var(--espace-4);
+  color: var(--couleur-gris-service-2);
+}
+.eva-etat-vide__icone { color: var(--couleur-bordure-forte); }
+.eva-etat-vide__titre { font-size: 14px; font-weight: 600; color: var(--couleur-gris-service-1); }
+
+/* ================================== SPINNER =================================== */
+
+.eva-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(255, 255, 255, 0.4);
+  border-top-color: currentColor;
+  animation: eva-rotation 0.7s linear infinite;
+  display: inline-block;
+}
+.eva-page-chargement { display: flex; align-items: center; justify-content: center; padding: var(--espace-9) 0; color: var(--couleur-gris-service-2); gap: var(--espace-2); }
+.eva-page-chargement .eva-spinner { border-color: var(--couleur-bordure-forte); border-top-color: var(--couleur-emeraude); }
+@keyframes eva-rotation { to { transform: rotate(360deg); } }
+
+.eva-squelette {
+  background: linear-gradient(90deg, var(--couleur-fond-desactive) 25%, #E9ECE7 37%, var(--couleur-fond-desactive) 63%);
+  background-size: 400% 100%;
+  animation: eva-scintillement 1.4s ease infinite;
+  border-radius: var(--rayon-petit);
+}
+@keyframes eva-scintillement { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+
+/* =================================== MODALE ==================================== */
+
+.eva-modale-fond {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 35, 28, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--espace-4);
+  z-index: 100;
+  animation: eva-apparition var(--transition-normale);
+}
+.eva-modale {
+  background: var(--couleur-blanc);
+  border-radius: var(--rayon-grand);
+  box-shadow: var(--ombre-flottante);
+  padding: var(--espace-6);
+  width: 100%;
+  max-width: 460px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.eva-modale--large { max-width: 720px; }
+.eva-modale__titre { font-size: 17px; font-weight: 600; margin-bottom: var(--espace-2); }
+.eva-modale__actions { display: flex; justify-content: flex-end; gap: var(--espace-3); margin-top: var(--espace-6); }
+@keyframes eva-apparition { from { opacity: 0; } to { opacity: 1; } }
+
+/* =================================== TOASTS ==================================== */
+
+.eva-toasts {
+  position: fixed;
+  bottom: var(--espace-5);
+  right: var(--espace-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+  z-index: 200;
+  max-width: calc(100vw - 2 * var(--espace-5));
+}
+.eva-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espace-2);
+  background: var(--couleur-encre);
+  color: var(--couleur-blanc);
+  padding: 12px 14px;
+  border-radius: var(--rayon-petit);
+  box-shadow: var(--ombre-flottante);
+  font-size: 13.5px;
+  min-width: 260px;
+  max-width: 380px;
+  animation: eva-glissement-toast var(--transition-normale);
+}
+.eva-toast--succes { background: var(--couleur-vert-profond); }
+.eva-toast--erreur { background: #5C1B17; }
+.eva-toast--info { background: var(--couleur-gris-service-1); }
+.eva-toast__fermer { background: none; border: none; color: rgba(255,255,255,0.7); cursor: pointer; padding: 0; margin-left: auto; }
+.eva-toast__fermer:hover { color: var(--couleur-blanc); }
+@keyframes eva-glissement-toast { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* =================================== ONGLETS ==================================== */
+
+.eva-onglets { display: flex; gap: var(--espace-1); border-bottom: 1px solid var(--couleur-bordure); margin-bottom: var(--espace-5); overflow-x: auto; }
+.eva-onglet {
+  background: none;
+  border: none;
+  padding: 10px 4px;
+  margin-right: var(--espace-5);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--couleur-gris-service-2);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: color var(--transition-rapide), border-color var(--transition-rapide);
+}
+.eva-onglet:hover { color: var(--couleur-encre); }
+.eva-onglet--actif { color: var(--couleur-emeraude); border-bottom-color: var(--couleur-emeraude); }
+
+/* ================================= PAGINATION =================================== */
+
+.eva-pagination { display: flex; align-items: center; justify-content: space-between; gap: var(--espace-3); margin-top: var(--espace-4); flex-wrap: wrap; }
+.eva-pagination__info { font-size: 13px; color: var(--couleur-gris-service-2); }
+.eva-pagination__boutons { display: flex; gap: var(--espace-2); }
+
+/* ================================== FRISE (historique) =================================== */
+
+.eva-frise { position: relative; padding-left: 22px; }
+.eva-frise::before { content: ""; position: absolute; left: 5px; top: 4px; bottom: 4px; width: 2px; background: var(--couleur-bordure); }
+.eva-frise__item { position: relative; padding-bottom: var(--espace-5); }
+.eva-frise__item:last-child { padding-bottom: 0; }
+.eva-frise__point { position: absolute; left: -22px; top: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--couleur-emeraude); border: 2px solid var(--couleur-blanc); box-shadow: 0 0 0 1px var(--couleur-bordure); }
+.eva-frise__date { font-size: 11.5px; font-family: var(--police-donnees); color: var(--couleur-gris-service-2); }
+.eva-frise__contenu { font-size: 13.5px; margin-top: 2px; }
+
+/* ================================== PILULES DE FILTRE =================================== */
+
+.eva-pilule {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--rayon-plein);
+  border: 1px solid var(--couleur-bordure-forte);
+  background: var(--couleur-blanc);
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--couleur-gris-service-1);
+  transition: all var(--transition-rapide);
+}
+.eva-pilule--active { background: var(--couleur-emeraude); border-color: var(--couleur-emeraude); color: var(--couleur-blanc); }
+
+/* ============================ MISE EN PAGE (APP SHELL) ============================ */
+
+.eva-app { min-height: 100vh; display: flex; flex-direction: column; background: var(--couleur-papier); }
+
+.eva-entete {
+  background: var(--couleur-emeraude);
+  color: var(--couleur-blanc);
+  padding: 0 var(--espace-5);
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-4);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  flex-shrink: 0;
+}
+.eva-entete__gauche { display: flex; align-items: center; gap: var(--espace-4); }
+.eva-entete__droite { display: flex; align-items: center; gap: var(--espace-4); }
+.eva-bouton-hamburger { background: none; border: none; color: var(--couleur-blanc); cursor: pointer; padding: 6px; display: none; border-radius: var(--rayon-petit); }
+.eva-bouton-hamburger:hover { background: rgba(255,255,255,0.12); }
+
+.eva-statut-connexion { display: inline-flex; align-items: center; gap: 6px; font-family: var(--police-donnees); font-size: 11.5px; opacity: 0.92; }
+.eva-statut-connexion__point { width: 7px; height: 7px; border-radius: 50%; background: var(--couleur-citron); }
+.eva-statut-connexion--hors-ligne .eva-statut-connexion__point { background: #F5A25D; }
+
+.eva-menu-utilisateur { position: relative; }
+.eva-menu-utilisateur__declencheur {
+  display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.08); border: none; color: var(--couleur-blanc);
+  padding: 6px 10px 6px 6px; border-radius: var(--rayon-plein); cursor: pointer; font-size: 13px;
+}
+.eva-menu-utilisateur__declencheur:hover { background: rgba(255,255,255,0.16); }
+.eva-avatar {
+  width: 26px; height: 26px; border-radius: 50%; background: var(--couleur-citron); color: var(--couleur-vert-profond);
+  display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 700; flex-shrink: 0;
+}
+.eva-menu-deroulant {
+  position: absolute; top: calc(100% + 8px); right: 0; background: var(--couleur-blanc); color: var(--couleur-encre);
+  border-radius: var(--rayon-standard); box-shadow: var(--ombre-flottante); min-width: 220px; padding: var(--espace-2);
+  border: 1px solid var(--couleur-bordure); z-index: 50;
+}
+.eva-menu-deroulant__entete { padding: var(--espace-2) var(--espace-3); border-bottom: 1px solid var(--couleur-bordure); margin-bottom: var(--espace-2); }
+.eva-menu-deroulant__item {
+  display: flex; align-items: center; gap: var(--espace-2); width: 100%; text-align: left; padding: 9px 10px; border-radius: var(--rayon-petit);
+  background: none; border: none; font-size: 13.5px; cursor: pointer; color: var(--couleur-encre); text-decoration: none;
+}
+.eva-menu-deroulant__item:hover { background: var(--couleur-emeraude-fond); }
+.eva-menu-deroulant__item--danger { color: var(--couleur-erreur); }
+.eva-menu-deroulant__item--danger:hover { background: var(--couleur-erreur-fond); }
+
+.eva-corps { flex: 1; display: flex; min-height: 0; }
+
+.eva-barre-laterale {
+  width: var(--largeur-barre-laterale);
+  flex-shrink: 0;
+  background: var(--couleur-blanc);
+  border-right: 1px solid var(--couleur-bordure);
+  padding: var(--espace-4) var(--espace-3);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.eva-lien-nav {
+  display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: var(--rayon-petit);
+  color: var(--couleur-gris-service-1); text-decoration: none; font-size: 13.5px; font-weight: 500;
+  transition: background var(--transition-rapide), color var(--transition-rapide);
+}
+.eva-lien-nav:hover { background: var(--couleur-emeraude-fond); color: var(--couleur-encre); }
+.eva-lien-nav--actif { background: var(--couleur-emeraude); color: var(--couleur-blanc); }
+.eva-lien-nav--actif svg { color: var(--couleur-blanc); }
+.eva-lien-nav__puce { margin-left: auto; }
+
+.eva-principal {
+  flex: 1;
+  min-width: 0;
+  max-width: var(--largeur-contenu);
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--espace-6) var(--espace-5) var(--espace-9);
+}
+
+.eva-entete-page { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--espace-4); margin-bottom: var(--espace-6); flex-wrap: wrap; }
+.eva-entete-page__actions { display: flex; gap: var(--espace-2); flex-wrap: wrap; }
+
+.eva-fond-superposition-mobile { position: fixed; inset: 0; background: rgba(20,35,28,0.4); z-index: 30; }
+
+@media (max-width: 880px) {
+  .eva-bouton-hamburger { display: inline-flex; align-items: center; justify-content: center; }
+  .eva-barre-laterale {
+    position: fixed; top: 60px; bottom: 0; left: 0; z-index: 35; transform: translateX(-100%);
+    transition: transform var(--transition-normale); box-shadow: var(--ombre-flottante); overflow-y: auto;
+  }
+  .eva-barre-laterale--ouverte { transform: translateX(0); }
+  .eva-principal { padding: var(--espace-4) var(--espace-3) var(--espace-8); }
+  .eva-entete { padding: 0 var(--espace-3); }
+  .eva-entete__droite .eva-statut-connexion { display: none; }
+}
+
+@media (max-width: 560px) {
+  table.tableau-standard, table.eva-tableau { min-width: 460px; }
+}
+
+/* Ecrans plein cadre (connexion, portail parent...) */
+.eva-ecran-centre { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: var(--espace-4); background: var(--couleur-papier); }
+.eva-ecran-centre__carte { width: 100%; max-width: 400px; }

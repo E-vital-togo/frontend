@@ -1,9 +1,11 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Bell, LogOut, Menu, UserCircle2, X } from "lucide-react";
 import Logo from "./Logo";
 import { useAuth } from "../context/AuthContext";
 import { listerActionsEnAttente } from "../lib/db";
 import { synchroniser, surRetourConnexion } from "../lib/syncService";
+import { useCompteurs } from "../lib/useCompteurs";
 import type { LienNavigation } from "../types/domaine";
 
 interface ProprietesMiseEnPage {
@@ -11,19 +13,33 @@ interface ProprietesMiseEnPage {
   children: ReactNode;
 }
 
+const CHEMIN_COMPTE = "/mon-compte";
+
+function initiales(nom: string, prenoms: string): string {
+  return `${prenoms.charAt(0)}${nom.charAt(0)}`.toUpperCase();
+}
+
 export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
   const { utilisateur, deconnecter } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const compteurs = useCompteurs();
+
   const [nombreEnAttente, setNombreEnAttente] = useState(0);
   const [enLigne, setEnLigne] = useState(navigator.onLine);
+  const [barreOuverte, setBarreOuverte] = useState(false);
+  const [menuUtilisateurOuvert, setMenuUtilisateurOuvert] = useState(false);
+  const [notificationsOuvertes, setNotificationsOuvertes] = useState(false);
+  const refMenuUtilisateur = useRef<HTMLDivElement>(null);
+  const refNotifications = useRef<HTMLDivElement>(null);
 
-  async function rafraichirCompteur() {
+  async function rafraichirCompteurSync() {
     const actions = await listerActionsEnAttente();
     setNombreEnAttente(actions.length);
   }
 
   useEffect(() => {
-    rafraichirCompteur();
+    rafraichirCompteurSync();
     const gererEnLigne = () => setEnLigne(true);
     const gererHorsLigne = () => setEnLigne(false);
     window.addEventListener("online", gererEnLigne);
@@ -31,7 +47,7 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
 
     const retirer = surRetourConnexion(async () => {
       await synchroniser();
-      await rafraichirCompteur();
+      await rafraichirCompteurSync();
     });
 
     return () => {
@@ -41,49 +57,147 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
     };
   }, []);
 
+  useEffect(() => {
+    setBarreOuverte(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    function surClicExterieur(evenement: MouseEvent) {
+      if (refMenuUtilisateur.current && !refMenuUtilisateur.current.contains(evenement.target as Node)) {
+        setMenuUtilisateurOuvert(false);
+      }
+      if (refNotifications.current && !refNotifications.current.contains(evenement.target as Node)) {
+        setNotificationsOuvertes(false);
+      }
+    }
+    document.addEventListener("mousedown", surClicExterieur);
+    return () => document.removeEventListener("mousedown", surClicExterieur);
+  }, []);
+
   function seDeconnecter() {
     deconnecter();
     navigate("/connexion");
   }
 
+  const totalNotifications = compteurs.echeances + compteurs.conflits + compteurs.demandes + compteurs.notificationsEchouees;
+
+  const compteurParCle: Record<string, number> = {
+    echeances: compteurs.echeances,
+    conflits: compteurs.conflits,
+    demandes: compteurs.demandes,
+    notificationsEchouees: compteurs.notificationsEchouees
+  };
+
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <header
-        style={{
-          background: "var(--couleur-emeraude)",
-          color: "var(--couleur-blanc)",
-          padding: "14px 24px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between"
-        }}
-      >
-        <Logo variante="horizontal-inverse" hauteur={26} />
-        <nav style={{ display: "flex", alignItems: "center", gap: 18, fontSize: 14 }}>
-          {liens.map((lien) => (
-            <Link key={lien.chemin} to={lien.chemin} style={{ color: "var(--couleur-blanc)", textDecoration: "none", opacity: 0.9 }}>
-              {lien.libelle}
-            </Link>
-          ))}
-          <span className="texte-mono" title={enLigne ? "Connecte" : "Hors-ligne"} style={{ fontSize: 12, opacity: 0.9 }}>
-            {enLigne ? "EN LIGNE" : "HORS-LIGNE"}
-            {nombreEnAttente > 0 && ` - ${nombreEnAttente} EN ATTENTE`}
-          </span>
-          <span style={{ opacity: 0.85, fontSize: 13 }}>
-            {utilisateur?.prenoms} {utilisateur?.nom}
-          </span>
-          <button
-            onClick={seDeconnecter}
-            className="bouton-secondaire"
-            style={{ borderColor: "var(--couleur-blanc)", color: "var(--couleur-blanc)" }}
-          >
-            Deconnexion
+    <div className="eva-app">
+      <header className="eva-entete">
+        <div className="eva-entete__gauche">
+          <button className="eva-bouton-hamburger" onClick={() => setBarreOuverte((v) => !v)} aria-label="Ouvrir le menu">
+            {barreOuverte ? <X size={22} /> : <Menu size={22} />}
           </button>
-        </nav>
+          <Logo variante="horizontal-inverse" hauteur={24} />
+        </div>
+        <div className="eva-entete__droite">
+          <span
+            className={`eva-statut-connexion${enLigne ? "" : " eva-statut-connexion--hors-ligne"}`}
+            title={enLigne ? "Connecte" : "Hors-ligne"}
+          >
+            <span className="eva-statut-connexion__point" />
+            {enLigne ? "En ligne" : "Hors-ligne"}
+            {nombreEnAttente > 0 && ` · ${nombreEnAttente} en attente`}
+          </span>
+
+          <div className="eva-menu-utilisateur" ref={refNotifications}>
+            <button
+              className="eva-menu-utilisateur__declencheur"
+              onClick={() => setNotificationsOuvertes((v) => !v)}
+              aria-label="Notifications"
+            >
+              <Bell size={17} />
+              {totalNotifications > 0 && <span className="eva-puce eva-puce--alerte">{totalNotifications}</span>}
+            </button>
+            {notificationsOuvertes && (
+              <div className="eva-menu-deroulant" style={{ minWidth: 260 }}>
+                <div className="eva-menu-deroulant__entete" style={{ fontSize: 13, fontWeight: 600 }}>
+                  Notifications
+                </div>
+                {totalNotifications === 0 && (
+                  <div style={{ padding: "10px 10px", fontSize: 13, color: "var(--couleur-gris-service-2)" }}>
+                    Rien a signaler.
+                  </div>
+                )}
+                {compteurs.echeances > 0 && (
+                  <Link to="/agent/dossiers?echeance=1" className="eva-menu-deroulant__item">
+                    {compteurs.echeances} dossier(s) proche(s) de l'echeance
+                  </Link>
+                )}
+                {compteurs.conflits > 0 && (
+                  <Link
+                    to={utilisateur?.role === "admin_cec" ? "/admin-cec/conflits" : "/agent/conflits"}
+                    className="eva-menu-deroulant__item"
+                  >
+                    {compteurs.conflits} conflit(s) de synchronisation
+                  </Link>
+                )}
+                {compteurs.notificationsEchouees > 0 && (
+                  <Link to="/admin-cec/notifications-echouees" className="eva-menu-deroulant__item">
+                    {compteurs.notificationsEchouees} notification(s) en echec
+                  </Link>
+                )}
+                {compteurs.demandes > 0 && (
+                  <Link to="/admin-cec/demandes-modification" className="eva-menu-deroulant__item">
+                    {compteurs.demandes} demande(s) de modification en attente
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="eva-menu-utilisateur" ref={refMenuUtilisateur}>
+            <button className="eva-menu-utilisateur__declencheur" onClick={() => setMenuUtilisateurOuvert((v) => !v)}>
+              <span className="eva-avatar">{utilisateur ? initiales(utilisateur.nom, utilisateur.prenoms) : ""}</span>
+              <span>{utilisateur?.prenoms}</span>
+            </button>
+            {menuUtilisateurOuvert && (
+              <div className="eva-menu-deroulant">
+                <div className="eva-menu-deroulant__entete">
+                  <div style={{ fontWeight: 600, fontSize: 13.5 }}>
+                    {utilisateur?.prenoms} {utilisateur?.nom}
+                  </div>
+                  <div className="texte-mono" style={{ fontSize: 11.5, color: "var(--couleur-gris-service-2)" }}>
+                    {utilisateur?.email}
+                  </div>
+                </div>
+                <Link to={CHEMIN_COMPTE} className="eva-menu-deroulant__item" onClick={() => setMenuUtilisateurOuvert(false)}>
+                  <UserCircle2 size={16} /> Mon compte
+                </Link>
+                <button className="eva-menu-deroulant__item eva-menu-deroulant__item--danger" onClick={seDeconnecter}>
+                  <LogOut size={16} /> Deconnexion
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </header>
-      <main style={{ flex: 1, maxWidth: 1100, margin: "0 auto", width: "100%", padding: "28px 20px 60px" }}>
-        {children}
-      </main>
+
+      <div className="eva-corps">
+        {barreOuverte && <div className="eva-fond-superposition-mobile" onClick={() => setBarreOuverte(false)} />}
+        <nav className={`eva-barre-laterale${barreOuverte ? " eva-barre-laterale--ouverte" : ""}`}>
+          {liens.map((lien) => {
+            const actif = location.pathname === lien.chemin;
+            const Icone = lien.icone;
+            const compteur = lien.cleCompteur ? compteurParCle[lien.cleCompteur] : 0;
+            return (
+              <Link key={lien.chemin} to={lien.chemin} className={`eva-lien-nav${actif ? " eva-lien-nav--actif" : ""}`}>
+                <Icone size={17} />
+                {lien.libelle}
+                {compteur > 0 && <span className="eva-puce eva-lien-nav__puce">{compteur}</span>}
+              </Link>
+            );
+          })}
+        </nav>
+        <main className="eva-principal">{children}</main>
+      </div>
     </div>
   );
 }

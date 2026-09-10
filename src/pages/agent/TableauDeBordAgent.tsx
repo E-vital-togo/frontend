@@ -1,81 +1,105 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { AlertTriangle, Clock, FilePlus, FolderOpen, QrCode } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
 import BadgeStatut from "../../components/BadgeStatut";
+import { CarteStat, ChargementPage, EnteteDePage, EtatVide, Tableau } from "../../components/ui";
+import { LienBouton } from "../../components/ui/Bouton";
 import { appelApi } from "../../lib/apiClient";
+import { useCompteurs } from "../../lib/useCompteurs";
 import { LIENS_AGENT } from "./navigation";
 import { listeDepuis, type Dossier, type ListeOuPaginee } from "../../types/domaine";
 
+// Memes seuils que settings.SEUILS_RELANCE_JOURS cote backend (J-10/J-3) :
+// pas de raison d'avoir une deuxieme definition de "urgent" ici.
+function joursRestants(dateLimite: string): number {
+  const debutAujourdhui = new Date();
+  debutAujourdhui.setHours(0, 0, 0, 0);
+  const diff = new Date(dateLimite).getTime() - debutAujourdhui.getTime();
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+}
+
+function couleurUrgence(jours: number): string {
+  if (jours <= 3) return "var(--couleur-erreur)";
+  if (jours <= 10) return "var(--couleur-citron-profond)";
+  return "var(--couleur-gris-service-1)";
+}
+
 export default function TableauDeBordAgent() {
+  const compteurs = useCompteurs();
   const [dossiersProches, setDossiersProches] = useState<Dossier[]>([]);
   const [chargement, setChargement] = useState(true);
-  const [erreur, setErreur] = useState<string | null>(null);
 
   useEffect(() => {
     appelApi<ListeOuPaginee<Dossier>>("/dossiers/?echeance_proche=true")
       .then((donnees) => setDossiersProches(listeDepuis(donnees)))
-      .catch((e: unknown) => setErreur(e instanceof Error ? e.message : "Erreur"))
       .finally(() => setChargement(false));
   }, []);
 
   return (
     <MiseEnPage liens={LIENS_AGENT}>
-      <h1 style={{ color: "var(--couleur-emeraude)" }}>Tableau de bord</h1>
+      <EnteteDePage titre="Tableau de bord" sousTitre="Vue d'ensemble de vos dossiers en cours" />
+
       <div className="grille-cartes" style={{ marginBottom: 28 }}>
-        <div className="carte">
-          <div className="chiffre-cle">{dossiersProches.length}</div>
-          <div className="libelle-cle">Echeances proches</div>
-        </div>
-        <Link to="/agent/dossiers" className="carte" style={{ textDecoration: "none", color: "inherit" }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--couleur-emeraude)" }}>Dossiers</div>
-          <div className="libelle-cle">Voir tous les dossiers</div>
+        <CarteStat icone={<Clock size={22} />} valeur={compteurs.echeances} libelle="Echeances proches" alerte={compteurs.echeances > 0} />
+        <CarteStat icone={<AlertTriangle size={22} />} valeur={compteurs.conflits} libelle="Conflits de sync" alerte={compteurs.conflits > 0} />
+        <Link to="/agent/dossiers/nouveau" className="eva-carte eva-carte--interactive" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
+          <FilePlus size={20} color="var(--couleur-emeraude)" />
+          <div style={{ fontSize: 14, fontWeight: 600 }}>Nouveau dossier</div>
+          <div className="eva-sous-titre">Declaration papier</div>
         </Link>
-        <Link to="/agent/dossiers/nouveau" className="carte" style={{ textDecoration: "none", color: "inherit" }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--couleur-emeraude)" }}>Nouveau</div>
-          <div className="libelle-cle">Creer un dossier manuel</div>
-        </Link>
-        <Link to="/agent/conflits" className="carte" style={{ textDecoration: "none", color: "inherit" }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--couleur-emeraude)" }}>Conflits</div>
-          <div className="libelle-cle">Conflits de synchronisation</div>
+        <Link to="/agent/retrait" className="eva-carte eva-carte--interactive" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
+          <QrCode size={20} color="var(--couleur-emeraude)" />
+          <div style={{ fontSize: 14, fontWeight: 600 }}>Retrait</div>
+          <div className="eva-sous-titre">Scanner ou saisir un code</div>
         </Link>
       </div>
 
-      <h2 style={{ fontSize: 16, color: "var(--couleur-emeraude)" }}>Dossiers proches de l'echeance</h2>
-      {erreur && <div className="message-erreur">{erreur}</div>}
+      <h2 style={{ fontSize: 16, marginBottom: 12 }}>Dossiers proches de l'echeance</h2>
       {chargement ? (
-        <p>Chargement...</p>
+        <ChargementPage />
+      ) : dossiersProches.length === 0 ? (
+        <EtatVide icone={<FolderOpen size={26} />} titre="Aucun dossier proche de l'echeance" description="Tout est a jour pour le moment." />
       ) : (
-        <table className="tableau-standard">
+        <Tableau>
           <thead>
             <tr>
               <th>Evenement</th>
               <th>Statut</th>
-              <th>Date limite</th>
+              <th>Jours restants</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            {dossiersProches.map((dossier) => (
-              <tr key={dossier.id}>
-                <td>{dossier.event_type === "naissance" ? "Naissance" : "Deces"}</td>
-                <td>
-                  <BadgeStatut statut={dossier.statut} />
-                </td>
-                <td className="texte-mono">{dossier.date_limite}</td>
-                <td>
-                  <Link to={`/agent/dossiers/${dossier.id}`}>Ouvrir</Link>
-                </td>
-              </tr>
-            ))}
-            {dossiersProches.length === 0 && (
-              <tr>
-                <td colSpan={4} style={{ color: "var(--couleur-gris-service-2)" }}>
-                  Aucun dossier proche de l'echeance.
-                </td>
-              </tr>
-            )}
+            {dossiersProches
+              .slice()
+              .sort((a, b) => joursRestants(a.date_limite) - joursRestants(b.date_limite))
+              .map((dossier) => {
+                const jours = joursRestants(dossier.date_limite);
+                return (
+                  <tr key={dossier.id}>
+                    <td>{dossier.event_type === "naissance" ? "Naissance" : "Deces"}</td>
+                    <td>
+                      <BadgeStatut statut={dossier.statut} />
+                    </td>
+                    <td>
+                      <strong style={{ color: couleurUrgence(jours) }}>
+                        {jours <= 0 ? "Echue" : `${jours} jour${jours > 1 ? "s" : ""}`}
+                      </strong>{" "}
+                      <span className="texte-mono" style={{ fontSize: 11.5, color: "var(--couleur-gris-service-2)" }}>
+                        ({dossier.date_limite})
+                      </span>
+                    </td>
+                    <td>
+                      <LienBouton to={`/agent/dossiers/${dossier.id}`} variante="fantome" taille="petit">
+                        Ouvrir
+                      </LienBouton>
+                    </td>
+                  </tr>
+                );
+              })}
           </tbody>
-        </table>
+        </Tableau>
       )}
     </MiseEnPage>
   );

@@ -1,6 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
+import { CheckCircle2 } from "lucide-react";
 import Logo from "../../components/Logo";
+import { Bouton, Champ } from "../../components/ui";
+import { appelApiPublic, ErreurApiPublique } from "../../lib/apiPublic";
 import type { ChampFormulaireEffectif } from "../../types/domaine";
 
 interface ReponseFormulaireEffectif {
@@ -33,38 +36,51 @@ export default function PageCompletionParent() {
       };
       await appelApiPublic(`/completion/${code}`, { method: "POST", body: JSON.stringify(corps) });
       setEnvoye(true);
-    } catch {
-      setErreur("Une erreur est survenue lors de l'envoi. Reessayez, ou rendez-vous a la mairie avec votre code.");
+    } catch (e) {
+      setErreur(e instanceof ErreurApiPublique ? e.message : "Une erreur est survenue lors de l'envoi. Reessayez, ou rendez-vous a la mairie avec votre code.");
     } finally {
       setEnCours(false);
     }
   }
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div className="carte" style={{ width: "100%", maxWidth: 480 }}>
+    <div className="eva-ecran-centre">
+      <div className="eva-carte" style={{ width: "100%", maxWidth: 480 }}>
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
-          <Logo variante="vertical" hauteur={100} />
+          <Logo variante="vertical" hauteur={90} />
         </div>
 
         {envoye ? (
-          <p style={{ textAlign: "center" }}>
-            Merci, vos informations ont bien ete transmises a la mairie. Vous serez recontacte si un complement est
-            necessaire.
-          </p>
+          <div style={{ textAlign: "center" }}>
+            <CheckCircle2 size={36} color="var(--couleur-emeraude)" style={{ marginBottom: 10 }} />
+            <p>
+              Merci, vos informations ont bien ete transmises a la mairie. Vous serez recontacte si un complement est
+              necessaire.
+            </p>
+            {code && (
+              <Link to={`/completion/statut/${code}`} style={{ fontSize: 13, color: "var(--couleur-emeraude)" }}>
+                Suivre l'avancement de mon dossier
+              </Link>
+            )}
+          </div>
         ) : erreur && !champs ? (
-          <p className="message-erreur" style={{ textAlign: "center" }}>
-            {erreur}
-          </p>
+          <div style={{ textAlign: "center" }}>
+            <p className="message-erreur">{erreur}</p>
+            <Link to="/retrouver-mon-code" style={{ fontSize: 13, color: "var(--couleur-emeraude)" }}>
+              J'ai perdu mon code
+            </Link>
+          </div>
         ) : !champs ? (
           <p style={{ textAlign: "center" }}>Chargement du formulaire...</p>
         ) : (
           <form onSubmit={soumettre}>
-            <h1 style={{ fontSize: 18, color: "var(--couleur-emeraude)" }}>Complement de declaration</h1>
+            <h1 style={{ fontSize: 18, color: "var(--couleur-emeraude)", marginBottom: 4 }}>Complement de declaration</h1>
+            <p className="eva-sous-titre" style={{ marginBottom: 16 }}>
+              Remplissez uniquement les informations demandees ci-dessous, puis validez.
+            </p>
             {erreur && <div className="message-erreur">{erreur}</div>}
             {champs.map((champ) => (
-              <div className="champ" key={champ.data_element_code}>
-                <label htmlFor={champ.data_element_code}>{champ.label}</label>
+              <Champ key={champ.data_element_code} id={champ.data_element_code} label={champ.label}>
                 <input
                   id={champ.data_element_code}
                   type="text"
@@ -72,28 +88,14 @@ export default function PageCompletionParent() {
                   defaultValue={typeof champ.valeur_actuelle === "string" ? champ.valeur_actuelle : ""}
                   onChange={(e) => setValeurs((v) => ({ ...v, [champ.data_element_code]: e.target.value }))}
                 />
-              </div>
+              </Champ>
             ))}
-            <button type="submit" className="bouton-principal" style={{ width: "100%" }} disabled={enCours}>
-              {enCours ? "Envoi..." : "Envoyer"}
-            </button>
+            <Bouton type="submit" chargement={enCours} style={{ width: "100%" }}>
+              Envoyer
+            </Bouton>
           </form>
         )}
       </div>
     </div>
   );
-}
-
-// Le formulaire de completion est accessible SANS authentification (code
-// seul, voir apps.dossiers.views.CompletionParentView cote backend) : pas
-// de jeton JWT a joindre, contrairement a appelApi() utilise partout
-// ailleurs dans l'app.
-async function appelApiPublic<T>(chemin: string, options: RequestInit = {}): Promise<T> {
-  const base = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
-  const reponse = await fetch(`${base}${chemin}`, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) }
-  });
-  if (!reponse.ok) throw new Error("Erreur");
-  return reponse.json() as Promise<T>;
 }

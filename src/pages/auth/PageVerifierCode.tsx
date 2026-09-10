@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Logo from "../../components/Logo";
+import { Bouton, Champ } from "../../components/ui";
 import { useAuth } from "../../context/AuthContext";
 import type { Role } from "../../types/domaine";
 
@@ -43,33 +44,35 @@ export default function PageVerifierCode() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div className="carte" style={{ width: 360 }}>
+    <div className="eva-ecran-centre">
+      <div className="eva-carte eva-ecran-centre__carte">
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
           <Logo variante="symbole" hauteur={44} />
         </div>
-        <h1 style={{ fontSize: 20, color: "var(--couleur-emeraude)" }}>Code de connexion</h1>
-        <p style={{ fontSize: 13, color: "var(--couleur-gris-service-2)" }}>
-          Un code a ete envoye a {email}. Il expire dans quelques minutes.
+        <h1 style={{ fontSize: 19, color: "var(--couleur-emeraude)", marginBottom: 4 }}>Code de connexion</h1>
+        <p className="eva-sous-titre" style={{ marginBottom: 18 }}>
+          Un code a ete envoye a <strong style={{ color: "var(--couleur-encre)" }}>{email}</strong>. Il expire dans
+          quelques minutes.
         </p>
         {erreur && <div className="message-erreur">{erreur}</div>}
         <form onSubmit={soumettre}>
-          <div className="champ">
-            <label htmlFor="code">Code recu par email</label>
+          <Champ id="code" label="Code recu par email" requis>
             <input
               id="code"
               type="text"
               inputMode="numeric"
               maxLength={6}
               required
+              autoFocus
               value={code}
               onChange={(e) => setCode(e.target.value)}
               className="texte-mono"
+              style={{ letterSpacing: "0.3em", textAlign: "center", fontSize: 20 }}
             />
-          </div>
-          <button type="submit" className="bouton-principal" style={{ width: "100%" }} disabled={enCours}>
-            {enCours ? "Verification..." : "Valider"}
-          </button>
+          </Champ>
+          <Bouton type="submit" chargement={enCours} style={{ width: "100%" }}>
+            Valider
+          </Bouton>
         </form>
       </div>
     </div>
