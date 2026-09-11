@@ -17,3 +17,4 @@ export type { Onglet } from "./Onglets";
 export { default as Frise } from "./Frise";
 export type { ElementFrise } from "./Frise";
 export { default as EnteteDePage } from "./EnteteDePage";
+export { default as GraphiqueECharts } from "./GraphiqueECharts";

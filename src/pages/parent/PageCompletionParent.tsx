@@ -35,8 +35,10 @@ export default function PageCompletionParent() {
         valeurs: Object.entries(valeurs).map(([data_element_code, valeur]) => ({ data_element_code, valeur }))
       };
       await appelApiPublic(`/completion/${code}`, { method: "POST", body: JSON.stringify(corps) });
+
       setEnvoye(true);
     } catch (e) {
+      console.error(e);
       setErreur(e instanceof ErreurApiPublique ? e.message : "Une erreur est survenue lors de l'envoi. Reessayez, ou rendez-vous a la mairie avec votre code.");
     } finally {
       setEnCours(false);

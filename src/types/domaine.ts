@@ -37,6 +37,8 @@ export interface ChampModifieDiff {
   label?: string;
   ancienne_valeur: unknown;
   nouvelle_valeur: unknown;
+  valeur_actuelle : unknown;
+  valeur_proposee : unknown;
 }
 
 export interface NouvelleVersionDossier {
@@ -164,6 +166,91 @@ export interface StatistiqueEvolutionPoint {
 export interface StatistiqueEvolutionReponse {
   donnees: StatistiqueEvolutionPoint[];
   series: string[];
+}
+
+export interface DimensionStat {
+  code: string;
+  label: string;
+  temporelle: boolean;
+}
+
+export interface MesureStat {
+  code: string;
+  label: string;
+  type: "compte" | "moyenne" | "ratio";
+  unite: string;
+}
+
+export interface PivotFiltres {
+  event_type?: string;
+  statut?: string;
+  origine?: string;
+  type_dossier?: string;
+  date_declaration_min?: string;
+  date_declaration_max?: string;
+}
+
+export type TriPivot = "valeur_desc" | "valeur_asc" | "libelle_asc";
+
+export interface PivotRequete {
+  dimensions: string[];
+  mesures: string[];
+  filtres?: PivotFiltres;
+  tri?: TriPivot;
+  limite?: number | null;
+  regrouper_autres?: boolean;
+}
+
+export interface PivotLigne {
+  [cle: string]: string | number | null;
+}
+
+export interface PivotResultat {
+  dimensions: string[];
+  mesures: string[];
+  lignes: PivotLigne[];
+  total_lignes: number;
+}
+
+export type TypeGraphiqueStat =
+  | "barres"
+  | "barres_empilees"
+  | "barres_horizontales"
+  | "courbes"
+  | "aires_empilees"
+  | "camembert"
+  | "anneau"
+  | "combo"
+  | "nuage_points"
+  | "carte_chaleur";
+
+export interface WidgetGraphique extends PivotRequete {
+  id: string;
+  tableau_de_bord: string;
+  nom: string;
+  type_graphique: TypeGraphiqueStat;
+  tri: TriPivot;
+  limite: number | null;
+  regrouper_autres: boolean;
+  position_x: number;
+  position_y: number;
+  largeur: number;
+  hauteur: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PartageTableauDeBord = "prive" | "partage_role";
+
+export interface TableauDeBord {
+  id: string;
+  nom: string;
+  proprietaire: string;
+  proprietaire_nom: string;
+  partage: PartageTableauDeBord;
+  widgets: WidgetGraphique[];
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ConflitSync {

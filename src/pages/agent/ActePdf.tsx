@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Download, FileEdit } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
-import { AncreBouton, Bouton, ChargementPage, EnteteDePage, Modale } from "../../components/ui";
+import { AncreBouton, Bouton, Champ, ChargementPage, EnteteDePage, Modale } from "../../components/ui";
 import { useToast } from "../../components/ui/ToastProvider";
 import { useAuth } from "../../context/AuthContext";
 import { appelApi, ErreurApi } from "../../lib/apiClient";
@@ -14,6 +14,17 @@ interface ReponseFormulaireEffectif {
   champs: ChampFormulaireEffectif[];
 }
 
+// Le volet N°4 (INSEED) n'existe plus sur le formulaire national depuis que
+// l'INSEED accede directement aux donnees via ses requetes agregees (voir
+// apps.actes.services_pdf cote backend) : jamais propose ici.
+const VOLETS = [
+  { valeur: "", libelle: "Tous les volets (1, 2, 3, 5)" },
+  { valeur: "1", libelle: "Volet N°1 (Souche)" },
+  { valeur: "2", libelle: "Volet N°2 (Ministere de l'Administration Territoriale)" },
+  { valeur: "3", libelle: "Volet N°3 (Greffe du Tribunal)" },
+  { valeur: "5", libelle: "Volet N°5 (Declarant)" }
+];
+
 export default function ActePdf() {
   const { idDossier } = useParams<{ idDossier: string }>();
   const toast = useToast();
@@ -23,6 +34,7 @@ export default function ActePdf() {
 
   const [urlPdf, setUrlPdf] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [voletSelectionne, setVoletSelectionne] = useState("");
 
   const [modaleOuverte, setModaleOuverte] = useState(false);
   const [champs, setChamps] = useState<ChampFormulaireEffectif[] | null>(null);
@@ -35,7 +47,10 @@ export default function ActePdf() {
     if (!idDossier) return;
     let urlObjet: string | undefined;
 
-    appelApi<Blob>(`/dossiers/${idDossier}/acte/pdf`)
+    setUrlPdf(null);
+    setErreur(null);
+    const parametres = voletSelectionne ? `?volet=${voletSelectionne}` : "";
+    appelApi<Blob>(`/dossiers/${idDossier}/acte/pdf${parametres}`)
       .then((blob) => {
         urlObjet = URL.createObjectURL(blob);
         setUrlPdf(urlObjet);
@@ -45,7 +60,7 @@ export default function ActePdf() {
     return () => {
       if (urlObjet) URL.revokeObjectURL(urlObjet);
     };
-  }, [idDossier]);
+  }, [idDossier, voletSelectionne]);
 
   function ouvrirModaleCorrection() {
     setErreurDemande(null);
@@ -111,12 +126,27 @@ export default function ActePdf() {
           )
         }
       />
+      <div className="eva-carte" style={{ marginBottom: 20, maxWidth: 320 }}>
+        <Champ id="volet" label="Volet a imprimer">
+          <select id="volet" value={voletSelectionne} onChange={(e) => setVoletSelectionne(e.target.value)}>
+            {VOLETS.map((v) => (
+              <option key={v.valeur} value={v.valeur}>
+                {v.libelle}
+              </option>
+            ))}
+          </select>
+        </Champ>
+      </div>
       {erreur && <div className="message-erreur">{erreur}</div>}
       {urlPdf ? (
         <div className="eva-carte" style={{ padding: 0, overflow: "hidden" }}>
           <iframe title="Acte" src={urlPdf} style={{ width: "100%", height: "80vh", border: "none", display: "block" }} />
           <div style={{ padding: 14 }}>
-            <AncreBouton href={urlPdf} download={`acte-${idDossier}.pdf`} iconeGauche={<Download size={16} />}>
+            <AncreBouton
+              href={urlPdf}
+              download={voletSelectionne ? `acte-${idDossier}-volet${voletSelectionne}.pdf` : `acte-${idDossier}.pdf`}
+              iconeGauche={<Download size={16} />}
+            >
               Telecharger / Imprimer
             </AncreBouton>
           </div>

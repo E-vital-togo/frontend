@@ -31,6 +31,7 @@ const LIBELLES_STATUT_NOTIFICATION: Record<string, string> = {
 };
 
 function formaterValeur(valeur: unknown): string {
+  console.log("valeur à formater ", valeur);
   if (valeur === null || valeur === undefined || valeur === "") return "(vide)";
   if (typeof valeur === "object") return JSON.stringify(valeur);
   return String(valeur);
@@ -233,6 +234,7 @@ export default function DetailDossier() {
   const peutEmettreActe = estAgent && dossier.statut === "complete";
   const peutRelancer = dossier.statut !== "acte_emis" && dossier.statut !== "sans_suite";
   const propositionEnAttente = dossier.nouvelle_version?.statut === "en_attente" ? dossier.nouvelle_version : null;
+  console.log("propositionEnAttente", propositionEnAttente);
 
   return (
     <MiseEnPage liens={liens}>
@@ -275,9 +277,10 @@ export default function DetailDossier() {
               <tbody>
                 {propositionEnAttente.champs_modifies.map((diff, index) => (
                   <tr key={index}>
+
                     <td>{diff.label || diff.data_element_code || "—"}</td>
-                    <td>{formaterValeur(diff.ancienne_valeur)}</td>
-                    <td style={{ fontWeight: 600 }}>{formaterValeur(diff.nouvelle_valeur)}</td>
+                    <td>{formaterValeur(diff.valeur_actuelle)}</td>
+                    <td style={{ fontWeight: 600 }}>{formaterValeur(diff.valeur_proposee)}</td>
                   </tr>
                 ))}
               </tbody>

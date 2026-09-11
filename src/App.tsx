@@ -29,6 +29,7 @@ import CampagnesRelance from "./pages/admin_cec/CampagnesRelance";
 import JournalZone from "./pages/admin_cec/JournalZone";
 import PersonnalisationMairie from "./pages/admin_cec/PersonnalisationMairie";
 
+import PageCompletionAccueil from "./pages/parent/PageCompletionAccueil";
 import PageCompletionParent from "./pages/parent/PageCompletionParent";
 import PageStatutCompletion from "./pages/parent/PageStatutCompletion";
 import PageRetrouverCode from "./pages/parent/PageRetrouverCode";
@@ -42,6 +43,11 @@ import PageMonCompte from "./pages/PageMonCompte";
 // terrain) leger a charger sur une connexion faible.
 const PageRetrait = lazy(() => import("./pages/agent/PageRetrait"));
 const TableauDeBordAdminCec = lazy(() => import("./pages/admin_cec/TableauDeBordAdminCec"));
+// ECharts + react-grid-layout representent a eux deux plusieurs centaines de
+// Ko : memes raisons de separation que PageRetrait/TableauDeBordAdminCec
+// ci-dessus (voir le commentaire au-dessus de ce bloc).
+const TableauDeBordStats = lazy(() => import("./pages/admin_cec/statistiques/TableauDeBordStats"));
+const ConstructeurGraphique = lazy(() => import("./pages/admin_cec/statistiques/ConstructeurGraphique"));
 
 export default function App() {
   return (
@@ -57,6 +63,7 @@ export default function App() {
           <Route path="/reinitialiser-mot-de-passe/:uidb64/:token" element={<PageReinitialiserMotDePasse />} />
 
           {/* Parent/declarant : acces public, sans authentification */}
+          <Route path="/completion" element={<PageCompletionAccueil />} />
           <Route path="/completion/:code" element={<PageCompletionParent />} />
           <Route path="/completion/statut/:code" element={<PageStatutCompletion />} />
 
@@ -132,6 +139,22 @@ export default function App() {
             element={
               <RouteProtegee rolesAutorises={["admin_cec"]}>
                 <TableauDeBordAdminCec />
+              </RouteProtegee>
+            }
+          />
+          <Route
+            path="/admin-cec/statistiques"
+            element={
+              <RouteProtegee rolesAutorises={["admin_cec"]}>
+                <TableauDeBordStats />
+              </RouteProtegee>
+            }
+          />
+          <Route
+            path="/admin-cec/statistiques/constructeur"
+            element={
+              <RouteProtegee rolesAutorises={["admin_cec"]}>
+                <ConstructeurGraphique />
               </RouteProtegee>
             }
           />
