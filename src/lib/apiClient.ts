@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
+const BASE_URL = import.meta.env.API_BASE_URL || "https://evital.duckdns.org/api/v1";
 
 const CLE_ACCES = "evital_access_token";
 const CLE_RAFRAICHISSEMENT = "evital_refresh_token";
