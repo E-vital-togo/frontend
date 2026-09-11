@@ -43,6 +43,13 @@ export default defineConfig({
     })
   ],
   server: {
-    port: 5173
+    port: 5173,
+    // Vite rejette par defaut tout Host: inconnu (anti DNS-rebinding) ; on
+    // liste ici les domaines ngrok fixes derriere lesquels nginx (voir
+    // reverse-proxy/) relaie les requetes du front.
+    allowedHosts: [
+      "jaunt-jolly-expulsion.ngrok-free.dev",
+      "flashy-circular-divisibly.ngrok-free.dev"
+    ]
   }
 });

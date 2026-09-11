@@ -42,6 +42,10 @@ export default defineConfig({
         })
     ],
     server: {
-        port: 5173
+        port: 5173,
+        allowedHosts: [
+            "jaunt-jolly-expulsion.ngrok-free.dev",
+            "flashy-circular-divisibly.ngrok-free.dev"
+        ]
     }
 });
