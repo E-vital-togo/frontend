@@ -4,24 +4,33 @@
  * Ne joint jamais de jeton JWT, contrairement a appelApi() utilise partout
  * ailleurs dans l'app.
  */
+import { extraireMessageErreur } from "./apiClient";
+
 const BASE_URL = import.meta.env.API_BASE_URL || "https://evital.duckdns.org/api/v1";
 
 export class ErreurApiPublique extends Error {}
 
 export async function appelApiPublic<T>(chemin: string, options: RequestInit = {}): Promise<T> {
-  const reponse = await fetch(`${BASE_URL}${chemin}`, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) }
-  });
+  let reponse: Response;
+  try {
+    reponse = await fetch(`${BASE_URL}${chemin}`, {
+      ...options,
+      headers: { "Content-Type": "application/json", ...(options.headers || {}) }
+    });
+  } catch {
+    throw new ErreurApiPublique("Connexion au serveur impossible. Verifiez votre reseau.");
+  }
+
   if (!reponse.ok) {
-    let message = "Une erreur est survenue.";
+    let details: unknown = null;
     try {
-      const details = (await reponse.json()) as { message?: string };
-      if (details.message) message = details.message;
+      details = await reponse.json();
     } catch {
-      // reponse non-JSON : on garde le message par defaut
+      // reponse non-JSON : extraireMessageErreur retombe sur le statut
     }
-    throw new ErreurApiPublique(message);
+    // Meme extraction que le client authentifie : le backend melange
+    // {message}, {detail} et {champ: [...]} selon le type d'erreur.
+    throw new ErreurApiPublique(extraireMessageErreur(details, reponse.status));
   }
   return reponse.json() as Promise<T>;
 }

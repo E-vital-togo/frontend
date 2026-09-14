@@ -1,10 +1,11 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { LogIn } from "lucide-react";
 import Logo from "../../components/Logo";
 import { Bouton, Champ } from "../../components/ui";
 import { useAuth } from "../../context/AuthContext";
 import { appelApi } from "../../lib/apiClient";
+import { listerActionsEnAttente } from "../../lib/db";
 
 export default function PageConnexion() {
   const { demarrerConnexion } = useAuth();
@@ -14,6 +15,17 @@ export default function PageConnexion() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [ecranMotDePasseOublie, setEcranMotDePasseOublie] = useState(false);
+  const [actionsEnAttente, setActionsEnAttente] = useState(0);
+
+  // Une session peut expirer alors que l'agent avait des saisies faites
+  // hors connexion : elles restent dans la file locale (jamais videe par une
+  // deconnexion, voir lib/db.ts) et repartiront a la reconnexion. On le dit
+  // explicitement plutot que de laisser croire que le travail est perdu.
+  useEffect(() => {
+    listerActionsEnAttente()
+      .then((actions) => setActionsEnAttente(actions.length))
+      .catch(() => setActionsEnAttente(0));
+  }, []);
 
   async function soumettre(evenement: FormEvent<HTMLFormElement>) {
     evenement.preventDefault();
@@ -42,6 +54,22 @@ export default function PageConnexion() {
         <h1 style={{ fontSize: 19, color: "var(--couleur-emeraude)", marginBottom: 4 }}>Connexion</h1>
         <p className="eva-sous-titre" style={{ marginBottom: 18 }}>Espace agent et administrateur de l'etat civil</p>
         {erreur && <div className="message-erreur">{erreur}</div>}
+        {actionsEnAttente > 0 && (
+          <div
+            style={{
+              fontSize: 12.5,
+              background: "rgba(11,122,87,0.08)",
+              color: "var(--couleur-emeraude)",
+              padding: "8px 12px",
+              borderRadius: 6,
+              marginBottom: 14
+            }}
+          >
+            {actionsEnAttente} action{actionsEnAttente > 1 ? "s" : ""} enregistree{actionsEnAttente > 1 ? "s" : ""} hors
+            connexion {actionsEnAttente > 1 ? "sont conservees" : "est conservee"} sur cet appareil et
+            {actionsEnAttente > 1 ? " seront synchronisees" : " sera synchronisee"} des votre reconnexion.
+          </div>
+        )}
         <form onSubmit={soumettre}>
           <Champ id="email" label="Email" requis>
             <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />

@@ -46,7 +46,17 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
     window.addEventListener("offline", gererHorsLigne);
 
     const retirer = surRetourConnexion(async () => {
-      await synchroniser();
+      // Un echec de synchronisation ne doit jamais remonter en rejet non
+      // gere : le reseau peut retomber en pleine requete, ou la session
+      // avoir expire pendant la coupure (apiClient deconnecte alors
+      // proprement de son cote). Dans tous les cas la file locale reste
+      // intacte et sera rejouee au prochain retour de connexion.
+      try {
+        await synchroniser();
+      } catch {
+        // Silencieux ici : le compteur d'actions en attente ci-dessous
+        // reste le signal visible pour l'agent.
+      }
       await rafraichirCompteurSync();
     });
 

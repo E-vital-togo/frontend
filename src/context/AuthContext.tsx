@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { appelApi, effacerJetons, jetonAcces, stockerJetons } from "../lib/apiClient";
+import { appelApi, effacerJetons, jetonAcces, stockerJetons, surSessionExpiree } from "../lib/apiClient";
 import type { Utilisateur } from "../types/domaine";
 
 const CLE_UTILISATEUR = "evital_utilisateur";
@@ -40,6 +40,20 @@ export function FournisseurAuth({ children }: { children: ReactNode }) {
     }
     setEnChargement(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Session reellement refusee par le serveur (voir apiClient : uniquement
+  // un 401 suivi d'un rafraichissement lui-meme refuse en 401/403, jamais
+  // une panne reseau ou serveur). On vide l'utilisateur en memoire, ce qui
+  // suffit a RouteProtegee pour rediriger vers /connexion - jamais de
+  // rechargement force de la page, qui interromprait une ecriture Dexie en
+  // cours. La file d'actions hors-ligne (lib/db.ts) n'est PAS touchee :
+  // elle repartira a la prochaine connexion.
+  useEffect(() => {
+    return surSessionExpiree(() => {
+      localStorage.removeItem(CLE_UTILISATEUR);
+      setUtilisateur(null);
+    });
   }, []);
 
   async function demarrerConnexion(email: string, motDePasse: string) {
