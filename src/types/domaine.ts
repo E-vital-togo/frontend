@@ -282,11 +282,16 @@ export interface Territoire {
   dhis2_org_unit_uid: string;
 }
 
-export const NIVEAU_ENFANT_TERRITOIRE: Partial<Record<TypeTerritoire, TypeTerritoire>> = {
-  pays: "region",
-  region: "prefecture",
-  prefecture: "commune"
-};
+// Ordre de la hierarchie, du plus large au plus fin (voir
+// apps.utilisateurs.services.ORDRE_NIVEAUX_TERRITOIRE cote backend, qui
+// applique la meme regle : un admin_cec peut creer un admin_cec a
+// n'importe quel niveau strictement inferieur au sien, pas seulement le
+// niveau immediatement en-dessous).
+export const ORDRE_NIVEAUX_TERRITOIRE: TypeTerritoire[] = ["pays", "region", "prefecture", "commune"];
+
+export function niveauxInferieurs(type: TypeTerritoire): TypeTerritoire[] {
+  return ORDRE_NIVEAUX_TERRITOIRE.slice(ORDRE_NIVEAUX_TERRITOIRE.indexOf(type) + 1);
+}
 
 export interface CampagneRelance {
   id: string;

@@ -9,10 +9,11 @@ import { useMonTerritoire } from "../../lib/useMonTerritoire";
 import { LIENS_ADMIN_CEC } from "./navigation";
 import {
   listeDepuis,
-  NIVEAU_ENFANT_TERRITOIRE,
+  niveauxInferieurs,
   type ListeOuPaginee,
   type Mairie,
   type Territoire,
+  type TypeTerritoire,
   type Utilisateur
 } from "../../types/domaine";
 
@@ -95,22 +96,33 @@ export default function UtilisateursAdminCec() {
   }, []);
 
   // Determine ce que l'admin_cec connecte a le droit de creer : un agent
-  // directement si son scope est prefecture/commune, un administrateur CEC
-  // du niveau immediatement inferieur sinon (voir apps.utilisateurs.
-  // services.NIVEAU_ENFANT cote backend).
-  const niveauEnfant = monTerritoire ? NIVEAU_ENFANT_TERRITOIRE[monTerritoire.type] : undefined;
-  const peutCreerAgent = monTerritoire ? monTerritoire.type === "prefecture" || monTerritoire.type === "commune" : false;
-  const peutCreerAdminCec = !!niveauEnfant;
+  // dans n'importe quelle mairie de son perimetre, quel que soit son propre
+  // niveau, et un administrateur CEC a n'importe quel niveau strictement
+  // inferieur au sien - pas seulement le niveau immediatement en-dessous
+  // (voir apps.utilisateurs.services.peut_creer_admin_cec/peut_creer_agent_cec
+  // cote backend, qui appliquent la meme regle).
+  const niveauxAdminPossibles = monTerritoire ? niveauxInferieurs(monTerritoire.type) : [];
+  const peutCreerAgent = !!monTerritoire;
+  const peutCreerAdminCec = niveauxAdminPossibles.length > 0;
+
+  const [niveauCible, setNiveauCible] = useState<TypeTerritoire | "">("");
 
   useEffect(() => {
-    if (!peutCreerAdminCec || !niveauEnfant || !monTerritoire) {
+    if (niveauxAdminPossibles.length > 0 && !niveauxAdminPossibles.includes(niveauCible as TypeTerritoire)) {
+      setNiveauCible(niveauxAdminPossibles[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monTerritoire]);
+
+  useEffect(() => {
+    if (!peutCreerAdminCec || !niveauCible || !monTerritoire) {
       setTerritoiresEnfants([]);
       return;
     }
-    appelApi<ListeOuPaginee<Territoire>>(`/territoires/?type=${niveauEnfant}&parent=${monTerritoire.id}`)
+    appelApi<ListeOuPaginee<Territoire>>(`/territoires/?type=${niveauCible}&sous_territoire=${monTerritoire.id}`)
       .then((donnees) => setTerritoiresEnfants(listeDepuis(donnees)))
       .catch(() => setTerritoiresEnfants([]));
-  }, [peutCreerAdminCec, niveauEnfant, monTerritoire]);
+  }, [peutCreerAdminCec, niveauCible, monTerritoire]);
 
   // Si un seul des deux roles est possible, le formulaire s'y fixe directement.
   useEffect(() => {
@@ -223,7 +235,7 @@ export default function UtilisateursAdminCec() {
                   onChange={(e) => setNouveau({ ...nouveau, role: e.target.value as RoleCreation })}
                 >
                   <option value="agent_cec">Agent d'etat civil (mairie)</option>
-                  <option value="admin_cec">Administrateur CEC ({LIBELLES_TYPE_TERRITOIRE[niveauEnfant || ""]})</option>
+                  <option value="admin_cec">Administrateur CEC</option>
                 </select>
               </Champ>
             )}
@@ -253,26 +265,51 @@ export default function UtilisateursAdminCec() {
                 </select>
               </Champ>
             ) : (
-              <Champ
-                id="territoire-scope"
-                label={`Territoire administre (${LIBELLES_TYPE_TERRITOIRE[niveauEnfant || ""]})`}
-                requis
-                aide="Le nouvel administrateur gerera ce territoire et tout ce qui en depend."
-              >
-                <select
+              <>
+                {niveauxAdminPossibles.length > 1 && (
+                  <Champ
+                    id="niveau-cible"
+                    label="Niveau du territoire"
+                    requis
+                    aide="Vous pouvez creer un administrateur a n'importe quel niveau sous le votre, pas seulement le niveau immediatement inferieur."
+                  >
+                    <select
+                      id="niveau-cible"
+                      value={niveauCible}
+                      onChange={(e) => {
+                        setNiveauCible(e.target.value as TypeTerritoire);
+                        setNouveau({ ...nouveau, territoire_scope: "" });
+                      }}
+                    >
+                      {niveauxAdminPossibles.map((n) => (
+                        <option key={n} value={n}>
+                          {LIBELLES_TYPE_TERRITOIRE[n]}
+                        </option>
+                      ))}
+                    </select>
+                  </Champ>
+                )}
+                <Champ
                   id="territoire-scope"
-                  required
-                  value={nouveau.territoire_scope}
-                  onChange={(e) => setNouveau({ ...nouveau, territoire_scope: e.target.value })}
+                  label={`Territoire administre (${LIBELLES_TYPE_TERRITOIRE[niveauCible || ""]})`}
+                  requis
+                  aide="Le nouvel administrateur gerera ce territoire et tout ce qui en depend."
                 >
-                  <option value="">Selectionner un territoire</option>
-                  {territoiresEnfants.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.nom}
-                    </option>
-                  ))}
-                </select>
-              </Champ>
+                  <select
+                    id="territoire-scope"
+                    required
+                    value={nouveau.territoire_scope}
+                    onChange={(e) => setNouveau({ ...nouveau, territoire_scope: e.target.value })}
+                  >
+                    <option value="">Selectionner un territoire</option>
+                    {territoiresEnfants.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.nom}
+                      </option>
+                    ))}
+                  </select>
+                </Champ>
+              </>
             )}
 
             <Bouton type="submit" chargement={creationEnCours}>
