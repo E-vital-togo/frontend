@@ -182,7 +182,7 @@ export default function ListeDossiers() {
               {resultats.map((dossier) => (
                 <tr key={dossier.id}>
                   <td className="texte-mono">{dossier.id.slice(0, 8)}</td>
-                  <td>{dossier.nom || "—"}</td>
+                  <td>{dossier.nom || "-"}</td>
                   <td>{dossier.event_type === "naissance" ? "Naissance" : "Deces"}</td>
                   <td>{dossier.origine === "dhis2" ? "DHIS2" : "Manuel"}</td>
                   <td>

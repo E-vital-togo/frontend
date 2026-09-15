@@ -121,9 +121,11 @@ export interface DemandeModificationActe {
   dossier: string;
   champs_modifies: Record<string, { ancienne_valeur: unknown; nouvelle_valeur: unknown }>;
   demandeur: string;
+  demandeur_nom?: string;
   niveau_requis: "regional" | "national";
   statut: "en_attente" | "validee" | "rejetee";
   validateur: string | null;
+  validateur_nom?: string;
   commentaire_validateur: string;
   created_at: string;
   decided_at: string | null;

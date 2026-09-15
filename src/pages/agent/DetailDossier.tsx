@@ -4,7 +4,7 @@ import { BellRing, CheckCircle2, FileSignature, GitCompareArrows } from "lucide-
 import MiseEnPage from "../../components/MiseEnPage";
 import BadgeStatut from "../../components/BadgeStatut";
 import ChampDynamique from "../../components/ChampDynamique";
-import { Bouton, Carte, ChargementPage, EnteteDePage, Frise, Onglets } from "../../components/ui";
+import { Badge, Bouton, Carte, ChargementPage, EnteteDePage, Frise, Onglets } from "../../components/ui";
 import { useConfirmation } from "../../components/ui/ConfirmationProvider";
 import { useToast } from "../../components/ui/ToastProvider";
 import { useAuth } from "../../context/AuthContext";
@@ -12,7 +12,21 @@ import { appelApi, ErreurApi } from "../../lib/apiClient";
 import { mettreEnFileAction, mettreEnCacheDossier, dossierEnCache } from "../../lib/db";
 import { LIENS_AGENT } from "./navigation";
 import { LIENS_ADMIN_CEC } from "../admin_cec/navigation";
-import { listeDepuis, type ChampFormulaireEffectif, type Dossier, type ListeOuPaginee, type NotificationDossier, type ValeurChamp } from "../../types/domaine";
+import {
+  listeDepuis,
+  type ChampFormulaireEffectif,
+  type DemandeModificationActe,
+  type Dossier,
+  type ListeOuPaginee,
+  type NotificationDossier,
+  type ValeurChamp
+} from "../../types/domaine";
+
+const LIBELLES_STATUT_DEMANDE: Record<DemandeModificationActe["statut"], { texte: string; variante: "attente" | "succes" | "danger" }> = {
+  en_attente: { texte: "En attente de validation", variante: "attente" },
+  validee: { texte: "Validee : acte reemis", variante: "succes" },
+  rejetee: { texte: "Rejetee", variante: "danger" }
+};
 
 interface ReponseFormulaireEffectif {
   champs: ChampFormulaireEffectif[];
@@ -55,6 +69,7 @@ export default function DetailDossier() {
   const [onglet, setOnglet] = useState("formulaire");
   const [historique, setHistorique] = useState<ValeurChamp[] | null>(null);
   const [notifications, setNotifications] = useState<NotificationDossier[] | null>(null);
+  const [demandes, setDemandes] = useState<DemandeModificationActe[] | null>(null);
   const [decisionEnCours, setDecisionEnCours] = useState(false);
   const [relanceEnCours, setRelanceEnCours] = useState(false);
 
@@ -103,6 +118,16 @@ export default function DetailDossier() {
         .catch(() => setNotifications([]));
     }
   }, [onglet, idDossier, notifications]);
+
+  useEffect(() => {
+    // Suivi des demandes de modification d'acte : charge a l'ouverture de
+    // l'onglet, et au premier affichage du dossier pour afficher le compteur.
+    if (idDossier && demandes === null && (onglet === "demandes" || dossier)) {
+      appelApi<DemandeModificationActe[]>(`/dossiers/${idDossier}/acte/demandes-modification`)
+        .then(setDemandes)
+        .catch(() => setDemandes([]));
+    }
+  }, [onglet, idDossier, demandes, dossier]);
 
   async function relancerMaintenant() {
     if (!idDossier) return;
@@ -278,7 +303,7 @@ export default function DetailDossier() {
                 {propositionEnAttente.champs_modifies.map((diff, index) => (
                   <tr key={index}>
 
-                    <td>{diff.label || diff.data_element_code || "—"}</td>
+                    <td>{diff.label || diff.data_element_code || "-"}</td>
                     <td>{formaterValeur(diff.valeur_actuelle)}</td>
                     <td style={{ fontWeight: 600 }}>{formaterValeur(diff.valeur_proposee)}</td>
                   </tr>
@@ -301,7 +326,15 @@ export default function DetailDossier() {
         onglets={[
           { id: "formulaire", libelle: "Formulaire" },
           { id: "historique", libelle: "Historique" },
-          { id: "notifications", libelle: "Notifications" }
+          { id: "notifications", libelle: "Notifications" },
+          {
+            id: "demandes",
+            libelle:
+              "Demandes de modification" +
+              (demandes && demandes.some((d) => d.statut === "en_attente")
+                ? ` (${demandes.filter((d) => d.statut === "en_attente").length} en attente)`
+                : "")
+          }
         ]}
         actif={onglet}
         onChanger={setOnglet}
@@ -382,12 +415,57 @@ export default function DetailDossier() {
                   <>
                     <strong>{libelleParCode[v.data_element_code] || v.data_element_code}</strong> ={" "}
                     {formaterValeur(v.valeur)}{" "}
-                    <span style={{ color: "var(--couleur-gris-service-2)" }}>
-                      — {v.source === "dhis2" ? "DHIS2" : v.source === "parent" ? "le parent/declarant" : v.source === "agent_sante" ? "l'agent de sante" : "l'agent d'etat civil"}
+                    <span style={{ color: "var(--couleur-gris-service-2)" }}>, {v.source === "dhis2" ? "DHIS2" : v.source === "parent" ? "le parent/declarant" : v.source === "agent_sante" ? "l'agent de sante" : "l'agent d'etat civil"}
                     </span>
                   </>
                 )
               }))}
+            />
+          )}
+        </Carte>
+      ) : onglet === "demandes" ? (
+        <Carte>
+          {demandes === null ? (
+            <ChargementPage texte="Chargement des demandes..." />
+          ) : demandes.length === 0 ? (
+            <p style={{ color: "var(--couleur-gris-service-2)" }}>
+              Aucune demande de modification d'acte pour ce dossier. Une demande se fait depuis l'ecran de l'acte, une fois celui-ci emis.
+            </p>
+          ) : (
+            <Frise
+              elements={demandes.map((d) => {
+                const etat = LIBELLES_STATUT_DEMANDE[d.statut];
+                return {
+                  id: d.id,
+                  date: new Date(d.created_at).toLocaleString("fr-FR"),
+                  contenu: (
+                    <div style={{ display: "grid", gap: 6 }}>
+                      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+                        <Badge variante={etat.variante}>{etat.texte}</Badge>
+                        <span style={{ fontSize: 12, color: "var(--couleur-gris-service-2)" }}>
+                          validation {d.niveau_requis === "national" ? "nationale" : "regionale"} requise
+                          {d.demandeur_nom ? ` , demandee par ${d.demandeur_nom}` : ""}
+                        </span>
+                      </div>
+                      <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
+                        {Object.entries(d.champs_modifies).map(([code, valeurs]) => (
+                          <li key={code}>
+                            <strong>{libelleParCode[code] || code}</strong> : {formaterValeur(valeurs.ancienne_valeur)}{" "}
+                            <span style={{ color: "var(--couleur-gris-service-2)" }}>devient</span> {formaterValeur(valeurs.nouvelle_valeur)}
+                          </li>
+                        ))}
+                      </ul>
+                      {d.decided_at && (
+                        <div style={{ fontSize: 12.5, color: "var(--couleur-gris-service-1)" }}>
+                          Decision le {new Date(d.decided_at).toLocaleString("fr-FR")}
+                          {d.validateur_nom ? ` par ${d.validateur_nom}` : ""}
+                          {d.commentaire_validateur ? ` : ${d.commentaire_validateur}` : ""}
+                        </div>
+                      )}
+                    </div>
+                  )
+                };
+              })}
             />
           )}
         </Carte>
@@ -415,7 +493,7 @@ export default function DetailDossier() {
                       <td className="texte-mono">{new Date(n.created_at).toLocaleString("fr-FR")}</td>
                       <td>{LIBELLES_TYPE_NOTIFICATION[n.type] || n.type}</td>
                       <td>{n.canal === "sms" ? "SMS" : "WhatsApp"}</td>
-                      <td>{n.fournisseur_utilise || "—"}</td>
+                      <td>{n.fournisseur_utilise || "-"}</td>
                       <td>{LIBELLES_STATUT_NOTIFICATION[n.statut] || n.statut}</td>
                     </tr>
                   ))}

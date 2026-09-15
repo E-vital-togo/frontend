@@ -349,7 +349,7 @@ export default function UtilisateursAdminCec() {
                 </td>
                 <td className="texte-mono">{u.email}</td>
                 <td>{LIBELLES_ROLE[u.role] || u.role}</td>
-                <td>{(u.mairie && nomMairie[u.mairie]) || "—"}</td>
+                <td>{(u.mairie && nomMairie[u.mairie]) || "-"}</td>
                 <td>
                   <span className={`eva-badge ${u.is_active ? "eva-badge--succes" : "eva-badge--neutre"}`}>
                     {u.is_active ? "Actif" : "Desactive"}

@@ -118,7 +118,7 @@ export default function TableauDeBordAdminCec() {
             <CarteStat icone={<Clock size={22} />} valeur={echeancesProches.length} libelle="Echeances proches (zone)" alerte={echeancesProches.length > 0} />
             <CarteStat
               icone={<Clock size={22} />}
-              valeur={delaiMoyenJours !== null ? `${delaiMoyenJours} j` : "—"}
+              valeur={delaiMoyenJours !== null ? `${delaiMoyenJours} j` : "-"}
               libelle="Delai moyen declaration -> acte"
             />
           </div>

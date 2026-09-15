@@ -191,7 +191,7 @@ export default function DossiersAdminCec() {
                 <tr key={dossier.id}>
                   <td className="texte-mono">{dossier.id.slice(0, 8)}</td>
                   <td>{dossier.event_type === "naissance" ? "Naissance" : "Deces"}</td>
-                  <td>{dossier.mairie_nom || "—"}</td>
+                  <td>{dossier.mairie_nom || "-"}</td>
                   <td>
                     <BadgeStatut statut={dossier.statut} />
                   </td>

@@ -219,7 +219,7 @@ export default function ConstructeurGraphique() {
 
           <div style={{ marginBottom: 14 }}>
             <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>
-              Dimensions (axe X, puis serie) — {MAX_DIMENSIONS} maximum
+              Dimensions (axe X, puis serie) - {MAX_DIMENSIONS} maximum
             </label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {dimensionsDisponibles.map((d) => {
@@ -241,7 +241,7 @@ export default function ConstructeurGraphique() {
 
           <div style={{ marginBottom: 14 }}>
             <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>
-              Mesures (axe Y) — plusieurs possibles
+              Mesures (axe Y) - plusieurs possibles
             </label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {mesuresDisponibles.map((m) => {
@@ -393,7 +393,7 @@ export default function ConstructeurGraphique() {
                     ))}
                     {resultat.mesures.map((m) => (
                       <td key={m} style={ligne._masque ? { color: "var(--gris-2)", fontStyle: "italic" } : undefined}>
-                        {ligne._masque ? `< ${resultat.traitements?.seuil_petites_cellules ?? ""}` : ligne[m] ?? "—"}
+                        {ligne._masque ? `< ${resultat.traitements?.seuil_petites_cellules ?? ""}` : ligne[m] ?? "-"}
                       </td>
                     ))}
                   </tr>

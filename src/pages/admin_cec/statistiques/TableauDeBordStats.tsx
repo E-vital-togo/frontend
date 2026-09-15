@@ -223,7 +223,7 @@ export default function TableauDeBordStats() {
             )}
             {!estProprietaire && tableauActif && (
               <p style={{ fontSize: 12.5, color: "var(--couleur-gris-service-2)", paddingBottom: 10 }}>
-                Tableau de bord partage par {tableauActif.proprietaire_nom} — lecture seule, disposition non modifiable.
+                Tableau de bord partage par {tableauActif.proprietaire_nom} - lecture seule, disposition non modifiable.
               </p>
             )}
           </div>
