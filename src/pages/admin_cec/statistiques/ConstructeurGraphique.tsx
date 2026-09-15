@@ -52,6 +52,14 @@ export default function ConstructeurGraphique() {
   const [tri, setTri] = useState<TriPivot>("valeur_desc");
   const [limite, setLimite] = useState("");
   const [regrouperAutres, setRegrouperAutres] = useState(true);
+  // Options de traitement (voir apps.statistiques.moteur) : inclus / non masque par defaut.
+  const [exclureNonRenseigne, setExclureNonRenseigne] = useState(false);
+  const [seuilActif, setSeuilActif] = useState(false);
+  const [seuil, setSeuil] = useState("5");
+  const seuilActuel = (): number | null => {
+    const n = Number(seuil);
+    return seuilActif && n >= 2 ? n : null;
+  };
 
   const [resultat, setResultat] = useState<PivotResultat | null>(null);
   const [vueTable, setVueTable] = useState(false);
@@ -100,7 +108,9 @@ export default function ConstructeurGraphique() {
         filtres: filtresActuels(),
         tri,
         limite: limite ? Number(limite) : null,
-        regrouper_autres: regrouperAutres
+        regrouper_autres: regrouperAutres,
+        exclure_non_renseigne: exclureNonRenseigne,
+        seuil_petites_cellules: seuilActuel()
       }
     })
       .then((donnees) => !annule && setResultat(donnees))
@@ -114,7 +124,7 @@ export default function ConstructeurGraphique() {
       annule = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dimensionsChoisies, mesuresChoisies, eventType, dateMin, dateMax, tri, limite, regrouperAutres]);
+  }, [dimensionsChoisies, mesuresChoisies, eventType, dateMin, dateMax, tri, limite, regrouperAutres, exclureNonRenseigne, seuilActif, seuil]);
 
   function basculerDimension(code: string) {
     setDimensionsChoisies((actuelles) =>
@@ -170,7 +180,9 @@ export default function ConstructeurGraphique() {
           filtres: filtresActuels(),
           tri,
           limite: limite ? Number(limite) : null,
-          regrouper_autres: regrouperAutres
+          regrouper_autres: regrouperAutres,
+          exclure_non_renseigne: exclureNonRenseigne,
+          seuil_petites_cellules: seuilActuel()
         }
       });
       toast.succes("Graphique enregistre sur le tableau de bord.");
@@ -288,9 +300,25 @@ export default function ConstructeurGraphique() {
             </div>
           </div>
 
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 14 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 8 }}>
             <input type="checkbox" checked={regrouperAutres} onChange={(e) => setRegrouperAutres(e.target.checked)} />
             Regrouper le surplus dans "Autres"
+          </label>
+          <label
+            style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 8 }}
+            title="Écarte les dossiers sans valeur pour une des dimensions choisies ; les taux se calculent sur le renseigné."
+          >
+            <input type="checkbox" checked={exclureNonRenseigne} onChange={(e) => setExclureNonRenseigne(e.target.checked)} />
+            Exclure « Non renseigné »
+          </label>
+          <label
+            style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 14, flexWrap: "wrap" }}
+            title="Protection contre la ré-identification : toute cellule de moins de N dossiers est masquée (« < N ») dans le graphique, le tableau et les exports."
+          >
+            <input type="checkbox" checked={seuilActif} onChange={(e) => setSeuilActif(e.target.checked)} />
+            Masquer les cellules de moins de
+            <input type="number" min={2} value={seuil} disabled={!seuilActif} onChange={(e) => setSeuil(e.target.value)} style={{ width: 64 }} />
+            dossiers
           </label>
 
           <Bouton
@@ -364,7 +392,9 @@ export default function ConstructeurGraphique() {
                       <td key={d}>{ligne[d]}</td>
                     ))}
                     {resultat.mesures.map((m) => (
-                      <td key={m}>{ligne[m] ?? "—"}</td>
+                      <td key={m} style={ligne._masque ? { color: "var(--gris-2)", fontStyle: "italic" } : undefined}>
+                        {ligne._masque ? `< ${resultat.traitements?.seuil_petites_cellules ?? ""}` : ligne[m] ?? "—"}
+                      </td>
                     ))}
                   </tr>
                 ))}

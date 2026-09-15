@@ -56,6 +56,8 @@ function construireSeries(resultat: PivotResultat, libellesMesures: Record<strin
   return { categories, series };
 }
 
+const SEUIL_ZOOM = 24;
+
 const OPTION_BASE: Partial<EChartsOption> = {
   tooltip: { trigger: "axis" },
   legend: { bottom: 0, textStyle: { fontSize: 11 } },
@@ -108,9 +110,16 @@ export function construireOptionECharts(
 
   const axeCategories = { type: "category" as const, data: categories, axisLabel: { fontSize: 11, interval: 0, rotate: categories.length > 8 && !horizontal ? 30 : 0 } };
   const axeValeurs = { type: "value" as const, axisLabel: { fontSize: 11 } };
+  // Longue serie (> SEUIL_ZOOM categories) : zoom molette/glisser + curseur
+  // de defilement au-dessus de la legende, sinon l'axe X devient illisible.
+  const zoom = categories.length > SEUIL_ZOOM && !horizontal;
 
   return {
     ...OPTION_BASE,
+    grid: { ...OPTION_BASE.grid, bottom: zoom ? 62 : 36 },
+    dataZoom: zoom
+      ? [{ type: "inside" }, { type: "slider", height: 14, bottom: 26, start: 0, end: Math.min(100, (SEUIL_ZOOM / categories.length) * 100) }]
+      : undefined,
     color: PALETTE,
     xAxis: horizontal ? axeValeurs : axeCategories,
     yAxis: horizontal ? axeCategories : axeValeurs,

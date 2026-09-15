@@ -199,6 +199,10 @@ export interface PivotRequete {
   tri?: TriPivot;
   limite?: number | null;
   regrouper_autres?: boolean;
+  /** Ecarte les faits sans valeur pour une des dimensions (inclus par defaut). */
+  exclure_non_renseigne?: boolean;
+  /** Masque les comptages < seuil (protection contre la re-identification) ; null = desactive. */
+  seuil_petites_cellules?: number | null;
 }
 
 export interface PivotLigne {
@@ -210,6 +214,8 @@ export interface PivotResultat {
   mesures: string[];
   lignes: PivotLigne[];
   total_lignes: number;
+  libelles?: { dimensions: Record<string, string>; mesures: Record<string, string> };
+  traitements?: { exclure_non_renseigne: boolean; seuil_petites_cellules: number | null; cellules_masquees: number };
 }
 
 export type TypeGraphiqueStat =
@@ -232,6 +238,8 @@ export interface WidgetGraphique extends PivotRequete {
   tri: TriPivot;
   limite: number | null;
   regrouper_autres: boolean;
+  exclure_non_renseigne: boolean;
+  seuil_petites_cellules: number | null;
   position_x: number;
   position_y: number;
   largeur: number;
