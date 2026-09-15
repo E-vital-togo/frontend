@@ -63,7 +63,7 @@ export default function DetailDossier() {
 
   const [dossier, setDossier] = useState<Dossier | null>(null);
   const [champs, setChamps] = useState<ChampFormulaireEffectif[]>([]);
-  const [valeursModifiees, setValeursModifiees] = useState<Record<string, string>>({});
+  const [valeursModifiees, setValeursModifiees] = useState<Record<string, unknown>>({});
   const [enregistrement, setEnregistrement] = useState(false);
   const [horsLigne, setHorsLigne] = useState(!navigator.onLine);
   const [onglet, setOnglet] = useState("formulaire");
@@ -154,7 +154,7 @@ export default function DetailDossier() {
     return table;
   }, [champs]);
 
-  function modifierValeur(codeChamp: string, valeur: string) {
+  function modifierValeur(codeChamp: string, valeur: unknown) {
     setValeursModifiees((precedent) => ({ ...precedent, [codeChamp]: valeur }));
   }
 

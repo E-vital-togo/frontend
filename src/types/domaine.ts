@@ -74,10 +74,46 @@ export interface Dossier {
   valeurs?: ValeurChamp[];
 }
 
+// Miroir d'apps.catalogue.contraintes.TypeChamp (backend) : determine le
+// widget rendu par ChampDynamique et le format accepte a l'enregistrement
+// (voir apps.catalogue.validation.valider_valeur, source de verite finale -
+// ce switch cote frontend n'est qu'un confort de saisie).
+export type TypeChamp =
+  | "texte_court"
+  | "texte_long"
+  | "nombre_entier"
+  | "nombre_decimal"
+  | "date"
+  | "booleen"
+  | "select"
+  | "select_multiple"
+  | "telephone";
+
+// Sous-ensemble pertinent selon `type_champ` - voir apps.catalogue.contraintes.SCHEMAS.
+export interface ContraintesChamp {
+  longueur_max?: number;
+  regex?: string;
+  min?: number;
+  max?: number;
+  autorise_futur?: boolean;
+  autorise_passe?: boolean;
+  min_selections?: number;
+  max_selections?: number;
+}
+
+export interface OptionChampEffective {
+  valeur: string;
+  libelle: string;
+}
+
 export interface ChampFormulaireEffectif {
   data_element_code: string;
   label: string;
   readonly: boolean;
+  obligatoire: boolean;
+  type_champ: TypeChamp;
+  contraintes: ContraintesChamp;
+  options: OptionChampEffective[];
   valeur_actuelle: unknown;
   source_valeur_actuelle: string | null;
 }

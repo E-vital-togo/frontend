@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { CheckCircle2 } from "lucide-react";
+import ChampDynamique from "../../components/ChampDynamique";
 import Logo from "../../components/Logo";
-import { Bouton, Champ } from "../../components/ui";
+import { Bouton } from "../../components/ui";
 import { appelApiPublic, ErreurApiPublique } from "../../lib/apiPublic";
 import type { ChampFormulaireEffectif } from "../../types/domaine";
 
@@ -13,7 +14,7 @@ interface ReponseFormulaireEffectif {
 export default function PageCompletionParent() {
   const { code } = useParams<{ code: string }>();
   const [champs, setChamps] = useState<ChampFormulaireEffectif[] | null>(null);
-  const [valeurs, setValeurs] = useState<Record<string, string>>({});
+  const [valeurs, setValeurs] = useState<Record<string, unknown>>({});
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoye, setEnvoye] = useState(false);
   const [enCours, setEnCours] = useState(false);
@@ -82,15 +83,12 @@ export default function PageCompletionParent() {
             </p>
             {erreur && <div className="message-erreur">{erreur}</div>}
             {champs.map((champ) => (
-              <Champ key={champ.data_element_code} id={champ.data_element_code} label={champ.label}>
-                <input
-                  id={champ.data_element_code}
-                  type="text"
-                  disabled={champ.readonly}
-                  defaultValue={typeof champ.valeur_actuelle === "string" ? champ.valeur_actuelle : ""}
-                  onChange={(e) => setValeurs((v) => ({ ...v, [champ.data_element_code]: e.target.value }))}
-                />
-              </Champ>
+              <ChampDynamique
+                key={champ.data_element_code}
+                champ={champ}
+                valeur={valeurs[champ.data_element_code] ?? champ.valeur_actuelle}
+                onChange={(code, valeur) => setValeurs((v) => ({ ...v, [code]: valeur }))}
+              />
             ))}
             <Bouton type="submit" chargement={enCours} style={{ width: "100%" }}>
               Envoyer
