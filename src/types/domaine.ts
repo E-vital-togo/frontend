@@ -343,3 +343,15 @@ export interface LienNavigation {
   icone: LucideIcon;
   cleCompteur?: "echeances" | "conflits" | "demandes" | "notificationsEchouees";
 }
+
+
+export interface SignataireMairie {
+  id : string;
+  nom : string;
+  prenom : string;
+  fonction : string;
+  marie : string;
+  created_at : string;
+  updated_at : string;
+}
+

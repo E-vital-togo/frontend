@@ -1,4 +1,4 @@
-import type { EChartsOption } from "echarts";
+import type { BarSeriesOption, EChartsOption, LineSeriesOption } from "echarts";
 import type { PivotResultat, TypeGraphiqueStat } from "../types/domaine";
 
 export const PALETTE = ["#0B7A57", "#16B37D", "#A8BB1E", "#40534B", "#6B7A73", "#C8D92F", "#8AA69B", "#B3261E", "#2E6F95", "#C97A2B"];
@@ -62,6 +62,17 @@ const OPTION_BASE: Partial<EChartsOption> = {
   grid: { top: 24, left: 8, right: 16, bottom: 36, containLabel: true }
 };
 
+/** Remplissage d'aire en degrade vertical (opaque en haut, transparent en bas), comme l'atelier des requetes INSEED. */
+function degradeAire(couleur: string): NonNullable<LineSeriesOption["areaStyle"]> {
+  return {
+    opacity: 0.85,
+    color: {
+      type: "linear", x: 0, y: 0, x2: 0, y2: 1,
+      colorStops: [{ offset: 0.05, color: couleur }, { offset: 0.95, color: couleur + "14" }]
+    }
+  };
+}
+
 export function construireOptionECharts(
   resultat: PivotResultat,
   typeGraphique: TypeGraphiqueStat,
@@ -89,7 +100,11 @@ export function construireOptionECharts(
   const empilees = typeGraphique === "barres_empilees" || typeGraphique === "aires_empilees";
   const aires = typeGraphique === "aires_empilees";
   const courbes = typeGraphique === "courbes";
-  const type: "bar" | "line" = courbes ? "line" : "bar";
+  // Une aire est une courbe remplie : le type ECharts doit etre "line" (areaStyle
+  // est ignore sur une serie "bar", ce qui rendait les aires identiques aux
+  // barres empilees). Meme rendu que l'atelier des requetes INSEED (Recharts
+  // AreaChart avec degrade vertical).
+  const enLignes = courbes || aires;
 
   const axeCategories = { type: "category" as const, data: categories, axisLabel: { fontSize: 11, interval: 0, rotate: categories.length > 8 && !horizontal ? 30 : 0 } };
   const axeValeurs = { type: "value" as const, axisLabel: { fontSize: 11 } };
@@ -99,15 +114,26 @@ export function construireOptionECharts(
     color: PALETTE,
     xAxis: horizontal ? axeValeurs : axeCategories,
     yAxis: horizontal ? axeCategories : axeValeurs,
-    series: series.map((s) => ({
-      name: s.nom,
-      type,
-      data: s.valeurs,
-      stack: empilees ? "pile" : undefined,
-      areaStyle: aires ? {} : undefined,
-      smooth: courbes,
-      emphasis: { focus: "series" }
-    }))
+    series: series.map((s, i): LineSeriesOption | BarSeriesOption =>
+      enLignes
+        ? {
+            name: s.nom,
+            type: "line",
+            data: s.valeurs,
+            stack: empilees ? "pile" : undefined,
+            areaStyle: aires ? degradeAire(PALETTE[i % PALETTE.length]) : undefined,
+            smooth: true,
+            symbolSize: aires ? 5 : undefined,
+            emphasis: { focus: "series" }
+          }
+        : {
+            name: s.nom,
+            type: "bar",
+            data: s.valeurs,
+            stack: empilees ? "pile" : undefined,
+            emphasis: { focus: "series" }
+          }
+    )
   };
 }
 
