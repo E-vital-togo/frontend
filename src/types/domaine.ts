@@ -142,6 +142,7 @@ export interface Acte {
   numero_feuillet: number;
   numero_acte: number;
   annee_registre: number;
+  signataire: string | null;
   nom_signataire: string;
   qualite_signataire: string;
   date_etablissement: string;
@@ -155,6 +156,7 @@ export interface Acte {
 export interface DemandeModificationActe {
   id: string;
   dossier: string;
+  dossier_event_type: TypeEvenement;
   champs_modifies: Record<string, { ancienne_valeur: unknown; nouvelle_valeur: unknown }>;
   demandeur: string;
   demandeur_nom?: string;
@@ -383,21 +385,42 @@ export function listeDepuis<T>(donnees: ListeOuPaginee<T>): T[] {
   return Array.isArray(donnees) ? donnees : donnees.results;
 }
 
+export interface SousLienNavigation {
+  chemin: string;
+  libelle: string;
+  cleCompteur?: "echeances" | "conflits" | "demandes" | "notificationsEchouees";
+}
+
 export interface LienNavigation {
   chemin: string;
   libelle: string;
   icone: LucideIcon;
   cleCompteur?: "echeances" | "conflits" | "demandes" | "notificationsEchouees";
+  sousLiens?: SousLienNavigation[];
 }
-
 
 export interface SignataireMairie {
-  id : string;
-  nom : string;
-  prenom : string;
-  fonction : string;
-  marie : string;
-  created_at : string;
-  updated_at : string;
+  id: string;
+  nom: string;
+  prenom: string;
+  fonction: string;
+  actif: boolean;
+  a_signe_un_acte: boolean;
+  mairie: string;
+  mairie_nom: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
 }
 
+export interface ActeSigneParSignataire {
+  id: string;
+  dossier: string;
+  type_acte: TypeEvenement;
+  numero_registre: number;
+  numero_feuillet: number;
+  numero_acte: number;
+  annee_registre: number;
+  date_etablissement: string;
+  statut: "actif" | "annule";
+}

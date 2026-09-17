@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { BellRing, CheckCircle2, FileSignature, GitCompareArrows } from "lucide-react";
+import { BellRing, CheckCircle2, FileSignature, GitCompareArrows, UserCheck } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
 import BadgeStatut from "../../components/BadgeStatut";
 import ChampDynamique from "../../components/ChampDynamique";
-import { Badge, Bouton, Carte, ChargementPage, EnteteDePage, Frise, Onglets } from "../../components/ui";
+import { Badge, Bouton, Carte, ChargementPage, EnteteDePage, Frise, Modale, Onglets } from "../../components/ui";
 import { useConfirmation } from "../../components/ui/ConfirmationProvider";
 import { useToast } from "../../components/ui/ToastProvider";
 import { useAuth } from "../../context/AuthContext";
@@ -14,11 +14,13 @@ import { LIENS_AGENT } from "./navigation";
 import { LIENS_ADMIN_CEC } from "../admin_cec/navigation";
 import {
   listeDepuis,
+  type Acte,
   type ChampFormulaireEffectif,
   type DemandeModificationActe,
   type Dossier,
   type ListeOuPaginee,
   type NotificationDossier,
+  type SignataireMairie,
   type ValeurChamp
 } from "../../types/domaine";
 
@@ -72,6 +74,9 @@ export default function DetailDossier() {
   const [demandes, setDemandes] = useState<DemandeModificationActe[] | null>(null);
   const [decisionEnCours, setDecisionEnCours] = useState(false);
   const [relanceEnCours, setRelanceEnCours] = useState(false);
+  const [acte, setActe] = useState<Acte | null>(null);
+  const [signataireVisible, setSignataireVisible] = useState<SignataireMairie | null>(null);
+  const [chargementSignataire, setChargementSignataire] = useState(false);
 
   async function charger() {
     if (!idDossier) return;
@@ -128,6 +133,30 @@ export default function DetailDossier() {
         .catch(() => setDemandes([]));
     }
   }, [onglet, idDossier, demandes, dossier]);
+
+  useEffect(() => {
+    // Necessaire pour le bouton "Voir le signataire" (a cote de "Voir le
+    // PDF") : seul le PDF etait accessible jusqu'ici, sans donnee JSON sur
+    // l'acte lui-meme.
+    if (idDossier && dossier?.statut === "acte_emis" && acte === null) {
+      appelApi<Acte>(`/dossiers/${idDossier}/acte/`)
+        .then(setActe)
+        .catch(() => setActe(null));
+    }
+  }, [idDossier, dossier, acte]);
+
+  async function voirSignataire() {
+    if (!acte?.signataire) return;
+    setChargementSignataire(true);
+    try {
+      const signataire = await appelApi<SignataireMairie>(`/signataires/${acte.signataire}/`);
+      setSignataireVisible(signataire);
+    } catch (e) {
+      toast.erreur(e instanceof ErreurApi ? e.message : "Impossible de charger le signataire.");
+    } finally {
+      setChargementSignataire(false);
+    }
+  }
 
   async function relancerMaintenant() {
     if (!idDossier) return;
@@ -398,6 +427,16 @@ export default function DetailDossier() {
                 Voir le PDF de l'acte
               </Link>
             )}
+            {dossier.statut === "acte_emis" && acte?.signataire && (
+              <Bouton
+                variante="fantome"
+                onClick={voirSignataire}
+                chargement={chargementSignataire}
+                iconeGauche={<UserCheck size={16} />}
+              >
+                Voir le signataire
+              </Bouton>
+            )}
           </div>
         </>
       ) : onglet === "historique" ? (
@@ -502,6 +541,16 @@ export default function DetailDossier() {
             </div>
           )}
         </Carte>
+      )}
+
+      {signataireVisible && (
+        <Modale titre="Signataire de l'acte" onFermer={() => setSignataireVisible(null)}>
+          <p style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>
+            {signataireVisible.nom} {signataireVisible.prenom}
+          </p>
+          <p style={{ color: "var(--couleur-gris-service-2)", marginBottom: 10 }}>{signataireVisible.fonction}</p>
+          {!signataireVisible.actif && <Badge variante="attente">Signataire desactive</Badge>}
+        </Modale>
       )}
     </MiseEnPage>
   );

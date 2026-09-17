@@ -369,6 +369,10 @@ table.tableau-standard th, table.eva-tableau th {
 table.eva-tableau tbody tr:hover { background: var(--couleur-emeraude-fond); }
 table.eva-tableau tbody tr:last-child td { border-bottom: none; }
 
+.eva-ligne-urgence--verte { background: var(--couleur-emeraude-fond); }
+.eva-ligne-urgence--orange { background: var(--couleur-citron-fond); }
+.eva-ligne-urgence--rouge { background: var(--couleur-erreur-fond); }
+
 /* ================================ ETAT VIDE ================================== */
 
 .eva-etat-vide {
@@ -592,6 +596,20 @@ table.eva-tableau tbody tr:last-child td { border-bottom: none; }
 .eva-lien-nav--actif { background: var(--couleur-emeraude); color: var(--couleur-blanc); }
 .eva-lien-nav--actif svg { color: var(--couleur-blanc); }
 .eva-lien-nav__puce { margin-left: auto; }
+
+.eva-groupe-nav { display: flex; flex-direction: column; gap: 2px; }
+.eva-lien-nav--groupe { width: 100%; border: none; background: none; cursor: pointer; font: inherit; text-align: left; }
+.eva-lien-nav__chevron { margin-left: auto; flex-shrink: 0; }
+.eva-lien-nav--groupe .eva-puce { margin-left: 0; }
+
+.eva-sous-menu { display: flex; flex-direction: column; gap: 1px; margin: 2px 0 4px 15px; padding-left: 14px; border-left: 1px solid var(--couleur-bordure); }
+.eva-sous-lien-nav {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--rayon-petit);
+  color: var(--couleur-gris-service-2); text-decoration: none; font-size: 13px; font-weight: 500;
+  transition: background var(--transition-rapide), color var(--transition-rapide);
+}
+.eva-sous-lien-nav:hover { background: var(--couleur-emeraude-fond); color: var(--couleur-encre); }
+.eva-sous-lien-nav--actif { background: var(--couleur-emeraude-fond); color: var(--couleur-vert-profond); font-weight: 600; }
 
 .eva-principal {
   flex: 1;

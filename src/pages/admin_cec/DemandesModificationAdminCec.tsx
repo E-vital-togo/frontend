@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { useSearchParams } from "react-router-dom";
 import { CheckCircle2, Eye, XCircle } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
 import { Bouton, Champ, ChargementPage, EnteteDePage, EtatVide, Modale, Tableau } from "../../components/ui";
@@ -18,6 +19,8 @@ function formaterValeur(valeur: unknown): string {
 
 export default function DemandesModificationAdminCec() {
   const toast = useToast();
+  const [parametresUrl] = useSearchParams();
+  const evenementFiltre = parametresUrl.get("event_type") || "";
   const [demandes, setDemandes] = useState<DemandeModificationActe[]>([]);
   const [chargement, setChargement] = useState(true);
   const [afficherToutes, setAfficherToutes] = useState(false);
@@ -30,14 +33,17 @@ export default function DemandesModificationAdminCec() {
 
   function charger() {
     setChargement(true);
-    appelApi<ListeOuPaginee<DemandeModificationActe>>("/demandes-modification/")
+    const parametres = new URLSearchParams();
+    if (evenementFiltre) parametres.set("dossier__event_type", evenementFiltre);
+    appelApi<ListeOuPaginee<DemandeModificationActe>>(`/demandes-modification/?${parametres.toString()}`)
       .then((donnees) => setDemandes(listeDepuis(donnees)))
       .finally(() => setChargement(false));
   }
 
   useEffect(() => {
     charger();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evenementFiltre]);
 
   const demandesAffichees = afficherToutes ? demandes : demandes.filter((d) => d.statut === "en_attente");
 

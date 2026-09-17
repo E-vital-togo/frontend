@@ -5,7 +5,7 @@ import { Bouton, Carte, Champ, ChargementPage, EnteteDePage } from "../../compon
 import { useConfirmation } from "../../components/ui/ConfirmationProvider";
 import { appelApi, ErreurApi } from "../../lib/apiClient";
 import { LIENS_AGENT } from "./navigation";
-import type { NumerosActeProposes } from "../../types/domaine";
+import { listeDepuis, type ListeOuPaginee, type NumerosActeProposes, type SignataireMairie } from "../../types/domaine";
 
 type ChampNumerique = keyof NumerosActeProposes;
 
@@ -14,8 +14,8 @@ export default function EmissionActe() {
   const navigate = useNavigate();
   const confirmer = useConfirmation();
   const [numeros, setNumeros] = useState<NumerosActeProposes | null>(null);
-  const [nomSignataire, setNomSignataire] = useState("");
-  const [qualiteSignataire, setQualiteSignataire] = useState("");
+  const [signataires, setSignataires] = useState<SignataireMairie[]>([]);
+  const [signataireId, setSignataireId] = useState("");
   const [dateEtablissement, setDateEtablissement] = useState(new Date().toISOString().slice(0, 10));
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -27,12 +27,22 @@ export default function EmissionActe() {
       .catch((e: unknown) => setErreur(e instanceof Error ? e.message : "Erreur"));
   }, [idDossier]);
 
+  useEffect(() => {
+    appelApi<ListeOuPaginee<SignataireMairie>>("/signataires/?actif=true")
+      .then((donnees) => {
+        const liste = listeDepuis(donnees);
+        setSignataires(liste);
+        if (liste.length > 0) setSignataireId(liste[0].id);
+      })
+      .catch(() => setSignataires([]));
+  }, []);
+
   function modifierNumero(champ: ChampNumerique, valeur: string) {
     setNumeros((precedent) => (precedent ? { ...precedent, [champ]: Number(valeur) } : precedent));
   }
 
   async function emettre() {
-    if (!idDossier || !numeros) return;
+    if (!idDossier || !numeros || !signataireId) return;
 
     const confirme = await confirmer({
       titre: "Emettre cet acte ?",
@@ -48,8 +58,7 @@ export default function EmissionActe() {
         methode: "POST",
         corps: {
           ...numeros,
-          nom_signataire: nomSignataire,
-          qualite_signataire: qualiteSignataire,
+          signataire: signataireId,
           date_etablissement: dateEtablissement
         }
       });
@@ -97,16 +106,29 @@ export default function EmissionActe() {
               <input id="annee-registre" type="number" className="texte-mono" value={numeros.annee_registre} onChange={(e) => modifierNumero("annee_registre", e.target.value)} />
             </Champ>
           </div>
-          <Champ id="nom-signataire" label="Nom du signataire" requis>
-            <input id="nom-signataire" required value={nomSignataire} onChange={(e) => setNomSignataire(e.target.value)} />
-          </Champ>
-          <Champ id="qualite-signataire" label="Qualite du signataire" requis>
-            <input id="qualite-signataire" required placeholder="Maire, adjoint..." value={qualiteSignataire} onChange={(e) => setQualiteSignataire(e.target.value)} />
+          <Champ
+            id="signataire"
+            label="Signataire"
+            requis
+            aide={
+              signataires.length === 0
+                ? "Aucun signataire actif pour votre mairie : demandez a votre administrateur CEC d'en ajouter un (Personnalisation > Signataires)."
+                : undefined
+            }
+          >
+            <select id="signataire" required value={signataireId} onChange={(e) => setSignataireId(e.target.value)}>
+              {signataires.length === 0 && <option value="">Aucun signataire disponible</option>}
+              {signataires.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.nom} {s.prenom} ({s.fonction})
+                </option>
+              ))}
+            </select>
           </Champ>
           <Champ id="date-etablissement" label="Date d'etablissement" requis>
             <input id="date-etablissement" type="date" required value={dateEtablissement} onChange={(e) => setDateEtablissement(e.target.value)} />
           </Champ>
-          <Bouton type="submit" variante="accent" chargement={enCours}>
+          <Bouton type="submit" variante="accent" chargement={enCours} disabled={!signataireId}>
             Emettre l'acte
           </Bouton>
         </form>

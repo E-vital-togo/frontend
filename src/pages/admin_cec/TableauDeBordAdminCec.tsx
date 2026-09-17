@@ -18,35 +18,25 @@ import BadgeStatut from "../../components/BadgeStatut";
 import { Carte, CarteStat, Champ, ChargementPage, EnteteDePage, Tableau } from "../../components/ui";
 import { LienBouton } from "../../components/ui/Bouton";
 import { appelApi } from "../../lib/apiClient";
+import { classeUrgence, couleurUrgence, joursRestants as joursDepuisAujourdhui } from "../../lib/urgence";
 import { LIENS_ADMIN_CEC } from "./navigation";
 import type { Dossier, ListeOuPaginee, StatistiqueEvolutionReponse, StatistiqueRepartitionItem } from "../../types/domaine";
 import { listeDepuis } from "../../types/domaine";
 
+// sans_suite est un dossier CLOS (plus d'echeance active), pas un dossier
+// urgent : gris neutre ici, pour ne pas se confondre avec le rouge
+// "presque expire" de couleurUrgence (colonne "Jours restants" plus bas).
 const COULEUR_PAR_STATUT: Record<string, string> = {
   recu: "#6B7A73",
   notifie: "#40534B",
   en_attente_complement: "#A8BB1E",
   complete: "#16B37D",
   acte_emis: "#0B7A57",
-  sans_suite: "#B3261E",
+  sans_suite: "#8AA69B",
   non_renseigne: "#C9D2C6"
 };
 
 const PALETTE_OUVERTE = ["#0B7A57", "#16B37D", "#A8BB1E", "#40534B", "#6B7A73", "#C8D92F", "#8AA69B", "#B3261E"];
-
-function joursDepuisAujourdhui(dateIso: string): number {
-  const debutAujourdhui = new Date();
-  debutAujourdhui.setHours(0, 0, 0, 0);
-  const diff = new Date(dateIso).getTime() - debutAujourdhui.getTime();
-  return Math.ceil(diff / (1000 * 60 * 60 * 24));
-}
-
-// Memes seuils que settings.SEUILS_RELANCE_JOURS cote backend (J-10/J-3).
-function couleurUrgence(jours: number): string {
-  if (jours <= 3) return "var(--couleur-erreur)";
-  if (jours <= 10) return "var(--couleur-citron-profond)";
-  return "var(--couleur-gris-service-1)";
-}
 
 export default function TableauDeBordAdminCec() {
   const [dateDebut, setDateDebut] = useState("");
@@ -203,7 +193,7 @@ export default function TableauDeBordAdminCec() {
                     .map((d) => {
                       const jours = joursDepuisAujourdhui(d.date_limite);
                       return (
-                        <tr key={d.id}>
+                        <tr key={d.id} className={classeUrgence(jours)}>
                           <td>{d.event_type === "naissance" ? "Naissance" : "Deces"}</td>
                           <td>{d.mairie_nom || d.mairie}</td>
                           <td>
@@ -212,7 +202,10 @@ export default function TableauDeBordAdminCec() {
                           <td>
                             <strong style={{ color: couleurUrgence(jours) }}>
                               {jours <= 0 ? "Echue" : `${jours} jour${jours > 1 ? "s" : ""}`}
-                            </strong>
+                            </strong>{" "}
+                            <span className="texte-mono" style={{ fontSize: 11.5, color: "var(--couleur-gris-service-2)" }}>
+                              ({d.date_limite})
+                            </span>
                           </td>
                           <td>
                             <LienBouton to={`/admin-cec/dossiers/${d.id}`} variante="fantome" taille="petit">

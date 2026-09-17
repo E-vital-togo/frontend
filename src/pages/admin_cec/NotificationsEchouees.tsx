@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { CheckCircle2, RefreshCw, TriangleAlert } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
 import BadgeStatut from "../../components/BadgeStatut";
@@ -19,6 +20,8 @@ const LIBELLES_TYPE: Record<string, string> = {
 export default function NotificationsEchouees() {
   const toast = useToast();
   const confirmer = useConfirmation();
+  const [parametresUrl] = useSearchParams();
+  const evenementFiltre = parametresUrl.get("event_type") || "";
   const [notifications, setNotifications] = useState<NotificationEchouee[]>([]);
   const [chargement, setChargement] = useState(true);
   const [enCoursId, setEnCoursId] = useState<string | null>(null);
@@ -26,14 +29,17 @@ export default function NotificationsEchouees() {
 
   function charger() {
     setChargement(true);
-    appelApi<ListeOuPaginee<NotificationEchouee>>("/notifications-echouees/")
+    const parametres = new URLSearchParams();
+    if (evenementFiltre) parametres.set("dossier__event_type", evenementFiltre);
+    appelApi<ListeOuPaginee<NotificationEchouee>>(`/notifications-echouees/?${parametres.toString()}`)
       .then((donnees) => setNotifications(listeDepuis(donnees)))
       .finally(() => setChargement(false));
   }
 
   useEffect(() => {
     charger();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evenementFiltre]);
 
   async function reessayerUne(notification: NotificationEchouee) {
     setEnCoursId(notification.id);

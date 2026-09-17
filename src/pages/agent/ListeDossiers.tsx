@@ -7,6 +7,7 @@ import { Bouton, Champ, ChargementPage, EnteteDePage, EtatVide, Pagination, Tabl
 import { LienBouton } from "../../components/ui/Bouton";
 import { appelApi } from "../../lib/apiClient";
 import { telechargerBlob } from "../../lib/telechargerBlob";
+import { couleurUrgence, echeanceActive, joursRestants } from "../../lib/urgence";
 import { LIENS_AGENT } from "./navigation";
 import type { Dossier, ReponsePaginee, StatutDossier, TypeEvenement } from "../../types/domaine";
 
@@ -26,7 +27,9 @@ export default function ListeDossiers() {
   const [parametresUrl] = useSearchParams();
   const [dossiers, setDossiers] = useState<ReponsePaginee<Dossier> | null>(null);
   const [statutFiltre, setStatutFiltre] = useState<StatutDossier | "">("");
-  const [evenementFiltre, setEvenementFiltre] = useState<TypeEvenement | "">("");
+  const [evenementFiltre, setEvenementFiltre] = useState<TypeEvenement | "">(
+    (parametresUrl.get("event_type") as TypeEvenement | null) || ""
+  );
   const [recherche, setRecherche] = useState("");
   const [echeanceUniquement, setEcheanceUniquement] = useState(parametresUrl.get("echeance") === "1");
   const [page, setPage] = useState(1);
@@ -175,32 +178,45 @@ export default function ListeDossiers() {
                 <th>Origine</th>
                 <th>Statut</th>
                 <th>Date de declaration</th>
+                <th>Echeance</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {resultats.map((dossier) => (
-                <tr key={dossier.id}>
-                  <td className="texte-mono">{dossier.id.slice(0, 8)}</td>
-                  <td>{dossier.nom || "-"}</td>
-                  <td>{dossier.event_type === "naissance" ? "Naissance" : "Deces"}</td>
-                  <td>{dossier.origine === "dhis2" ? "DHIS2" : "Manuel"}</td>
-                  <td>
-                    <BadgeStatut statut={dossier.statut} />
-                    {dossier.a_une_nouvelle_version && (
-                      <span className="eva-badge eva-badge--info" style={{ marginLeft: 6 }}>
-                        Nouvelle version
-                      </span>
-                    )}
-                  </td>
-                  <td className="texte-mono">{dossier.date_declaration}</td>
-                  <td>
-                    <LienBouton to={`/agent/dossiers/${dossier.id}`} variante="fantome" taille="petit">
-                      Ouvrir
-                    </LienBouton>
-                  </td>
-                </tr>
-              ))}
+              {resultats.map((dossier) => {
+                const jours = joursRestants(dossier.date_limite);
+                return (
+                  <tr key={dossier.id}>
+                    <td className="texte-mono">{dossier.id.slice(0, 8)}</td>
+                    <td>{dossier.nom || "-"}</td>
+                    <td>{dossier.event_type === "naissance" ? "Naissance" : "Deces"}</td>
+                    <td>{dossier.origine === "dhis2" ? "DHIS2" : "Manuel"}</td>
+                    <td>
+                      <BadgeStatut statut={dossier.statut} />
+                      {dossier.a_une_nouvelle_version && (
+                        <span className="eva-badge eva-badge--info" style={{ marginLeft: 6 }}>
+                          Nouvelle version
+                        </span>
+                      )}
+                    </td>
+                    <td className="texte-mono">{dossier.date_declaration}</td>
+                    <td>
+                      {echeanceActive(dossier.statut) ? (
+                        <strong className="texte-mono" style={{ color: couleurUrgence(jours) }}>
+                          {jours <= 0 ? "Echue" : `${jours} j`}
+                        </strong>
+                      ) : (
+                        <span style={{ color: "var(--couleur-gris-service-2)" }}>-</span>
+                      )}
+                    </td>
+                    <td>
+                      <LienBouton to={`/agent/dossiers/${dossier.id}`} variante="fantome" taille="petit">
+                        Ouvrir
+                      </LienBouton>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </Tableau>
           {dossiers && (

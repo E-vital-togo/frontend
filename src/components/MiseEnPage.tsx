@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Bell, LogOut, Menu, UserCircle2, X } from "lucide-react";
+import { Bell, ChevronDown, ChevronUp, LogOut, Menu, UserCircle2, X } from "lucide-react";
 import Logo from "./Logo";
 import { useAuth } from "../context/AuthContext";
 import { listerActionsEnAttente } from "../lib/db";
@@ -30,6 +30,20 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
   const [barreOuverte, setBarreOuverte] = useState(false);
   const [menuUtilisateurOuvert, setMenuUtilisateurOuvert] = useState(false);
   const [notificationsOuvertes, setNotificationsOuvertes] = useState(false);
+  // Un groupe s'ouvre par defaut si on est deja sur sa page (ex: arrivee
+  // directe sur /admin-cec/dossiers) ; l'utilisateur peut ensuite le
+  // deplier/replier librement, y compris pour consulter un autre groupe que
+  // celui de la page courante. Recalcule a chaque montage de MiseEnPage
+  // (donc a chaque changement de route, sauf changement de simple query
+  // string au sein d'une meme page, ou l'etat "ouvert" doit justement
+  // persister pendant qu'on bascule entre Naissance/Deces).
+  const [groupesOuverts, setGroupesOuverts] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    liens.forEach((lien) => {
+      if (lien.sousLiens) initial[lien.chemin] = location.pathname === lien.chemin;
+    });
+    return initial;
+  });
   const refMenuUtilisateur = useRef<HTMLDivElement>(null);
   const refNotifications = useRef<HTMLDivElement>(null);
 
@@ -87,6 +101,10 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
   function seDeconnecter() {
     deconnecter();
     navigate("/connexion");
+  }
+
+  function basculerGroupe(chemin: string) {
+    setGroupesOuverts((precedent) => ({ ...precedent, [chemin]: !precedent[chemin] }));
   }
 
   const totalNotifications = compteurs.echeances + compteurs.conflits + compteurs.demandes + compteurs.notificationsEchouees;
@@ -194,15 +212,54 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
         {barreOuverte && <div className="eva-fond-superposition-mobile" onClick={() => setBarreOuverte(false)} />}
         <nav className={`eva-barre-laterale${barreOuverte ? " eva-barre-laterale--ouverte" : ""}`}>
           {liens.map((lien) => {
-            const actif = location.pathname === lien.chemin;
             const Icone = lien.icone;
             const compteur = lien.cleCompteur ? compteurParCle[lien.cleCompteur] : 0;
+
+            if (!lien.sousLiens) {
+              const actif = location.pathname === lien.chemin;
+              return (
+                <Link key={lien.chemin} to={lien.chemin} className={`eva-lien-nav${actif ? " eva-lien-nav--actif" : ""}`}>
+                  <Icone size={17} />
+                  {lien.libelle}
+                  {compteur > 0 && <span className="eva-puce eva-lien-nav__puce">{compteur}</span>}
+                </Link>
+              );
+            }
+
+            const actifSection = location.pathname === lien.chemin;
+            const ouvert = !!groupesOuverts[lien.chemin];
             return (
-              <Link key={lien.chemin} to={lien.chemin} className={`eva-lien-nav${actif ? " eva-lien-nav--actif" : ""}`}>
-                <Icone size={17} />
-                {lien.libelle}
-                {compteur > 0 && <span className="eva-puce eva-lien-nav__puce">{compteur}</span>}
-              </Link>
+              <div key={lien.chemin} className="eva-groupe-nav">
+                <button
+                  type="button"
+                  className={`eva-lien-nav eva-lien-nav--groupe${actifSection ? " eva-lien-nav--actif" : ""}`}
+                  onClick={() => basculerGroupe(lien.chemin)}
+                  aria-expanded={ouvert}
+                >
+                  <Icone size={17} />
+                  {lien.libelle}
+                  {compteur > 0 && <span className="eva-puce eva-lien-nav__puce">{compteur}</span>}
+                  {ouvert ? <ChevronUp size={15} className="eva-lien-nav__chevron" /> : <ChevronDown size={15} className="eva-lien-nav__chevron" />}
+                </button>
+                {ouvert && (
+                  <div className="eva-sous-menu">
+                    {lien.sousLiens.map((sousLien) => {
+                      const sousActif = `${location.pathname}${location.search}` === sousLien.chemin;
+                      const sousCompteur = sousLien.cleCompteur ? compteurParCle[sousLien.cleCompteur] : 0;
+                      return (
+                        <Link
+                          key={sousLien.chemin}
+                          to={sousLien.chemin}
+                          className={`eva-sous-lien-nav${sousActif ? " eva-sous-lien-nav--actif" : ""}`}
+                        >
+                          {sousLien.libelle}
+                          {sousCompteur > 0 && <span className="eva-puce eva-lien-nav__puce">{sousCompteur}</span>}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
         </nav>

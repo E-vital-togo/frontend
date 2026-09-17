@@ -28,6 +28,7 @@ import NotificationsEchouees from "./pages/admin_cec/NotificationsEchouees";
 import CampagnesRelance from "./pages/admin_cec/CampagnesRelance";
 import JournalZone from "./pages/admin_cec/JournalZone";
 import PersonnalisationMairie from "./pages/admin_cec/PersonnalisationMairie";
+import MairieSignataire from "./pages/admin_cec/MairieSignataire";
 
 import PageCompletionAccueil from "./pages/parent/PageCompletionAccueil";
 import PageCompletionParent from "./pages/parent/PageCompletionParent";
@@ -235,6 +236,14 @@ export default function App() {
             element={
               <RouteProtegee rolesAutorises={["admin_cec"]}>
                 <PersonnalisationMairie />
+              </RouteProtegee>
+            }
+          />
+          <Route
+            path="/admin-cec/signataires"
+            element={
+              <RouteProtegee rolesAutorises={["admin_cec"]}>
+                <MairieSignataire />
               </RouteProtegee>
             }
           />

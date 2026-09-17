@@ -7,23 +7,9 @@ import { CarteStat, ChargementPage, EnteteDePage, EtatVide, Tableau } from "../.
 import { LienBouton } from "../../components/ui/Bouton";
 import { appelApi } from "../../lib/apiClient";
 import { useCompteurs } from "../../lib/useCompteurs";
+import { classeUrgence, couleurUrgence, joursRestants } from "../../lib/urgence";
 import { LIENS_AGENT } from "./navigation";
 import { listeDepuis, type Dossier, type ListeOuPaginee } from "../../types/domaine";
-
-// Memes seuils que settings.SEUILS_RELANCE_JOURS cote backend (J-10/J-3) :
-// pas de raison d'avoir une deuxieme definition de "urgent" ici.
-function joursRestants(dateLimite: string): number {
-  const debutAujourdhui = new Date();
-  debutAujourdhui.setHours(0, 0, 0, 0);
-  const diff = new Date(dateLimite).getTime() - debutAujourdhui.getTime();
-  return Math.ceil(diff / (1000 * 60 * 60 * 24));
-}
-
-function couleurUrgence(jours: number): string {
-  if (jours <= 3) return "var(--couleur-erreur)";
-  if (jours <= 10) return "var(--couleur-citron-profond)";
-  return "var(--couleur-gris-service-1)";
-}
 
 export default function TableauDeBordAgent() {
   const compteurs = useCompteurs();
@@ -77,7 +63,7 @@ export default function TableauDeBordAgent() {
               .map((dossier) => {
                 const jours = joursRestants(dossier.date_limite);
                 return (
-                  <tr key={dossier.id}>
+                  <tr key={dossier.id} className={classeUrgence(jours)}>
                     <td>{dossier.event_type === "naissance" ? "Naissance" : "Deces"}</td>
                     <td>
                       <BadgeStatut statut={dossier.statut} />
