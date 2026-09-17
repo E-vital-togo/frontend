@@ -250,7 +250,7 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
                         <Link
                           key={sousLien.chemin}
                           to={sousLien.chemin}
-                          className={`eva-sous-lien-nav${sousActif ? " eva-sous-lien-nav--actif" : ""}`}
+                          className={`eva-lien-nav eva-sous-lien-nav${sousActif ? " eva-lien-nav--actif" : ""}`}
                         >
                           {sousLien.libelle}
                           {sousCompteur > 0 && <span className="eva-puce eva-lien-nav__puce">{sousCompteur}</span>}

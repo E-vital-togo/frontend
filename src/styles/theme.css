@@ -603,13 +603,11 @@ table.eva-tableau tbody tr:last-child td { border-bottom: none; }
 .eva-lien-nav--groupe .eva-puce { margin-left: 0; }
 
 .eva-sous-menu { display: flex; flex-direction: column; gap: 1px; margin: 2px 0 4px 15px; padding-left: 14px; border-left: 1px solid var(--couleur-bordure); }
-.eva-sous-lien-nav {
-  display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--rayon-petit);
-  color: var(--couleur-gris-service-2); text-decoration: none; font-size: 13px; font-weight: 500;
-  transition: background var(--transition-rapide), color var(--transition-rapide);
-}
-.eva-sous-lien-nav:hover { background: var(--couleur-emeraude-fond); color: var(--couleur-encre); }
-.eva-sous-lien-nav--actif { background: var(--couleur-emeraude-fond); color: var(--couleur-vert-profond); font-weight: 600; }
+/* Le sous-lien reprend .eva-lien-nav (meme hover, meme etat actif emeraude
+   plein/texte blanc - voir .eva-lien-nav--actif ci-dessus) : seule sa taille
+   change, pour rester coherent avec les liens de premier niveau plutot que
+   d'inventer une variante de couleur distincte. */
+.eva-sous-lien-nav { padding: 8px 12px; font-size: 13px; }
 
 .eva-principal {
   flex: 1;

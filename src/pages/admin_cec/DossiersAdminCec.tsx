@@ -33,17 +33,26 @@ const TAILLE_PAGE = 25;
 
 export default function DossiersAdminCec() {
   const [parametresUrl] = useSearchParams();
+  const evenementUrl = parametresUrl.get("event_type");
   const [dossiers, setDossiers] = useState<ReponsePaginee<Dossier> | null>(null);
   const [mairies, setMairies] = useState<Mairie[]>([]);
   const [statutFiltre, setStatutFiltre] = useState<StatutDossier | "">("");
-  const [evenementFiltre, setEvenementFiltre] = useState<TypeEvenement | "">(
-    (parametresUrl.get("event_type") as TypeEvenement | null) || ""
-  );
+  const [evenementFiltre, setEvenementFiltre] = useState<TypeEvenement | "">((evenementUrl as TypeEvenement | null) || "");
   const [mairieFiltre, setMairieFiltre] = useState("");
   const [recherche, setRecherche] = useState("");
   const [page, setPage] = useState(1);
   const [chargement, setChargement] = useState(true);
   const [exportEnCours, setExportEnCours] = useState<"xlsx" | "pdf" | null>(null);
+
+  useEffect(() => {
+    // Meme raison que ListeDossiers.tsx : un clic sur "Naissance"/"Deces"
+    // dans le sidebar ne fait changer que la query string sur cette meme
+    // page, ce que le useState d'origine (initialise une seule fois) ne
+    // suit pas tout seul.
+    setEvenementFiltre((evenementUrl as TypeEvenement | null) || "");
+    setPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evenementUrl]);
 
   useEffect(() => {
     appelApi<ListeOuPaginee<Mairie>>("/mairies/")

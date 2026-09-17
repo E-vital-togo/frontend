@@ -25,16 +25,25 @@ const TAILLE_PAGE = 25;
 
 export default function ListeDossiers() {
   const [parametresUrl] = useSearchParams();
+  const evenementUrl = parametresUrl.get("event_type");
   const [dossiers, setDossiers] = useState<ReponsePaginee<Dossier> | null>(null);
   const [statutFiltre, setStatutFiltre] = useState<StatutDossier | "">("");
-  const [evenementFiltre, setEvenementFiltre] = useState<TypeEvenement | "">(
-    (parametresUrl.get("event_type") as TypeEvenement | null) || ""
-  );
+  const [evenementFiltre, setEvenementFiltre] = useState<TypeEvenement | "">((evenementUrl as TypeEvenement | null) || "");
   const [recherche, setRecherche] = useState("");
   const [echeanceUniquement, setEcheanceUniquement] = useState(parametresUrl.get("echeance") === "1");
   const [page, setPage] = useState(1);
   const [chargement, setChargement] = useState(true);
   const [exportEnCours, setExportEnCours] = useState<"xlsx" | "pdf" | null>(null);
+
+  useEffect(() => {
+    // Le lien "Naissance"/"Deces" du sidebar ne change QUE la query string
+    // (meme route /agent/dossiers) : react-router ne remonte donc pas ce
+    // composant, et le useState ci-dessus (initialise une seule fois au
+    // premier montage) ne suivrait jamais un second clic sans ce useEffect.
+    setEvenementFiltre((evenementUrl as TypeEvenement | null) || "");
+    setPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evenementUrl]);
 
   function construireParametres(): URLSearchParams {
     const parametres = new URLSearchParams();
