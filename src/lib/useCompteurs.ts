@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { appelApi } from "./apiClient";
+import { useConnectivite } from "./connectivite";
 import { useAuth } from "../context/AuthContext";
 import {
   listeDepuis,
@@ -28,10 +29,17 @@ const VIDE: Compteurs = { echeances: 0, conflits: 0, demandes: 0, notificationsE
  */
 export function useCompteurs(): Compteurs & { rafraichir: () => void } {
   const { utilisateur } = useAuth();
+  const enLigne = useConnectivite();
   const [compteurs, setCompteurs] = useState<Compteurs>(VIDE);
 
+  // Ni requete inutile (on sait deja qu'elle echouera) ni, surtout, remise a
+  // zero des compteurs reels sur un simple echec reseau : un conflit de
+  // synchronisation existant ne doit pas disparaitre de la cloche de
+  // notification parce que le reseau a eu un blip pendant le polling. On
+  // garde la derniere valeur connue et on laisse le badge de connectivite
+  // (MiseEnPage) porter le signal "hors-ligne", pas ce compteur.
   const rafraichir = useCallback(() => {
-    if (!utilisateur) return;
+    if (!utilisateur || !enLigne) return;
 
     if (utilisateur.role === "agent_cec") {
       Promise.all([
@@ -46,7 +54,7 @@ export function useCompteurs(): Compteurs & { rafraichir: () => void } {
             notificationsEchouees: 0
           });
         })
-        .catch(() => setCompteurs(VIDE));
+        .catch(() => {});
     } else if (utilisateur.role === "admin_cec") {
       Promise.all([
         appelApi<ListeOuPaginee<DemandeModificationActe>>("/demandes-modification/"),
@@ -62,9 +70,9 @@ export function useCompteurs(): Compteurs & { rafraichir: () => void } {
             notificationsEchouees: listeDepuis(notificationsEchouees).length
           });
         })
-        .catch(() => setCompteurs(VIDE));
+        .catch(() => {});
     }
-  }, [utilisateur]);
+  }, [utilisateur, enLigne]);
 
   useEffect(() => {
     rafraichir();

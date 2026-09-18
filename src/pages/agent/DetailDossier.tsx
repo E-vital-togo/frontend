@@ -10,6 +10,7 @@ import { useToast } from "../../components/ui/ToastProvider";
 import { useAuth } from "../../context/AuthContext";
 import { appelApi, ErreurApi } from "../../lib/apiClient";
 import { mettreEnFileAction, mettreEnCacheDossier, dossierEnCache } from "../../lib/db";
+import { useConnectivite } from "../../lib/connectivite";
 import { LIENS_AGENT } from "./navigation";
 import { LIENS_ADMIN_CEC } from "../admin_cec/navigation";
 import {
@@ -63,11 +64,12 @@ export default function DetailDossier() {
   const liens = estAgent ? LIENS_AGENT : LIENS_ADMIN_CEC;
   const basePath = estAgent ? "/agent" : "/admin-cec";
 
+  const enLigne = useConnectivite();
   const [dossier, setDossier] = useState<Dossier | null>(null);
   const [champs, setChamps] = useState<ChampFormulaireEffectif[]>([]);
   const [valeursModifiees, setValeursModifiees] = useState<Record<string, unknown>>({});
   const [enregistrement, setEnregistrement] = useState(false);
-  const [horsLigne, setHorsLigne] = useState(!navigator.onLine);
+  const [horsLigne, setHorsLigne] = useState(!enLigne);
   const [onglet, setOnglet] = useState("formulaire");
   const [historique, setHistorique] = useState<ValeurChamp[] | null>(null);
   const [notifications, setNotifications] = useState<NotificationDossier[] | null>(null);
@@ -81,7 +83,7 @@ export default function DetailDossier() {
   async function charger() {
     if (!idDossier) return;
 
-    if (navigator.onLine) {
+    if (enLigne) {
       try {
         const [d, f] = await Promise.all([
           appelApi<Dossier>(`/dossiers/${idDossier}/`),
@@ -193,7 +195,7 @@ export default function DetailDossier() {
     const entrees = Object.entries(valeursModifiees);
 
     try {
-      if (navigator.onLine) {
+      if (enLigne) {
         for (const [dataElementCode, valeur] of entrees) {
           await appelApi(`/dossiers/${idDossier}/valeurs/`, {
             methode: "POST",

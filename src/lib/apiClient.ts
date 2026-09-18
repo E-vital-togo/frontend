@@ -1,7 +1,39 @@
 const BASE_URL = import.meta.env.API_BASE_URL || "https://evital.duckdns.org/api/v1";
 
+/**
+ * Origine (schema + hote, sans le /api/v1) utilisee par lib/connectivite.ts
+ * pour sonder /ping. Calculee une seule fois : si BASE_URL n'est pas une
+ * URL absolue (config relative), on retombe sur l'origine de la page.
+ */
+export const ORIGINE_API = (() => {
+  try {
+    return new URL(BASE_URL).origin;
+  } catch {
+    return window.location.origin;
+  }
+})();
+
 const CLE_ACCES = "evital_access_token";
 const CLE_RAFRAICHISSEMENT = "evital_refresh_token";
+
+/**
+ * Delai au-dela duquel une requete est consideree perdue et annulee. Sans
+ * ca, une connexion degradee (paquets perdus, pas coupure nette - le cas le
+ * plus frequent sur le terrain) peut laisser un fetch pendre indefiniment :
+ * aucune erreur ne remonte, aucun bascule vers la file hors-ligne, l'agent
+ * reste bloque sur un bouton "en cours" sans fin.
+ */
+const DELAI_REQUETE_MS = 15_000;
+
+async function fetchAvecTimeout(url: string, options: RequestInit): Promise<Response> {
+  const controleur = new AbortController();
+  const minuteur = window.setTimeout(() => controleur.abort(), DELAI_REQUETE_MS);
+  try {
+    return await fetch(url, { ...options, signal: controleur.signal });
+  } finally {
+    window.clearTimeout(minuteur);
+  }
+}
 
 export interface Jetons {
   access: string;
@@ -137,7 +169,7 @@ async function rafraichirJeton(): Promise<ResultatRafraichissement> {
 
   let reponse: Response;
   try {
-    reponse = await fetch(`${BASE_URL}/auth/token/refresh/`, {
+    reponse = await fetchAvecTimeout(`${BASE_URL}/auth/token/refresh/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh })
@@ -203,7 +235,7 @@ export async function appelApi<T = unknown>(chemin: string, options: OptionsAppe
     if (jeton) entetes["Authorization"] = `Bearer ${jeton}`;
 
     try {
-      return await fetch(`${BASE_URL}${chemin}`, {
+      return await fetchAvecTimeout(`${BASE_URL}${chemin}`, {
         method: methode,
         headers: entetes,
         body: corps ? (estFormData ? (corps as BodyInit) : JSON.stringify(corps)) : undefined

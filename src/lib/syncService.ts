@@ -1,5 +1,6 @@
 import { appelApi } from "./apiClient";
 import { listerActionsEnAttente, viderActionsAppliquees } from "./db";
+import { surChangementConnectivite } from "./connectivite";
 
 interface ActionEnvoyee {
   id_client: string;
@@ -60,7 +61,17 @@ export async function synchroniser(): Promise<ReponseSyncBatch> {
   return reponse;
 }
 
+/**
+ * Declenche gestionnaire() sur un retour de connexion CONFIRME (voir
+ * lib/connectivite.ts : la transition n'est annoncee qu'apres un ping reel
+ * au serveur, pas sur le simple evenement "online" du navigateur qui peut
+ * preceder une connexion reellement utilisable). Edge-triggered par
+ * construction : un flap online/offline/online rapide ne redeclenche pas
+ * plusieurs synchronisations en rafale, seule une vraie transition
+ * hors-ligne -> en-ligne le fait.
+ */
 export function surRetourConnexion(gestionnaire: () => void): () => void {
-  window.addEventListener("online", gestionnaire);
-  return () => window.removeEventListener("online", gestionnaire);
+  return surChangementConnectivite((enLigne) => {
+    if (enLigne) gestionnaire();
+  });
 }

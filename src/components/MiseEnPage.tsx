@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { listerActionsEnAttente } from "../lib/db";
 import { synchroniser, surRetourConnexion } from "../lib/syncService";
 import { useCompteurs } from "../lib/useCompteurs";
+import { useConnectivite } from "../lib/connectivite";
 import type { LienNavigation } from "../types/domaine";
 
 interface ProprietesMiseEnPage {
@@ -26,7 +27,7 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
   const compteurs = useCompteurs();
 
   const [nombreEnAttente, setNombreEnAttente] = useState(0);
-  const [enLigne, setEnLigne] = useState(navigator.onLine);
+  const enLigne = useConnectivite();
   const [barreOuverte, setBarreOuverte] = useState(false);
   const [menuUtilisateurOuvert, setMenuUtilisateurOuvert] = useState(false);
   const [notificationsOuvertes, setNotificationsOuvertes] = useState(false);
@@ -54,10 +55,6 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
 
   useEffect(() => {
     rafraichirCompteurSync();
-    const gererEnLigne = () => setEnLigne(true);
-    const gererHorsLigne = () => setEnLigne(false);
-    window.addEventListener("online", gererEnLigne);
-    window.addEventListener("offline", gererHorsLigne);
 
     const retirer = surRetourConnexion(async () => {
       // Un echec de synchronisation ne doit jamais remonter en rejet non
@@ -75,8 +72,6 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
     });
 
     return () => {
-      window.removeEventListener("online", gererEnLigne);
-      window.removeEventListener("offline", gererHorsLigne);
       retirer();
     };
   }, []);

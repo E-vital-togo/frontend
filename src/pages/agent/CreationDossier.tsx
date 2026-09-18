@@ -4,11 +4,13 @@ import MiseEnPage from "../../components/MiseEnPage";
 import { Bouton, Carte, Champ, EnteteDePage } from "../../components/ui";
 import { appelApi, ErreurApi } from "../../lib/apiClient";
 import { mettreEnFileAction } from "../../lib/db";
+import { useConnectivite } from "../../lib/connectivite";
 import { LIENS_AGENT } from "./navigation";
 import type { Dossier, TypeDossier, TypeEvenement } from "../../types/domaine";
 
 export default function CreationDossier() {
   const navigate = useNavigate();
+  const enLigne = useConnectivite();
   const [eventType, setEventType] = useState<TypeEvenement>("naissance");
   const [typeDossier, setTypeDossier] = useState<TypeDossier>("declaration");
   const [dossierLie, setDossierLie] = useState("");
@@ -25,7 +27,7 @@ export default function CreationDossier() {
     if (typeDossier === "jugement" && dossierLie) corps.dossier_lie = dossierLie;
 
     try {
-      if (navigator.onLine) {
+      if (enLigne) {
         const dossier = await appelApi<Dossier>("/dossiers/", { methode: "POST", corps });
         navigate(`/agent/dossiers/${dossier.id}`);
       } else {
