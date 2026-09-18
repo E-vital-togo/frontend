@@ -608,6 +608,7 @@ table.eva-tableau tbody tr:last-child td { border-bottom: none; }
   display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: var(--rayon-petit);
   border:none;
   color: var(--couleur-gris-service-1); text-decoration: none; font-size: 13.5px; font-weight: 500;
+  background: var(--couleur-blanc);
   transition: background var(--transition-rapide), color var(--transition-rapide);
 }
 .eva-lien-nav--g:hover { background: var(--couleur-emeraude-fond); color: var(--couleur-encre); }
