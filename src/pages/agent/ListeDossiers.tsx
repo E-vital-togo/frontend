@@ -6,6 +6,9 @@ import BadgeStatut from "../../components/BadgeStatut";
 import { Bouton, Champ, ChargementPage, EnteteDePage, EtatVide, Pagination, Tableau } from "../../components/ui";
 import { LienBouton } from "../../components/ui/Bouton";
 import { appelApi } from "../../lib/apiClient";
+import { useConnectivite } from "../../lib/connectivite";
+import { instantaneEnCache, mettreEnCacheDossier, mettreEnCacheInstantane } from "../../lib/db";
+import { precacherFormulaires } from "../../lib/formulairesHorsLigne";
 import { telechargerBlob } from "../../lib/telechargerBlob";
 import { couleurUrgence, echeanceActive, joursRestants } from "../../lib/urgence";
 import { LIENS_AGENT } from "./navigation";
@@ -24,6 +27,7 @@ const STATUTS: Array<{ valeur: StatutDossier | ""; libelle: string }> = [
 const TAILLE_PAGE = 25;
 
 export default function ListeDossiers() {
+  const enLigne = useConnectivite();
   const [parametresUrl] = useSearchParams();
   const evenementUrl = parametresUrl.get("event_type");
   const [dossiers, setDossiers] = useState<ReponsePaginee<Dossier> | null>(null);
@@ -34,6 +38,8 @@ export default function ListeDossiers() {
   const [page, setPage] = useState(1);
   const [chargement, setChargement] = useState(true);
   const [exportEnCours, setExportEnCours] = useState<"xlsx" | "pdf" | null>(null);
+  const [horsLigne, setHorsLigne] = useState(false);
+  const [dateInstantane, setDateInstantane] = useState<string | null>(null);
 
   useEffect(() => {
     // Le lien "Naissance"/"Deces" du sidebar ne change QUE la query string
@@ -57,13 +63,54 @@ export default function ListeDossiers() {
   useEffect(() => {
     const parametres = construireParametres();
     parametres.set("page", String(page));
+    // Une entree de cache par combinaison exacte de filtres + page : offline,
+    // on ne montre que ce qui a reellement ete recu du serveur pour CETTE
+    // requete, jamais une liste recalculee a partir d'un autre filtre (le
+    // filtre "echeance_proche" notamment depend d'une regle metier - origine
+    // DHIS2 + statut - qui ne peut pas etre rededuite cote client sans
+    // risquer de diverger de _proche_echeance cote backend).
+    const cleCache = `dossiers_liste::${parametres.toString()}`;
+    let annule = false;
 
-    setChargement(true);
-    appelApi<ReponsePaginee<Dossier>>(`/dossiers/?${parametres.toString()}`)
-      .then(setDossiers)
-      .finally(() => setChargement(false));
+    async function charger() {
+      setChargement(true);
+
+      if (enLigne) {
+        try {
+          const donnees = await appelApi<ReponsePaginee<Dossier>>(`/dossiers/?${parametres.toString()}`);
+          if (annule) return;
+          setDossiers(donnees);
+          setHorsLigne(false);
+          setChargement(false);
+          await mettreEnCacheInstantane(cleCache, donnees);
+          // Chaque dossier de la liste est aussi garde individuellement :
+          // c'est ce cache-la que lit DetailDossier, donc ouvrir une fiche
+          // hors-ligne ne demande plus de l'avoir deja ouverte avant.
+          await Promise.all(donnees.results.map((dossier) => mettreEnCacheDossier(dossier)));
+          // Formulaires de la page en une seule requete, en arriere-plan :
+          // l'affichage de la liste ne doit pas attendre un prechargement
+          // qui ne servira que si le reseau tombe ensuite.
+          precacherFormulaires(donnees.results.map((dossier) => dossier.id)).catch(() => {});
+          return;
+        } catch {
+          // bascule sur l'instantane ci-dessous
+        }
+      }
+
+      const instantane = await instantaneEnCache<ReponsePaginee<Dossier>>(cleCache);
+      if (annule) return;
+      setDossiers(instantane?.donnees ?? null);
+      setDateInstantane(instantane?.horodatage ?? null);
+      setHorsLigne(true);
+      setChargement(false);
+    }
+
+    charger();
+    return () => {
+      annule = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statutFiltre, evenementFiltre, recherche, echeanceUniquement, page]);
+  }, [statutFiltre, evenementFiltre, recherche, echeanceUniquement, page, enLigne]);
 
   async function exporter(format: "xlsx" | "pdf") {
     setExportEnCours(format);
@@ -172,10 +219,21 @@ export default function ListeDossiers() {
         </label>
       </div>
 
+      {horsLigne && !chargement && (
+        <div className="eva-carte" style={{ background: "var(--couleur-citron-fond)", borderColor: "var(--couleur-citron-profond)", marginBottom: 16, fontSize: 13.5 }}>
+          Hors-ligne : liste mise en cache
+          {dateInstantane ? ` au ${new Date(dateInstantane).toLocaleString("fr-FR")}` : ""} pour ces filtres. Sera
+          actualisee des le retour du reseau.
+        </div>
+      )}
       {chargement ? (
         <ChargementPage />
       ) : resultats.length === 0 ? (
-        <EtatVide icone={<Search size={28} />} titre="Aucun dossier ne correspond a ces criteres" />
+        <EtatVide
+          icone={<Search size={28} />}
+          titre={horsLigne ? "Aucune liste mise en cache pour ces filtres" : "Aucun dossier ne correspond a ces criteres"}
+          description={horsLigne ? "Consultez cette liste en ligne au moins une fois pour qu'elle soit disponible hors-ligne." : undefined}
+        />
       ) : (
         <>
           <Tableau>

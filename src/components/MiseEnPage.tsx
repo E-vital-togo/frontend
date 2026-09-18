@@ -3,7 +3,8 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Bell, ChevronDown, ChevronUp, LogOut, Menu, UserCircle2, X } from "lucide-react";
 import Logo from "./Logo";
 import { useAuth } from "../context/AuthContext";
-import { listerActionsEnAttente } from "../lib/db";
+import { dossiersAvecActionsEnAttente, listerActionsEnAttente, purgerCacheExpire } from "../lib/db";
+import { precacherFormulaires } from "../lib/formulairesHorsLigne";
 import { synchroniser, surRetourConnexion } from "../lib/syncService";
 import { useCompteurs } from "../lib/useCompteurs";
 import { useConnectivite } from "../lib/connectivite";
@@ -55,6 +56,9 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
 
   useEffect(() => {
     rafraichirCompteurSync();
+    // Ecarte les entrees de cache de plus de 24h (voir purgerCacheExpire :
+    // les dossiers en attente de synchronisation sont epargnes).
+    purgerCacheExpire().catch(() => {});
 
     const retirer = surRetourConnexion(async () => {
       // Un echec de synchronisation ne doit jamais remonter en rejet non
@@ -62,11 +66,20 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
       // avoir expire pendant la coupure (apiClient deconnecte alors
       // proprement de son cote). Dans tous les cas la file locale reste
       // intacte et sera rejouee au prochain retour de connexion.
+      let dossiersSynchronises: string[] = [];
       try {
+        dossiersSynchronises = [...(await dossiersAvecActionsEnAttente())];
         await synchroniser();
       } catch {
         // Silencieux ici : le compteur d'actions en attente ci-dessous
         // reste le signal visible pour l'agent.
+      }
+      // Le serveur vient de statuer sur ces dossiers : leur copie locale,
+      // optimiste jusque-la, doit ceder la place a la version serveur -
+      // sinon une saisie refusee pour conflit resterait affichee comme si
+      // elle avait ete prise en compte.
+      if (dossiersSynchronises.length > 0) {
+        await precacherFormulaires(dossiersSynchronises, true).catch(() => {});
       }
       await rafraichirCompteurSync();
     });

@@ -9,7 +9,14 @@ import { useConfirmation } from "../../components/ui/ConfirmationProvider";
 import { useToast } from "../../components/ui/ToastProvider";
 import { useAuth } from "../../context/AuthContext";
 import { appelApi, ErreurApi } from "../../lib/apiClient";
-import { mettreEnFileAction, mettreEnCacheDossier, dossierEnCache } from "../../lib/db";
+import {
+  mettreEnFileAction,
+  mettreEnCacheDossier,
+  dossierEnCache,
+  mettreEnCacheInstantane,
+  instantaneEnCache,
+  cleCacheFormulaire
+} from "../../lib/db";
 import { useConnectivite } from "../../lib/connectivite";
 import { LIENS_AGENT } from "./navigation";
 import { LIENS_ADMIN_CEC } from "../admin_cec/navigation";
@@ -34,6 +41,7 @@ const LIBELLES_STATUT_DEMANDE: Record<DemandeModificationActe["statut"], { texte
 interface ReponseFormulaireEffectif {
   champs: ChampFormulaireEffectif[];
 }
+
 
 const LIBELLES_TYPE_NOTIFICATION: Record<string, string> = {
   initiale: "Notification initiale",
@@ -69,6 +77,7 @@ export default function DetailDossier() {
   const [champs, setChamps] = useState<ChampFormulaireEffectif[]>([]);
   const [valeursModifiees, setValeursModifiees] = useState<Record<string, unknown>>({});
   const [enregistrement, setEnregistrement] = useState(false);
+  const [chargement, setChargement] = useState(true);
   const [horsLigne, setHorsLigne] = useState(!enLigne);
   const [onglet, setOnglet] = useState("formulaire");
   const [historique, setHistorique] = useState<ValeurChamp[] | null>(null);
@@ -80,6 +89,11 @@ export default function DetailDossier() {
   const [signataireVisible, setSignataireVisible] = useState<SignataireMairie | null>(null);
   const [chargementSignataire, setChargementSignataire] = useState(false);
 
+  // `chargement` ne sert qu'au tout premier affichage (distinguer "on
+  // attend encore" de "il n'y a rien en cache") : il n'est jamais remis a
+  // true ici, sinon chaque rechargement apres une action - validation,
+  // acceptation d'une version DHIS2 - ferait clignoter toute la page en
+  // spinner alors qu'elle peut rester affichee.
   async function charger() {
     if (!idDossier) return;
 
@@ -91,24 +105,33 @@ export default function DetailDossier() {
         ]);
         setDossier(d);
         setChamps(f.champs);
-        await mettreEnCacheDossier(d);
         setHorsLigne(false);
+        setChargement(false);
+        await mettreEnCacheDossier(d);
+        await mettreEnCacheInstantane(cleCacheFormulaire(idDossier), f.champs);
         return;
       } catch {
         // bascule sur le cache si l'appel echoue malgre une connexion presente
       }
     }
-    const enCache = await dossierEnCache(idDossier);
-    if (enCache) {
-      setDossier(enCache);
-      setHorsLigne(true);
-    }
+
+    const [enCache, formulaire] = await Promise.all([
+      dossierEnCache(idDossier),
+      instantaneEnCache<ChampFormulaireEffectif[]>(cleCacheFormulaire(idDossier))
+    ]);
+    if (enCache) setDossier(enCache);
+    if (formulaire) setChamps(formulaire.donnees);
+    setHorsLigne(true);
+    setChargement(false);
   }
 
   useEffect(() => {
+    // `enLigne` fait partie des dependances : au retour du reseau, l'ecran
+    // doit repasser sur les donnees du serveur au lieu de rester sur la
+    // copie en cache affichee pendant la coupure.
     charger();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idDossier]);
+  }, [idDossier, enLigne]);
 
   useEffect(() => {
     if (onglet === "historique" && idDossier && historique === null) {
@@ -212,7 +235,22 @@ export default function DetailDossier() {
             payload: { data_element_code: dataElementCode, valeur }
           });
         }
+
+        // Applique localement ce qui vient d'etre mis en file. Sans ca, le
+        // charger() ci-dessous relisait le cache - inchange, puisque l'action
+        // n'est justement pas encore partie au serveur - et le champ revenait
+        // a son ancienne valeur juste apres le message de confirmation.
+        const champsAJour = champs.map((champ) =>
+          champ.data_element_code in valeursModifiees
+            ? { ...champ, valeur_actuelle: valeursModifiees[champ.data_element_code] }
+            : champ
+        );
+        setChamps(champsAJour);
+        setValeursModifiees({});
+        setHistorique(null);
+        await mettreEnCacheInstantane(cleCacheFormulaire(idDossier), champsAJour);
         toast.info("Hors-ligne : modifications mises en file, elles seront envoyees au retour du reseau.");
+        return;
       }
       setValeursModifiees({});
       setHistorique(null);
@@ -277,10 +315,27 @@ export default function DetailDossier() {
     }
   }
 
-  if (!dossier) {
+  if (chargement) {
     return (
       <MiseEnPage liens={liens}>
         <ChargementPage texte="Chargement du dossier..." />
+      </MiseEnPage>
+    );
+  }
+
+  if (!dossier) {
+    // Hors-ligne sur un dossier jamais consulte en ligne : il n'y a rien en
+    // cache local a afficher. On le dit, plutot que de laisser tourner un
+    // "Chargement du dossier..." qui n'aboutira jamais.
+    return (
+      <MiseEnPage liens={liens}>
+        <Carte>
+          <p style={{ fontSize: 14, marginBottom: 6 }}>Ce dossier n'est pas disponible hors-ligne.</p>
+          <p style={{ color: "var(--couleur-gris-service-2)", fontSize: 13.5 }}>
+            Seuls les dossiers deja ouverts au moins une fois avec du reseau sont conserves sur cet appareil.
+            Reconnectez-vous pour le consulter.
+          </p>
+        </Carte>
       </MiseEnPage>
     );
   }
@@ -290,7 +345,7 @@ export default function DetailDossier() {
   const peutEmettreActe = estAgent && dossier.statut === "complete";
   const peutRelancer = dossier.statut !== "acte_emis" && dossier.statut !== "sans_suite";
   const propositionEnAttente = dossier.nouvelle_version?.statut === "en_attente" ? dossier.nouvelle_version : null;
-  console.log("propositionEnAttente", propositionEnAttente);
+  //console.log("propositionEnAttente", propositionEnAttente);
 
   return (
     <MiseEnPage liens={liens}>

@@ -6,21 +6,70 @@ import BadgeStatut from "../../components/BadgeStatut";
 import { CarteStat, ChargementPage, EnteteDePage, EtatVide, Tableau } from "../../components/ui";
 import { LienBouton } from "../../components/ui/Bouton";
 import { appelApi } from "../../lib/apiClient";
+import { useConnectivite } from "../../lib/connectivite";
+import { instantaneEnCache, mettreEnCacheDossier, mettreEnCacheInstantane } from "../../lib/db";
+import { precacherFormulaires } from "../../lib/formulairesHorsLigne";
 import { useCompteurs } from "../../lib/useCompteurs";
 import { classeUrgence, couleurUrgence, joursRestants } from "../../lib/urgence";
 import { LIENS_AGENT } from "./navigation";
 import { listeDepuis, type Dossier, type ListeOuPaginee } from "../../types/domaine";
 
+const CLE_CACHE_ECHEANCES = "tableau_bord_agent::dossiers_echeance_proche";
+
 export default function TableauDeBordAgent() {
+  const enLigne = useConnectivite();
   const compteurs = useCompteurs();
   const [dossiersProches, setDossiersProches] = useState<Dossier[]>([]);
   const [chargement, setChargement] = useState(true);
+  const [horsLigne, setHorsLigne] = useState(false);
+  const [dateInstantane, setDateInstantane] = useState<string | null>(null);
 
   useEffect(() => {
-    appelApi<ListeOuPaginee<Dossier>>("/dossiers/?echeance_proche=true")
-      .then((donnees) => setDossiersProches(listeDepuis(donnees)))
-      .finally(() => setChargement(false));
-  }, []);
+    let annule = false;
+
+    async function charger() {
+      setChargement(true);
+
+      // enLigne verifie deja la joignabilite reelle du serveur (voir
+      // lib/connectivite.ts), pas seulement navigator.onLine : des que ce
+      // signal repasse a true, cet effet se redeclenche (deps ci-dessous)
+      // et remplace tout affichage issu du cache par les donnees live -
+      // jamais l'inverse.
+      if (enLigne) {
+        try {
+          const donnees = await appelApi<ListeOuPaginee<Dossier>>("/dossiers/?echeance_proche=true");
+          const liste = listeDepuis(donnees);
+          if (annule) return;
+          setDossiersProches(liste);
+          setHorsLigne(false);
+          setChargement(false);
+          await mettreEnCacheInstantane(CLE_CACHE_ECHEANCES, liste);
+          // Voir ListeDossiers : on garde aussi chaque dossier a l'unite,
+          // c'est ce cache que DetailDossier relit hors-ligne, et leurs
+          // formulaires en une requete groupee, en arriere-plan.
+          await Promise.all(liste.map((dossier) => mettreEnCacheDossier(dossier)));
+          precacherFormulaires(liste.map((dossier) => dossier.id)).catch(() => {});
+          return;
+        } catch {
+          // Reseau annonce disponible mais requete en echec (backend
+          // injoignable malgre la sonde, coupure en plein appel) : on
+          // retombe sur le dernier instantane connu, comme hors-ligne.
+        }
+      }
+
+      const instantane = await instantaneEnCache<Dossier[]>(CLE_CACHE_ECHEANCES);
+      if (annule) return;
+      setDossiersProches(instantane?.donnees ?? []);
+      setDateInstantane(instantane?.horodatage ?? null);
+      setHorsLigne(true);
+      setChargement(false);
+    }
+
+    charger();
+    return () => {
+      annule = true;
+    };
+  }, [enLigne]);
 
   return (
     <MiseEnPage liens={LIENS_AGENT}>
@@ -42,10 +91,20 @@ export default function TableauDeBordAgent() {
       </div>
 
       <h2 style={{ fontSize: 16, marginBottom: 12 }}>Dossiers proches de l'echeance</h2>
+      {horsLigne && !chargement && (
+        <div className="eva-carte" style={{ background: "var(--couleur-citron-fond)", borderColor: "var(--couleur-citron-profond)", marginBottom: 16, fontSize: 13.5 }}>
+          Hors-ligne : liste mise en cache
+          {dateInstantane ? ` au ${new Date(dateInstantane).toLocaleString("fr-FR")}` : ""}. Sera actualisee des le retour du reseau.
+        </div>
+      )}
       {chargement ? (
         <ChargementPage />
       ) : dossiersProches.length === 0 ? (
-        <EtatVide icone={<FolderOpen size={26} />} titre="Aucun dossier proche de l'echeance" description="Tout est a jour pour le moment." />
+        <EtatVide
+          icone={<FolderOpen size={26} />}
+          titre="Aucun dossier proche de l'echeance"
+          description={horsLigne ? "Aucune liste mise en cache localement pour l'instant." : "Tout est a jour pour le moment."}
+        />
       ) : (
         <Tableau>
           <thead>
