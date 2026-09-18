@@ -602,6 +602,19 @@ table.eva-tableau tbody tr:last-child td { border-bottom: none; }
 .eva-lien-nav__chevron { margin-left: auto; flex-shrink: 0; }
 .eva-lien-nav--groupe .eva-puce { margin-left: 0; }
 
+.eva-groupe-nav { display: flex; flex-direction: column; gap: 2px; }
+
+.eva-lien-nav--g {
+  display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: var(--rayon-petit);
+  border:none;
+  color: var(--couleur-gris-service-1); text-decoration: none; font-size: 13.5px; font-weight: 500;
+  transition: background var(--transition-rapide), color var(--transition-rapide);
+}
+.eva-lien-nav--g:hover { background: var(--couleur-emeraude-fond); color: var(--couleur-encre); }
+.eva-lien-nav--actif { background: var(--couleur-emeraude); color: var(--couleur-blanc); }
+.eva-lien-nav--actif svg { color: var(--couleur-blanc); }
+
+
 .eva-sous-menu { display: flex; flex-direction: column; gap: 1px; margin: 2px 0 4px 15px; padding-left: 14px; border-left: 1px solid var(--couleur-bordure); }
 /* Le sous-lien reprend .eva-lien-nav (meme hover, meme etat actif emeraude
    plein/texte blanc - voir .eva-lien-nav--actif ci-dessus) : seule sa taille

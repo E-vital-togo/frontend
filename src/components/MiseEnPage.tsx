@@ -232,7 +232,7 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
               <div key={lien.chemin} className="eva-groupe-nav">
                 <button
                   type="button"
-                  className={`eva-lien-nav eva-lien-nav${actifSection ? " eva-lien-nav--actif" : ""}`}
+                  className={`eva-lien-nav--g${actifSection ? " eva-lien-nav--actif" : ""}`}
                   onClick={() => basculerGroupe(lien.chemin)}
                   aria-expanded={ouvert}
                 >
