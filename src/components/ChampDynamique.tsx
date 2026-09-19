@@ -1,11 +1,20 @@
-import type { ReactElement } from "react";
+import { useRef, type ReactElement } from "react";
 import Champ from "./ui/Champ";
+import { useToast } from "./ui/ToastProvider";
 import type { ChampFormulaireEffectif } from "../types/domaine";
 
 interface ProprietesChampDynamique {
   champ: ChampFormulaireEffectif;
   valeur: unknown;
   onChange: (codeChamp: string, valeur: unknown) => void;
+  /**
+   * Dossier verrouille par emission d'acte (voir Dossier.verrouille cote
+   * backend) - distinct de champ.readonly, qui ne couvre que le cas DHIS2.
+   * Volontairement jamais transforme en `disabled` natif : un controle
+   * disabled ne declenche pas onChange/onClick de facon fiable, ce qui
+   * empecherait d'avertir l'agent au moment ou il tente la modification.
+   */
+  verrouille?: boolean;
 }
 
 function versTexte(valeur: unknown): string {
@@ -30,10 +39,23 @@ function estCoche(valeur: unknown): boolean {
  * sont un confort de saisie immediat - la validation qui fait foi reste
  * apps.catalogue.validation.valider_valeur, executee a l'enregistrement.
  */
-export default function ChampDynamique({ champ, valeur, onChange }: ProprietesChampDynamique) {
+export default function ChampDynamique({ champ, valeur, onChange, verrouille = false }: ProprietesChampDynamique) {
   const { data_element_code: code, type_champ, contraintes, options, readonly } = champ;
+  const toast = useToast();
+  const derniereAlerte = useRef(0);
 
   function changer(valeurBrute: unknown) {
+    if (verrouille && !readonly) {
+      // Throttle plutot qu'un toast par frappe clavier sur un champ
+      // bloque - sinon taper "Jean" dans un champ verrouille empile 4
+      // messages identiques.
+      const maintenant = Date.now();
+      if (maintenant - derniereAlerte.current > 1500) {
+        toast.erreur("Impossible : l'acte est deja emis. Passez par « Demander une modification ».");
+        derniereAlerte.current = maintenant;
+      }
+      return;
+    }
     onChange(code, valeurBrute);
   }
 

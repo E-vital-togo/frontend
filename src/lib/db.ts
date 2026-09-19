@@ -14,6 +14,29 @@ export interface ActionEnAttente {
   payload: Record<string, unknown>;
 }
 
+/**
+ * Une action qui a ete effectivement tentee par le serveur et rejetee -
+ * conflit de version, ou erreur metier (ex: dossier verrouille par
+ * emission d'acte). Distincte d'ActionEnAttente : une fois ici, elle ne
+ * doit plus jamais etre retentee automatiquement (elle echouerait a
+ * l'identique a chaque fois), contrairement a une simple panne reseau qui,
+ * elle, laisse l'action dans actionsEnAttente pour un nouvel essai.
+ */
+export interface ActionEchouee {
+  localId?: number;
+  idClient: string;
+  type: TypeAction;
+  dossierId?: string;
+  dossierReferenceClient?: string;
+  versionConnue?: number | null;
+  horodatageClient: string;
+  payload: Record<string, unknown>;
+  statut: "conflit" | "erreur";
+  code?: string;
+  message?: string;
+  horodatageEchec: string;
+}
+
 export type DossierEnCache = Dossier & { horodatageCache?: string };
 
 /**
@@ -63,6 +86,7 @@ class BaseLocaleEVital extends Dexie {
   actionsEnAttente!: EntityTable<ActionEnAttente, "localId">;
   dossiersEnCache!: EntityTable<DossierEnCache, "id">;
   instantanesRequetes!: EntityTable<InstantaneRequete, "cle">;
+  actionsEchouees!: EntityTable<ActionEchouee, "localId">;
 
   constructor() {
     super("evital-agent-cec");
@@ -74,6 +98,12 @@ class BaseLocaleEVital extends Dexie {
       actionsEnAttente: "++localId, idClient, type, dossierId, horodatageClient",
       dossiersEnCache: "id, version, statut, eventType",
       instantanesRequetes: "cle"
+    });
+    this.version(3).stores({
+      actionsEnAttente: "++localId, idClient, type, dossierId, horodatageClient",
+      dossiersEnCache: "id, version, statut, eventType",
+      instantanesRequetes: "cle",
+      actionsEchouees: "++localId, idClient, type, dossierId, horodatageEchec, statut"
     });
   }
 }
@@ -101,6 +131,51 @@ export async function listerActionsEnAttente(): Promise<ActionEnAttente[]> {
 
 export async function viderActionsAppliquees(idsClients: string[]): Promise<void> {
   await baseLocale.actionsEnAttente.where("idClient").anyOf(idsClients).delete();
+}
+
+/**
+ * Sort une action de la file d'attente et la conserve dans actionsEchouees,
+ * en une seule operation atomique : jamais un etat intermediaire ou une
+ * action se retrouverait dans les deux tables, ou dans aucune.
+ */
+export async function archiverActionsEchouees(
+  entrees: { action: ActionEnAttente; statut: "conflit" | "erreur"; code?: string; message?: string }[]
+): Promise<void> {
+  if (entrees.length === 0) return;
+  await baseLocale.transaction("rw", baseLocale.actionsEnAttente, baseLocale.actionsEchouees, async () => {
+    for (const { action, statut, code, message } of entrees) {
+      const { localId: _localId, ...reste } = action;
+      await baseLocale.actionsEchouees.add({
+        ...reste,
+        statut,
+        code,
+        message,
+        horodatageEchec: new Date().toISOString()
+      });
+    }
+    await baseLocale.actionsEnAttente
+      .where("idClient")
+      .anyOf(entrees.map((e) => e.action.idClient))
+      .delete();
+  });
+}
+
+export async function listerActionsEchouees(): Promise<ActionEchouee[]> {
+  return baseLocale.actionsEchouees.orderBy("horodatageEchec").reverse().toArray();
+}
+
+export async function supprimerActionEchouee(localId: number): Promise<void> {
+  await baseLocale.actionsEchouees.delete(localId);
+}
+
+/**
+ * Abandonne une action encore en attente, jamais tentee - pas seulement
+ * une action deja echouee (voir supprimerActionEchouee ci-dessus) :
+ * l'agent peut vouloir annuler une saisie hors-ligne avant meme qu'elle
+ * parte au serveur.
+ */
+export async function supprimerActionEnAttente(localId: number): Promise<void> {
+  await baseLocale.actionsEnAttente.delete(localId);
 }
 
 export async function mettreEnCacheDossier(dossier: Dossier): Promise<string> {

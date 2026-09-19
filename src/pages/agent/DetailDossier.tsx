@@ -4,6 +4,7 @@ import { BellRing, CheckCircle2, FileSignature, GitCompareArrows, UserCheck } fr
 import MiseEnPage from "../../components/MiseEnPage";
 import BadgeStatut from "../../components/BadgeStatut";
 import ChampDynamique from "../../components/ChampDynamique";
+import DemandeCorrectionActe from "../../components/DemandeCorrectionActe";
 import { Badge, Bouton, Carte, ChargementPage, EnteteDePage, Frise, Modale, Onglets } from "../../components/ui";
 import { useConfirmation } from "../../components/ui/ConfirmationProvider";
 import { useToast } from "../../components/ui/ToastProvider";
@@ -451,6 +452,7 @@ export default function DetailDossier() {
                 champ={champ}
                 valeur={valeursModifiees[champ.data_element_code] ?? champ.valeur_actuelle}
                 onChange={modifierValeur}
+                verrouille={dossier.verrouille}
               />
             ))}
 
@@ -493,6 +495,9 @@ export default function DetailDossier() {
               >
                 Voir le signataire
               </Bouton>
+            )}
+            {estAgent && dossier.verrouille && idDossier && (
+              <DemandeCorrectionActe idDossier={idDossier} champsPreCharges={champs} onEnvoyee={() => setDemandes(null)} />
             )}
           </div>
         </>

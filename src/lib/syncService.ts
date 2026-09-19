@@ -1,5 +1,5 @@
 import { appelApi } from "./apiClient";
-import { listerActionsEnAttente, viderActionsAppliquees } from "./db";
+import { archiverActionsEchouees, listerActionsEnAttente, viderActionsAppliquees } from "./db";
 import { surChangementConnectivite } from "./connectivite";
 
 interface ActionEnvoyee {
@@ -18,6 +18,7 @@ export interface ResultatAction {
   dossier_id?: string;
   version?: number;
   message?: string;
+  code?: string;
 }
 
 interface ReponseSyncBatch {
@@ -53,9 +54,29 @@ export async function synchroniser(): Promise<ReponseSyncBatch> {
     corps: { actions: payload }
   });
 
-  const idsAppliques = reponse.resultats.filter((r) => r.statut === "applique").map((r) => r.id_client);
+  const parIdClient = new Map(actions.map((a) => [a.idClient, a]));
+  const idsAppliques: string[] = [];
+  const aArchiver: Parameters<typeof archiverActionsEchouees>[0] = [];
+
+  for (const resultat of reponse.resultats) {
+    if (resultat.statut === "applique") {
+      idsAppliques.push(resultat.id_client);
+      continue;
+    }
+    // "conflit"/"erreur" : le serveur a explicitement tranche, jamais un
+    // simple pepin reseau. On sort l'action de la file plutot que la
+    // retenter indefiniment (un conflit de version ou un dossier verrouille
+    // echoueraient exactement pareil a chaque prochain cycle, recreant au
+    // passage un nouveau ConflitSync cote serveur a chaque tentative).
+    const action = parIdClient.get(resultat.id_client);
+    if (action) aArchiver.push({ action, statut: resultat.statut, code: resultat.code, message: resultat.message });
+  }
+
   if (idsAppliques.length > 0) {
     await viderActionsAppliquees(idsAppliques);
+  }
+  if (aArchiver.length > 0) {
+    await archiverActionsEchouees(aArchiver);
   }
 
   return reponse;

@@ -1,4 +1,4 @@
-import { AlertTriangle, FilePlus, FolderOpen, LayoutDashboard, QrCode } from "lucide-react";
+import { AlertTriangle, FilePlus, FolderOpen, LayoutDashboard, QrCode, RefreshCw } from "lucide-react";
 import type { LienNavigation } from "../../types/domaine";
 
 export const LIENS_AGENT: LienNavigation[] = [
@@ -15,5 +15,6 @@ export const LIENS_AGENT: LienNavigation[] = [
   },
   { chemin: "/agent/dossiers/nouveau", libelle: "Nouveau dossier", icone: FilePlus },
   { chemin: "/agent/retrait", libelle: "Retrait", icone: QrCode },
-  { chemin: "/agent/conflits", libelle: "Conflits", icone: AlertTriangle, cleCompteur: "conflits" }
+  { chemin: "/agent/conflits", libelle: "Conflits", icone: AlertTriangle, cleCompteur: "conflits" },
+  { chemin: "/agent/synchronisation", libelle: "Synchronisation", icone: RefreshCw, cleCompteur: "syncEchouees" }
 ];

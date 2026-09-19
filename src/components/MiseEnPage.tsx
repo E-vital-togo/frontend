@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Bell, ChevronDown, ChevronUp, LogOut, Menu, UserCircle2, X } from "lucide-react";
 import Logo from "./Logo";
 import { useAuth } from "../context/AuthContext";
-import { dossiersAvecActionsEnAttente, listerActionsEnAttente, purgerCacheExpire } from "../lib/db";
+import { dossiersAvecActionsEnAttente, listerActionsEchouees, listerActionsEnAttente, purgerCacheExpire } from "../lib/db";
 import { precacherFormulaires } from "../lib/formulairesHorsLigne";
 import { synchroniser, surRetourConnexion } from "../lib/syncService";
 import { useCompteurs } from "../lib/useCompteurs";
@@ -28,6 +28,7 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
   const compteurs = useCompteurs();
 
   const [nombreEnAttente, setNombreEnAttente] = useState(0);
+  const [nombreEchouees, setNombreEchouees] = useState(0);
   const enLigne = useConnectivite();
   const [barreOuverte, setBarreOuverte] = useState(false);
   const [menuUtilisateurOuvert, setMenuUtilisateurOuvert] = useState(false);
@@ -50,8 +51,9 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
   const refNotifications = useRef<HTMLDivElement>(null);
 
   async function rafraichirCompteurSync() {
-    const actions = await listerActionsEnAttente();
+    const [actions, echouees] = await Promise.all([listerActionsEnAttente(), listerActionsEchouees()]);
     setNombreEnAttente(actions.length);
+    setNombreEchouees(echouees.length);
   }
 
   useEffect(() => {
@@ -129,7 +131,8 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
     setGroupesOuverts((precedent) => ({ ...precedent, [chemin]: !precedent[chemin] }));
   }
 
-  const totalNotifications = compteurs.echeances + compteurs.conflits + compteurs.demandes + compteurs.notificationsEchouees;
+  const totalNotifications =
+    compteurs.echeances + compteurs.conflits + compteurs.demandes + compteurs.notificationsEchouees + nombreEchouees;
 
   const compteurParCle: Record<string, number> = {
     echeances: compteurs.echeances,
@@ -141,7 +144,8 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
     demandesDeces: compteurs.demandesDeces,
     notificationsEchouees: compteurs.notificationsEchouees,
     notificationsEchoueesNaissance: compteurs.notificationsEchoueesNaissance,
-    notificationsEchoueesDeces: compteurs.notificationsEchoueesDeces
+    notificationsEchoueesDeces: compteurs.notificationsEchoueesDeces,
+    syncEchouees: nombreEchouees
   };
 
   return (
@@ -203,6 +207,11 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
                 {compteurs.demandes > 0 && (
                   <Link to="/admin-cec/demandes-modification" className="eva-menu-deroulant__item">
                     {compteurs.demandes} demande(s) de modification en attente
+                  </Link>
+                )}
+                {nombreEchouees > 0 && utilisateur?.role === "agent_cec" && (
+                  <Link to="/agent/synchronisation" className="eva-menu-deroulant__item">
+                    {nombreEchouees} synchronisation(s) en echec
                   </Link>
                 )}
               </div>

@@ -6,6 +6,7 @@ interface ProprietesChamp {
   aide?: string;
   erreur?: string;
   requis?: boolean;
+  verrouille?: boolean;
   children: ReactNode;
 }
 
@@ -14,9 +15,9 @@ interface ProprietesChamp {
  * formulaire de l'app. Le controle (input/select/textarea) reste natif et
  * passe par l'enfant, pour ne jamais limiter ce qu'un ecran peut en faire.
  */
-export default function Champ({ id, label, aide, erreur, requis, children }: ProprietesChamp) {
+export default function Champ({ id, label, aide, erreur, requis, verrouille, children }: ProprietesChamp) {
   return (
-    <div className={`eva-champ${erreur ? " eva-champ--erreur" : ""}`}>
+    <div className={`eva-champ${erreur ? " eva-champ--erreur" : ""}${verrouille ? " eva-champ--verrouille" : ""}`}>
       <label htmlFor={id}>
         {label}
         {requis && <span style={{ color: "var(--couleur-erreur)" }}> *</span>}

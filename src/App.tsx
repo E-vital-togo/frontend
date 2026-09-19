@@ -20,6 +20,7 @@ import CreationDossier from "./pages/agent/CreationDossier";
 import EmissionActe from "./pages/agent/EmissionActe";
 import ActePdf from "./pages/agent/ActePdf";
 import ConflitsSynchronisation from "./pages/agent/ConflitsSynchronisation";
+import Synchronisation from "./pages/agent/Synchronisation";
 
 import UtilisateursAdminCec from "./pages/admin_cec/UtilisateursAdminCec";
 import DemandesModificationAdminCec from "./pages/admin_cec/DemandesModificationAdminCec";
@@ -122,6 +123,14 @@ export default function App() {
             element={
               <RouteProtegee rolesAutorises={["agent_cec"]}>
                 <ConflitsSynchronisation />
+              </RouteProtegee>
+            }
+          />
+          <Route
+            path="/agent/synchronisation"
+            element={
+              <RouteProtegee rolesAutorises={["agent_cec"]}>
+                <Synchronisation />
               </RouteProtegee>
             }
           />

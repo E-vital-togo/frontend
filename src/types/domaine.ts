@@ -395,7 +395,8 @@ export type CleCompteur =
   | "demandesDeces"
   | "notificationsEchouees"
   | "notificationsEchoueesNaissance"
-  | "notificationsEchoueesDeces";
+  | "notificationsEchoueesDeces"
+  | "syncEchouees";
 
 export interface SousLienNavigation {
   chemin: string;

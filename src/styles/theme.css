@@ -289,6 +289,14 @@ input, select, textarea {
 .eva-champ__aide { font-size: 12px; color: var(--couleur-gris-service-2); margin-top: 5px; }
 .eva-champ__erreur { font-size: 12px; color: var(--couleur-erreur); margin-top: 5px; }
 .eva-champ--erreur input, .eva-champ--erreur select, .eva-champ--erreur textarea { border-color: var(--couleur-erreur); }
+/* Dossier verrouille (acte emis), distinct du gris de readonly DHIS2
+   ci-dessus : ces controles restent volontairement interactifs (jamais
+   disabled), voir ChampDynamique.tsx. */
+.eva-champ--verrouille input, .eva-champ--verrouille select, .eva-champ--verrouille textarea {
+  background: var(--couleur-erreur-fond);
+  border-color: #F0C6C3;
+  cursor: not-allowed;
+}
 
 .message-erreur {
   color: var(--couleur-erreur);
