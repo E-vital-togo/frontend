@@ -7,7 +7,7 @@ import { dossiersAvecActionsEnAttente, listerActionsEnAttente, purgerCacheExpire
 import { precacherFormulaires } from "../lib/formulairesHorsLigne";
 import { synchroniser, surRetourConnexion } from "../lib/syncService";
 import { useCompteurs } from "../lib/useCompteurs";
-import { useConnectivite } from "../lib/connectivite";
+import { estEnLigne, useConnectivite } from "../lib/connectivite";
 import type { LienNavigation } from "../types/domaine";
 
 interface ProprietesMiseEnPage {
@@ -60,7 +60,7 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
     // les dossiers en attente de synchronisation sont epargnes).
     purgerCacheExpire().catch(() => {});
 
-    const retirer = surRetourConnexion(async () => {
+    async function tenterSynchronisation() {
       // Un echec de synchronisation ne doit jamais remonter en rejet non
       // gere : le reseau peut retomber en pleine requete, ou la session
       // avoir expire pendant la coupure (apiClient deconnecte alors
@@ -82,7 +82,21 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
         await precacherFormulaires(dossiersSynchronises, true).catch(() => {});
       }
       await rafraichirCompteurSync();
-    });
+    }
+
+    // surRetourConnexion ne reagit qu'a une transition hors-ligne -> en-ligne
+    // (voir connectivite.ts, notifier() ne previent que sur un CHANGEMENT).
+    // Si l'app demarre - ou que cet ecran se remonte au fil d'une navigation
+    // - alors qu'elle est DEJA en ligne avec des actions encore en file
+    // (l'agent avait ferme l'app hors-ligne, la rouvre plus tard une fois
+    // reconnecte), il n'y a justement aucune transition a observer : sans
+    // cet appel immediat, ces actions resteraient bloquees jusqu'a la
+    // PROCHAINE vraie coupure/reconnexion, qui peut ne jamais survenir.
+    if (estEnLigne()) {
+      tenterSynchronisation();
+    }
+
+    const retirer = surRetourConnexion(tenterSynchronisation);
 
     return () => {
       retirer();
@@ -119,6 +133,8 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
 
   const compteurParCle: Record<string, number> = {
     echeances: compteurs.echeances,
+    echeancesNaissance: compteurs.echeancesNaissance,
+    echeancesDeces: compteurs.echeancesDeces,
     conflits: compteurs.conflits,
     demandes: compteurs.demandes,
     notificationsEchouees: compteurs.notificationsEchouees

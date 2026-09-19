@@ -385,17 +385,25 @@ export function listeDepuis<T>(donnees: ListeOuPaginee<T>): T[] {
   return Array.isArray(donnees) ? donnees : donnees.results;
 }
 
+export type CleCompteur =
+  | "echeances"
+  | "echeancesNaissance"
+  | "echeancesDeces"
+  | "conflits"
+  | "demandes"
+  | "notificationsEchouees";
+
 export interface SousLienNavigation {
   chemin: string;
   libelle: string;
-  cleCompteur?: "echeances" | "conflits" | "demandes" | "notificationsEchouees";
+  cleCompteur?: CleCompteur;
 }
 
 export interface LienNavigation {
   chemin: string;
   libelle: string;
   icone: LucideIcon;
-  cleCompteur?: "echeances" | "conflits" | "demandes" | "notificationsEchouees";
+  cleCompteur?: CleCompteur;
   sousLiens?: SousLienNavigation[];
 }
 

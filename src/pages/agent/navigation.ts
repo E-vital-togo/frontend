@@ -9,8 +9,8 @@ export const LIENS_AGENT: LienNavigation[] = [
     icone: FolderOpen,
     cleCompteur: "echeances",
     sousLiens: [
-      { chemin: "/agent/dossiers?event_type=naissance", libelle: "Naissance" },
-      { chemin: "/agent/dossiers?event_type=deces", libelle: "Deces" }
+      { chemin: "/agent/dossiers?event_type=naissance", libelle: "Naissance", cleCompteur: "echeancesNaissance" },
+      { chemin: "/agent/dossiers?event_type=deces", libelle: "Deces", cleCompteur: "echeancesDeces" }
     ]
   },
   { chemin: "/agent/dossiers/nouveau", libelle: "Nouveau dossier", icone: FilePlus },

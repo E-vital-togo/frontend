@@ -14,12 +14,21 @@ import {
 
 export interface Compteurs {
   echeances: number;
+  echeancesNaissance: number;
+  echeancesDeces: number;
   conflits: number;
   demandes: number;
   notificationsEchouees: number;
 }
 
-const VIDE: Compteurs = { echeances: 0, conflits: 0, demandes: 0, notificationsEchouees: 0 };
+const VIDE: Compteurs = {
+  echeances: 0,
+  echeancesNaissance: 0,
+  echeancesDeces: 0,
+  conflits: 0,
+  demandes: 0,
+  notificationsEchouees: 0
+};
 
 /**
  * Etat garde au niveau module, PAS dans un useState de useCompteurs.
@@ -53,13 +62,22 @@ function rafraichir(): void {
   if (!utilisateurCourant || !estEnLigne()) return;
 
   if (utilisateurCourant.role === "agent_cec") {
+    // Naissance/Deces demandes separement (plutot qu'un seul appel puis un
+    // filtre client) : le total affiche sur "Dossiers" est construit comme
+    // leur somme, jamais une troisieme valeur independante qui pourrait
+    // diverger de ce qu'affichent les sous-liens.
     Promise.all([
-      appelApi<ListeOuPaginee<Dossier>>("/dossiers/?echeance_proche=true"),
+      appelApi<ListeOuPaginee<Dossier>>("/dossiers/?echeance_proche=true&event_type=naissance"),
+      appelApi<ListeOuPaginee<Dossier>>("/dossiers/?echeance_proche=true&event_type=deces"),
       appelApi<ListeOuPaginee<ConflitSync>>("/sync/conflits/")
     ])
-      .then(([dossiers, conflits]) => {
+      .then(([dossiersNaissance, dossiersDeces, conflits]) => {
+        const echeancesNaissance = listeDepuis(dossiersNaissance).length;
+        const echeancesDeces = listeDepuis(dossiersDeces).length;
         definir({
-          echeances: listeDepuis(dossiers).length,
+          echeances: echeancesNaissance + echeancesDeces,
+          echeancesNaissance,
+          echeancesDeces,
           conflits: listeDepuis(conflits).length,
           demandes: 0,
           notificationsEchouees: 0
@@ -76,6 +94,8 @@ function rafraichir(): void {
         const enAttente = listeDepuis(demandes).filter((d) => d.statut === "en_attente").length;
         definir({
           echeances: 0,
+          echeancesNaissance: 0,
+          echeancesDeces: 0,
           conflits: listeDepuis(conflits).length,
           demandes: enAttente,
           notificationsEchouees: listeDepuis(notificationsEchouees).length
