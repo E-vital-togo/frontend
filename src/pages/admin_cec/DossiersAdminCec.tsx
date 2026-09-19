@@ -40,6 +40,7 @@ export default function DossiersAdminCec() {
   const [evenementFiltre, setEvenementFiltre] = useState<TypeEvenement | "">((evenementUrl as TypeEvenement | null) || "");
   const [mairieFiltre, setMairieFiltre] = useState("");
   const [recherche, setRecherche] = useState("");
+  const [masquerActesEmis, setMasquerActesEmis] = useState(false);
   const [page, setPage] = useState(1);
   const [chargement, setChargement] = useState(true);
   const [exportEnCours, setExportEnCours] = useState<"xlsx" | "pdf" | null>(null);
@@ -66,6 +67,7 @@ export default function DossiersAdminCec() {
     if (evenementFiltre) parametres.set("event_type", evenementFiltre);
     if (mairieFiltre) parametres.set("mairie", mairieFiltre);
     if (recherche) parametres.set("search", recherche);
+    if (masquerActesEmis) parametres.set("masquer_actes_emis", "true");
     return parametres;
   }
 
@@ -78,7 +80,7 @@ export default function DossiersAdminCec() {
       .then(setDossiers)
       .finally(() => setChargement(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statutFiltre, evenementFiltre, mairieFiltre, recherche, page]);
+  }, [statutFiltre, evenementFiltre, mairieFiltre, recherche, masquerActesEmis, page]);
 
   async function exporter(format: "xlsx" | "pdf") {
     setExportEnCours(format);
@@ -181,6 +183,17 @@ export default function DossiersAdminCec() {
             </Champ>
           </div>
         )}
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13.5, paddingBottom: 14, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={masquerActesEmis}
+            onChange={(e) => {
+              setPage(1);
+              setMasquerActesEmis(e.target.checked);
+            }}
+          />
+          Masquer les actes emis
+        </label>
       </div>
 
       {chargement ? (

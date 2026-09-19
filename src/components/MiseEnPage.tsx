@@ -137,7 +137,11 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
     echeancesDeces: compteurs.echeancesDeces,
     conflits: compteurs.conflits,
     demandes: compteurs.demandes,
-    notificationsEchouees: compteurs.notificationsEchouees
+    demandesNaissance: compteurs.demandesNaissance,
+    demandesDeces: compteurs.demandesDeces,
+    notificationsEchouees: compteurs.notificationsEchouees,
+    notificationsEchoueesNaissance: compteurs.notificationsEchoueesNaissance,
+    notificationsEchoueesDeces: compteurs.notificationsEchoueesDeces
   };
 
   return (

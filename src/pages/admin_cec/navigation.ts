@@ -20,8 +20,8 @@ export const LIENS_ADMIN_CEC: LienNavigation[] = [
     icone: FileEdit,
     cleCompteur: "demandes",
     sousLiens: [
-      { chemin: "/admin-cec/demandes-modification?event_type=naissance", libelle: "Naissance" },
-      { chemin: "/admin-cec/demandes-modification?event_type=deces", libelle: "Deces" }
+      { chemin: "/admin-cec/demandes-modification?event_type=naissance", libelle: "Naissance", cleCompteur: "demandesNaissance" },
+      { chemin: "/admin-cec/demandes-modification?event_type=deces", libelle: "Deces", cleCompteur: "demandesDeces" }
     ]
   },
   {
@@ -30,8 +30,8 @@ export const LIENS_ADMIN_CEC: LienNavigation[] = [
     icone: BellOff,
     cleCompteur: "notificationsEchouees",
     sousLiens: [
-      { chemin: "/admin-cec/notifications-echouees?event_type=naissance", libelle: "Naissance" },
-      { chemin: "/admin-cec/notifications-echouees?event_type=deces", libelle: "Deces" }
+      { chemin: "/admin-cec/notifications-echouees?event_type=naissance", libelle: "Naissance", cleCompteur: "notificationsEchoueesNaissance" },
+      { chemin: "/admin-cec/notifications-echouees?event_type=deces", libelle: "Deces", cleCompteur: "notificationsEchoueesDeces" }
     ]
   },
   { chemin: "/admin-cec/campagnes-relance", libelle: "Campagnes de relance", icone: Megaphone },

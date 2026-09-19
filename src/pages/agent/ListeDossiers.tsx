@@ -35,6 +35,7 @@ export default function ListeDossiers() {
   const [evenementFiltre, setEvenementFiltre] = useState<TypeEvenement | "">((evenementUrl as TypeEvenement | null) || "");
   const [recherche, setRecherche] = useState("");
   const [echeanceUniquement, setEcheanceUniquement] = useState(parametresUrl.get("echeance") === "1");
+  const [masquerActesEmis, setMasquerActesEmis] = useState(false);
   const [page, setPage] = useState(1);
   const [chargement, setChargement] = useState(true);
   const [exportEnCours, setExportEnCours] = useState<"xlsx" | "pdf" | null>(null);
@@ -57,6 +58,7 @@ export default function ListeDossiers() {
     if (evenementFiltre) parametres.set("event_type", evenementFiltre);
     if (recherche) parametres.set("search", recherche);
     if (echeanceUniquement) parametres.set("echeance_proche", "true");
+    if (masquerActesEmis) parametres.set("masquer_actes_emis", "true");
     return parametres;
   }
 
@@ -110,7 +112,7 @@ export default function ListeDossiers() {
       annule = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statutFiltre, evenementFiltre, recherche, echeanceUniquement, page, enLigne]);
+  }, [statutFiltre, evenementFiltre, recherche, echeanceUniquement, masquerActesEmis, page, enLigne]);
 
   async function exporter(format: "xlsx" | "pdf") {
     setExportEnCours(format);
@@ -216,6 +218,17 @@ export default function ListeDossiers() {
             }}
           />
           Echeance proche uniquement
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13.5, paddingBottom: 14, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={masquerActesEmis}
+            onChange={(e) => {
+              setPage(1);
+              setMasquerActesEmis(e.target.checked);
+            }}
+          />
+          Masquer les actes emis
         </label>
       </div>
 

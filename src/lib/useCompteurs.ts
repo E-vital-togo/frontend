@@ -18,7 +18,11 @@ export interface Compteurs {
   echeancesDeces: number;
   conflits: number;
   demandes: number;
+  demandesNaissance: number;
+  demandesDeces: number;
   notificationsEchouees: number;
+  notificationsEchoueesNaissance: number;
+  notificationsEchoueesDeces: number;
 }
 
 const VIDE: Compteurs = {
@@ -27,7 +31,11 @@ const VIDE: Compteurs = {
   echeancesDeces: 0,
   conflits: 0,
   demandes: 0,
-  notificationsEchouees: 0
+  demandesNaissance: 0,
+  demandesDeces: 0,
+  notificationsEchouees: 0,
+  notificationsEchoueesNaissance: 0,
+  notificationsEchoueesDeces: 0
 };
 
 /**
@@ -80,25 +88,41 @@ function rafraichir(): void {
           echeancesDeces,
           conflits: listeDepuis(conflits).length,
           demandes: 0,
-          notificationsEchouees: 0
+          demandesNaissance: 0,
+          demandesDeces: 0,
+          notificationsEchouees: 0,
+          notificationsEchoueesNaissance: 0,
+          notificationsEchoueesDeces: 0
         });
       })
       .catch(() => {});
   } else if (utilisateurCourant.role === "admin_cec") {
+    // Meme principe que pour l'agent : naissance/deces demandes separement
+    // (filtre backend, pas un split client) pour que le total du parent
+    // soit garanti egal a la somme affichee sur les sous-liens.
     Promise.all([
-      appelApi<ListeOuPaginee<DemandeModificationActe>>("/demandes-modification/"),
+      appelApi<ListeOuPaginee<DemandeModificationActe>>("/demandes-modification/?statut=en_attente&dossier__event_type=naissance"),
+      appelApi<ListeOuPaginee<DemandeModificationActe>>("/demandes-modification/?statut=en_attente&dossier__event_type=deces"),
       appelApi<ListeOuPaginee<ConflitSync>>("/sync/conflits/"),
-      appelApi<ListeOuPaginee<NotificationEchouee>>("/notifications-echouees/")
+      appelApi<ListeOuPaginee<NotificationEchouee>>("/notifications-echouees/?dossier__event_type=naissance"),
+      appelApi<ListeOuPaginee<NotificationEchouee>>("/notifications-echouees/?dossier__event_type=deces")
     ])
-      .then(([demandes, conflits, notificationsEchouees]) => {
-        const enAttente = listeDepuis(demandes).filter((d) => d.statut === "en_attente").length;
+      .then(([demandesNaissance, demandesDeces, conflits, notifNaissance, notifDeces]) => {
+        const compteDemandesNaissance = listeDepuis(demandesNaissance).length;
+        const compteDemandesDeces = listeDepuis(demandesDeces).length;
+        const compteNotifNaissance = listeDepuis(notifNaissance).length;
+        const compteNotifDeces = listeDepuis(notifDeces).length;
         definir({
           echeances: 0,
           echeancesNaissance: 0,
           echeancesDeces: 0,
           conflits: listeDepuis(conflits).length,
-          demandes: enAttente,
-          notificationsEchouees: listeDepuis(notificationsEchouees).length
+          demandes: compteDemandesNaissance + compteDemandesDeces,
+          demandesNaissance: compteDemandesNaissance,
+          demandesDeces: compteDemandesDeces,
+          notificationsEchouees: compteNotifNaissance + compteNotifDeces,
+          notificationsEchoueesNaissance: compteNotifNaissance,
+          notificationsEchoueesDeces: compteNotifDeces
         });
       })
       .catch(() => {});
