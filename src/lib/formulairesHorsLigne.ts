@@ -1,5 +1,5 @@
 import { appelApi } from "./apiClient";
-import { cleCacheFormulaire, dossiersAvecActionsEnAttente, mettreEnCacheInstantane } from "./db";
+import { cleCacheFormulaire, dossiersAvecActionsEnAttente, instantaneEnCache, mettreEnCacheInstantane } from "./db";
 import type { ChampFormulaireEffectif, TypeEvenement } from "../types/domaine";
 
 /**
@@ -69,4 +69,27 @@ export async function precacherFormulaires(idsDossiers: string[], forcer = false
       await mettreEnCacheInstantane(cleCacheFormulaire(idDossier), champs);
     })
   );
+}
+
+/**
+ * Annule dans le cache local l'effet d'une modification abandonnee (voir
+ * pages/agent/Synchronisation.tsx) : sans ca, un champ mis en file puis
+ * annule - avant meme d'avoir ete envoye, ou apres un rejet serveur -
+ * continuait d'afficher la valeur saisie comme si elle etait toujours
+ * d'actualite, alors que l'agent vient justement de dire "laisse tomber".
+ * Ne fait rien si le formulaire de ce dossier n'est pas (ou plus) en cache.
+ */
+export async function restaurerValeurPrecedente(
+  dossierId: string,
+  dataElementCode: string,
+  valeurPrecedente: unknown
+): Promise<void> {
+  const cle = cleCacheFormulaire(dossierId);
+  const instantane = await instantaneEnCache<ChampFormulaireEffectif[]>(cle);
+  if (!instantane) return;
+
+  const champs = instantane.donnees.map((champ) =>
+    champ.data_element_code === dataElementCode ? { ...champ, valeur_actuelle: valeurPrecedente } : champ
+  );
+  await mettreEnCacheInstantane(cle, champs);
 }

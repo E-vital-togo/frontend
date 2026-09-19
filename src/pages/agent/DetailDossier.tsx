@@ -229,11 +229,17 @@ export default function DetailDossier() {
         toast.succes("Modifications enregistrees.");
       } else {
         for (const [dataElementCode, valeur] of entrees) {
+          // valeur_precedente : ignoree par le backend (qui ne lit que
+          // data_element_code/valeur dans le payload), mais indispensable
+          // pour pouvoir restaurer l'affichage local si l'agent annule cette
+          // action depuis l'ecran Synchronisation avant ou apres son envoi -
+          // sans ca, rien ne permet de savoir a quoi revenir.
+          const valeurPrecedente = champs.find((c) => c.data_element_code === dataElementCode)?.valeur_actuelle ?? null;
           await mettreEnFileAction({
             type: "ajout_valeur",
             dossierId: idDossier,
             versionConnue: dossier.version,
-            payload: { data_element_code: dataElementCode, valeur }
+            payload: { data_element_code: dataElementCode, valeur, valeur_precedente: valeurPrecedente }
           });
         }
 

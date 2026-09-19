@@ -12,6 +12,7 @@ import {
   type ActionEchouee,
   type ActionEnAttente
 } from "../../lib/db";
+import { restaurerValeurPrecedente } from "../../lib/formulairesHorsLigne";
 import { LIENS_AGENT } from "./navigation";
 
 const LIBELLES_TYPE: Record<string, string> = {
@@ -42,6 +43,23 @@ export default function Synchronisation() {
     charger();
   }, []);
 
+  /**
+   * Sans ca, abandonner une modification de champ laissait l'ecran de
+   * detail continuer a afficher la valeur saisie (ecrite de facon
+   * optimiste dans le cache au moment de l'enregistrement, voir
+   * DetailDossier.enregistrer) comme si elle etait toujours en cours -
+   * alors que l'agent vient justement de dire de l'oublier.
+   */
+  async function restaurerSiAjoutValeur(action: ActionEnAttente | ActionEchouee) {
+    if (action.type !== "ajout_valeur" || !action.dossierId) return;
+    const { data_element_code: code, valeur_precedente: valeurPrecedente } = action.payload as {
+      data_element_code?: string;
+      valeur_precedente?: unknown;
+    };
+    if (!code) return;
+    await restaurerValeurPrecedente(action.dossierId, code, valeurPrecedente ?? null);
+  }
+
   async function annulerEnAttente(action: ActionEnAttente) {
     const ok = await confirmer({
       titre: "Abandonner cette modification ?",
@@ -50,6 +68,7 @@ export default function Synchronisation() {
       dangereux: true
     });
     if (!ok || action.localId === undefined) return;
+    await restaurerSiAjoutValeur(action);
     await supprimerActionEnAttente(action.localId);
     await charger();
   }
@@ -62,6 +81,7 @@ export default function Synchronisation() {
       dangereux: true
     });
     if (!ok || action.localId === undefined) return;
+    await restaurerSiAjoutValeur(action);
     await supprimerActionEchouee(action.localId);
     await charger();
   }
