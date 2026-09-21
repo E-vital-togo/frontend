@@ -143,7 +143,7 @@ function OngletTelephone({ onTrouve }: { onTrouve: (d: Dossier) => void }) {
     setErreur(null);
     setResultats(null);
     try {
-      const donnees = await appelApi<CodeRetraitTrouve[]>(`/codes-retrait/retrouver?telephone=${encodeURIComponent(telephone)}`);
+      const donnees = await appelApi<CodeRetraitTrouve[]>(`/codes-retrait/rechercher?telephone=${encodeURIComponent(telephone)}`);
       setResultats(donnees);
     } catch (e) {
       setErreur(e instanceof ErreurApi ? e.message : "Erreur de recherche.");
