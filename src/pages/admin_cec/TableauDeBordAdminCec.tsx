@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertOctagon, CheckCircle2, Clock, FolderOpen } from "lucide-react";
+import { AlertOctagon, AlertTriangle, CheckCircle2, Clock, FolderOpen, Radio } from "lucide-react";
 import {
   CartesianGrid,
   Cell,
@@ -20,7 +20,13 @@ import { LienBouton } from "../../components/ui/Bouton";
 import { appelApi } from "../../lib/apiClient";
 import { classeUrgence, couleurUrgence, joursRestants as joursDepuisAujourdhui } from "../../lib/urgence";
 import { LIENS_ADMIN_CEC } from "./navigation";
-import type { Dossier, ListeOuPaginee, StatistiqueEvolutionReponse, StatistiqueRepartitionItem } from "../../types/domaine";
+import type {
+  Dossier,
+  ListeOuPaginee,
+  StatistiqueEvolutionReponse,
+  StatistiqueRepartitionItem,
+  StatistiquesNotifications
+} from "../../types/domaine";
 import { listeDepuis } from "../../types/domaine";
 
 // sans_suite est un dossier CLOS (plus d'echeance active), pas un dossier
@@ -46,7 +52,11 @@ export default function TableauDeBordAdminCec() {
   const [evolution, setEvolution] = useState<StatistiqueEvolutionReponse | null>(null);
   const [echeancesProches, setEcheancesProches] = useState<Dossier[]>([]);
   const [delaiMoyenJours, setDelaiMoyenJours] = useState<number | null>(null);
+  const [statsNotifications, setStatsNotifications] = useState<StatistiquesNotifications | null>(null);
   const [chargement, setChargement] = useState(true);
+
+
+  //console.log("evolution de donnée très bien recupéré", evolution);
 
   useEffect(() => {
     const parametres = new URLSearchParams();
@@ -58,6 +68,7 @@ export default function TableauDeBordAdminCec() {
     Promise.all([
       appelApi<StatistiqueRepartitionItem[]>(`/dossiers/statistiques/repartition/?dimension=statut${suffixe}`),
       appelApi<StatistiqueRepartitionItem[]>(`/dossiers/statistiques/repartition/?dimension=mairie${suffixe}`),
+      //060307
       appelApi<StatistiqueEvolutionReponse>(`/dossiers/statistiques/evolution/?intervalle=mois&serie=event_type${suffixe}`),
       appelApi<ListeOuPaginee<Dossier>>("/dossiers/?echeance_proche=true"),
       appelApi<{ delai_moyen_jours: number | null }>(`/dossiers/statistiques/delai-moyen/?${parametres.toString()}`)
@@ -71,6 +82,20 @@ export default function TableauDeBordAdminCec() {
       })
       .finally(() => setChargement(false));
   }, [dateDebut, dateFin]);
+
+  // Requete separee, volontairement isolee du Promise.all principal : le
+  // sous-enregistrement (notifications ASC) est une fonctionnalite plus
+  // recente, potentiellement pas encore deployee/configuree partout - une
+  // erreur ici (404, permission...) ne doit jamais faire echouer le reste
+  // du tableau de bord qui, lui, fonctionne deja de maniere fiable. Pas de
+  // filtre date_debut/date_fin : voir apps.dhis2_integration.services.
+  // statistiques_notifications (mesure sur l'ensemble du perimetre, pas une
+  // periode de declaration).
+  useEffect(() => {
+    appelApi<StatistiquesNotifications>("/dhis2/statistiques-notifications/")
+      .then(setStatsNotifications)
+      .catch(() => setStatsNotifications(null));
+  }, []);
 
   const total = useMemo(() => repartitionStatut?.reduce((s, r) => s + r.valeur, 0) ?? 0, [repartitionStatut]);
   const actesEmis = useMemo(() => repartitionStatut?.find((r) => r.cle === "acte_emis")?.valeur ?? 0, [repartitionStatut]);
@@ -112,6 +137,35 @@ export default function TableauDeBordAdminCec() {
               libelle="Delai moyen declaration -> acte"
             />
           </div>
+
+          {statsNotifications && (
+            <div style={{ marginBottom: 24 }}>
+              <h2 style={{ fontSize: 14, marginBottom: 4 }}>Sous-enregistrement (notifications communautaires ASC)</h2>
+              <p style={{ fontSize: 12.5, color: "var(--couleur-gris-service-2)", marginTop: 0, marginBottom: 14 }}>
+                Naissances/décès notifiés par les agents de santé communautaires mais jamais menés à une déclaration,
+                croisés avec les déclarations reçues dans votre zone. N'affecte aucun chiffre ci-dessus.
+              </p>
+              <div className="grille-cartes">
+                <CarteStat
+                  icone={<Radio size={22} />}
+                  valeur={statsNotifications.notifications_sans_suite}
+                  libelle="Notifications sans suite"
+                  alerte={statsNotifications.notifications_sans_suite > 0}
+                />
+                <CarteStat
+                  icone={<FolderOpen size={22} />}
+                  valeur={statsNotifications.total_evenements}
+                  libelle="Total événements (notifications + dossiers)"
+                />
+                <CarteStat
+                  icone={<AlertTriangle size={22} />}
+                  valeur={statsNotifications.evenements_non_actes}
+                  libelle="Événements jamais actés"
+                  alerte={statsNotifications.evenements_non_actes > 0}
+                />
+              </div>
+            </div>
+          )}
 
           <div className="eva-grille-2" style={{ marginBottom: 24 }}>
             <Carte>

@@ -208,6 +208,18 @@ export interface StatistiqueEvolutionReponse {
   series: string[];
 }
 
+/**
+ * Sous-enregistrement reel (notifications communautaires ASC + dossiers
+ * declares), voir backend apps.dhis2_integration.services.
+ * statistiques_notifications - endpoint GET /dhis2/statistiques-notifications/,
+ * scope automatique au perimetre territorial de l'admin CEC connecte.
+ */
+export interface StatistiquesNotifications {
+  notifications_sans_suite: number;
+  total_evenements: number;
+  evenements_non_actes: number;
+}
+
 export interface DimensionStat {
   code: string;
   label: string;
