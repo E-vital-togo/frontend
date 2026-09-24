@@ -142,9 +142,7 @@ export default function TableauDeBordAdminCec() {
             <div style={{ marginBottom: 24 }}>
               <h2 style={{ fontSize: 14, marginBottom: 4 }}>Sous-enregistrement (notifications communautaires ASC)</h2>
               <p style={{ fontSize: 12.5, color: "var(--couleur-gris-service-2)", marginTop: 0, marginBottom: 14 }}>
-                Naissances/décès notifiés par les agents de santé communautaires mais jamais menés à une déclaration,
-                croisés avec les déclarations reçues dans votre zone. N'affecte aucun chiffre ci-dessus.
-              </p>
+                Naissances/décès notifiés par les agents de santé communautaires mais jamais menés à une déclaration              </p>
               <div className="grille-cartes">
                 <CarteStat
                   icone={<Radio size={22} />}
