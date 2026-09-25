@@ -257,7 +257,7 @@ export default function ListeDossiers() {
                 <th>Evenement</th>
                 <th>Origine</th>
                 <th>Statut</th>
-                <th>Date de l'evenement</th>
+                <th>Date de {evenementFiltre}</th>
                 <th>Echeance</th>
                 <th></th>
               </tr>
