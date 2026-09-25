@@ -11,6 +11,10 @@ interface ReponseFormulaireEffectif {
   champs: ChampFormulaireEffectif[];
 }
 
+function champEstVide(valeur: unknown): boolean {
+  return valeur === null || valeur === undefined || valeur === "" || (Array.isArray(valeur) && valeur.length === 0);
+}
+
 export default function PageCompletionParent() {
   const { code } = useParams<{ code: string }>();
   const [champs, setChamps] = useState<ChampFormulaireEffectif[] | null>(null);
@@ -28,7 +32,14 @@ export default function PageCompletionParent() {
 
   async function soumettre(evenement: FormEvent<HTMLFormElement>) {
     evenement.preventDefault();
-    if (!code) return;
+    if (!code || !champs) return;
+    const manquants = champs.filter(
+      (c) => c.obligatoire && champEstVide(valeurs[c.data_element_code] ?? c.valeur_actuelle)
+    );
+    if (manquants.length > 0) {
+      setErreur(`Champs obligatoires manquants : ${manquants.map((c) => c.label).join(", ")}.`);
+      return;
+    }
     setEnCours(true);
     setErreur(null);
     try {

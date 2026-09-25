@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { BellRing, CheckCircle2, FileSignature, GitCompareArrows, UserCheck } from "lucide-react";
+import { BellRing, CheckCircle2, Eye, FileSignature, GitCompareArrows, UserCheck } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
 import BadgeStatut from "../../components/BadgeStatut";
 import ChampDynamique from "../../components/ChampDynamique";
@@ -19,6 +19,7 @@ import {
   cleCacheFormulaire
 } from "../../lib/db";
 import { useConnectivite } from "../../lib/connectivite";
+import { telechargerBlob } from "../../lib/telechargerBlob";
 import { LIENS_AGENT } from "./navigation";
 import { LIENS_ADMIN_CEC } from "../admin_cec/navigation";
 import {
@@ -56,6 +57,10 @@ const LIBELLES_STATUT_NOTIFICATION: Record<string, string> = {
   en_attente: "En attente"
 };
 
+function champEstVide(valeur: unknown): boolean {
+  return valeur === null || valeur === undefined || valeur === "" || (Array.isArray(valeur) && valeur.length === 0);
+}
+
 function formaterValeur(valeur: unknown): string {
   console.log("valeur à formater ", valeur);
   if (valeur === null || valeur === undefined || valeur === "") return "(vide)";
@@ -89,6 +94,7 @@ export default function DetailDossier() {
   const [acte, setActe] = useState<Acte | null>(null);
   const [signataireVisible, setSignataireVisible] = useState<SignataireMairie | null>(null);
   const [chargementSignataire, setChargementSignataire] = useState(false);
+  const [apercuActeEnCours, setApercuActeEnCours] = useState(false);
 
   // `chargement` ne sert qu'au tout premier affichage (distinguer "on
   // attend encore" de "il n'y a rien en cache") : il n'est jamais remis a
@@ -271,6 +277,12 @@ export default function DetailDossier() {
 
   async function valider() {
     if (!idDossier) return;
+    if (champsObligatoiresManquants.length > 0) {
+      toast.erreur(
+        `Champs obligatoires manquants : ${champsObligatoiresManquants.map((c) => c.label).join(", ")}.`
+      );
+      return;
+    }
     const ok = await confirmer({
       titre: "Marquer ce dossier comme complet ?",
       description: "L'agent pourra ensuite proceder a l'emission de l'acte. Cette etape confirme que toutes les informations necessaires ont ete verifiees.",
@@ -283,6 +295,19 @@ export default function DetailDossier() {
       await charger();
     } catch (e) {
       toast.erreur(e instanceof ErreurApi ? e.message : "Erreur inattendue.");
+    }
+  }
+
+  async function telechargerApercuActe() {
+    if (!idDossier) return;
+    setApercuActeEnCours(true);
+    try {
+      const blob = await appelApi<Blob>(`/dossiers/${idDossier}/acte/apercu-pdf`);
+      telechargerBlob(blob, "apercu-acte.pdf");
+    } catch (e) {
+      toast.erreur(e instanceof ErreurApi ? e.message : "Erreur inattendue.");
+    } finally {
+      setApercuActeEnCours(false);
     }
   }
 
@@ -349,6 +374,7 @@ export default function DetailDossier() {
 
   const peutValider =
     dossier.statut === "recu" || dossier.statut === "notifie" || dossier.statut === "en_attente_complement";
+  const champsObligatoiresManquants = champs.filter((c) => c.obligatoire && champEstVide(c.valeur_actuelle));
   const peutEmettreActe = estAgent && dossier.statut === "complete";
   const peutRelancer = dossier.statut !== "acte_emis" && dossier.statut !== "sans_suite";
   const propositionEnAttente = dossier.nouvelle_version?.statut === "en_attente" ? dossier.nouvelle_version : null;
@@ -476,10 +502,36 @@ export default function DetailDossier() {
             )}
           </Carte>
 
+          {peutValider && champsObligatoiresManquants.length > 0 && (
+            <p style={{ color: "var(--couleur-erreur)", fontSize: 13.5, marginBottom: 8 }}>
+              Champs obligatoires manquants avant de marquer ce dossier complet :{" "}
+              {champsObligatoiresManquants.map((c) => c.label).join(", ")}.
+            </p>
+          )}
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             {peutValider && (
-              <Bouton variante="secondaire" onClick={valider} iconeGauche={<CheckCircle2 size={16} />}>
+              <Bouton
+                variante="secondaire"
+                onClick={valider}
+                disabled={champsObligatoiresManquants.length > 0}
+                title={
+                  champsObligatoiresManquants.length > 0
+                    ? `Champs obligatoires manquants : ${champsObligatoiresManquants.map((c) => c.label).join(", ")}.`
+                    : undefined
+                }
+                iconeGauche={<CheckCircle2 size={16} />}
+              >
                 Marquer comme complete
+              </Bouton>
+            )}
+            {dossier.statut === "complete" && (
+              <Bouton
+                variante="secondaire"
+                onClick={telechargerApercuActe}
+                chargement={apercuActeEnCours}
+                iconeGauche={<Eye size={16} />}
+              >
+                Aperçu de l'acte
               </Bouton>
             )}
             {peutEmettreActe && (
