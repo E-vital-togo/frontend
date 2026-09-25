@@ -60,6 +60,7 @@ export interface Dossier {
   event_type: TypeEvenement;
   statut: StatutDossier;
   date_declaration: string;
+  date_evenement: string | null;
   date_limite: string;
   est_expire: boolean;
   mairie: string;
@@ -87,7 +88,8 @@ export type TypeChamp =
   | "booleen"
   | "select"
   | "select_multiple"
-  | "telephone";
+  | "telephone"
+  | "datalist";
 
 // Sous-ensemble pertinent selon `type_champ` - voir apps.catalogue.contraintes.SCHEMAS.
 export interface ContraintesChamp {

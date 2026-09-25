@@ -140,6 +140,32 @@ export default function ChampDynamique({ champ, valeur, onChange, verrouille = f
       break;
     }
 
+    case "datalist":
+      // Saisie libre : contrairement a "select", `options` n'est qu'une
+      // liste de suggestions (voir apps.catalogue.validation._valider_texte
+      // applique a ce type - aucune contrainte contre `options`). Le
+      // <datalist> propose donc `libelle` comme valeur inseree, pas le code
+      // interne `valeur` utilise par select/select_multiple.
+      controle = (
+        <>
+          <input
+            id={code}
+            type="text"
+            list={`${code}-liste`}
+            maxLength={contraintes.longueur_max}
+            value={versTexte(valeur)}
+            disabled={readonly}
+            onChange={(e) => changer(e.target.value)}
+          />
+          <datalist id={`${code}-liste`}>
+            {options.map((option) => (
+              <option key={option.valeur} value={option.libelle} />
+            ))}
+          </datalist>
+        </>
+      );
+      break;
+
     case "telephone":
       controle = (
         <input id={code} type="tel" value={versTexte(valeur)} disabled={readonly} onChange={(e) => changer(e.target.value)} />

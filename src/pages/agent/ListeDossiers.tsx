@@ -257,7 +257,7 @@ export default function ListeDossiers() {
                 <th>Evenement</th>
                 <th>Origine</th>
                 <th>Statut</th>
-                <th>Date de declaration</th>
+                <th>Date de l'evenement</th>
                 <th>Echeance</th>
                 <th></th>
               </tr>
@@ -279,7 +279,7 @@ export default function ListeDossiers() {
                         </span>
                       )}
                     </td>
-                    <td className="texte-mono">{dossier.date_declaration}</td>
+                    <td className="texte-mono">{dossier.date_evenement || "-"}</td>
                     <td>
                       {echeanceActive(dossier.statut) ? (
                         <strong className="texte-mono" style={{ color: couleurUrgence(jours) }}>
