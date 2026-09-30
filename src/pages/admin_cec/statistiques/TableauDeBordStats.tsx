@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import GridLayout, { WidthProvider, type Layout } from "react-grid-layout";
-import { LayoutDashboard, Plus, Trash2 } from "lucide-react";
+import { FileSpreadsheet, FileText, LayoutDashboard, Plus, Trash2 } from "lucide-react";
 import MiseEnPage from "../../../components/MiseEnPage";
-import { Bouton, Carte, Champ, ChargementPage, EnteteDePage, EtatVide, GraphiqueECharts, LienBouton, Modale } from "../../../components/ui";
+import { Bouton, Carte, Champ, ChargementPage, EnteteDePage, EtatVide, GraphiqueECharts, LienBouton, Modale, type PoigneeGraphique } from "../../../components/ui";
+import GraphiqueCarte from "../../../components/GraphiqueCarte";
+import { telechargerBlob } from "../../../lib/telechargerBlob";
 import { useConfirmation } from "../../../components/ui/ConfirmationProvider";
 import { useToast } from "../../../components/ui/ToastProvider";
 import { useAuth } from "../../../context/AuthContext";
@@ -31,6 +33,52 @@ export default function TableauDeBordStats() {
   const [creationEnCours, setCreationEnCours] = useState(false);
 
   const { utilisateur } = useAuth();
+
+  // Poignees de capture des graphiques affiches (id widget -> image PNG) : seul
+  // le navigateur a rendu les graphiques (cartes comprises), le serveur ne fait
+  // que les mettre en page dans le PDF / classeur Excel.
+  const poignees = useRef<Record<string, PoigneeGraphique | null>>({});
+  const [exportEnCours, setExportEnCours] = useState<string | null>(null);
+
+  function imagesDesGraphiques(): Record<string, string> {
+    const images: Record<string, string> = {};
+    for (const [id, poignee] of Object.entries(poignees.current)) {
+      const image = poignee?.obtenirImage();
+      if (image) images[id] = image;
+    }
+    return images;
+  }
+
+  async function exporterTableau(format: "xlsx" | "pdf") {
+    if (!tableauActif) return;
+    setExportEnCours(`tableau-${format}`);
+    try {
+      const blob = await appelApi<Blob>(`/statistiques/tableaux-de-bord/${tableauActif.id}/export/`, {
+        methode: "POST",
+        corps: { format, images: imagesDesGraphiques() }
+      });
+      telechargerBlob(blob, `${tableauActif.nom}.${format}`);
+    } catch (e) {
+      toast.erreur(e instanceof ErreurApi ? e.message : "Erreur lors de l'export.");
+    } finally {
+      setExportEnCours(null);
+    }
+  }
+
+  async function exporterWidget(widget: WidgetGraphique, format: "xlsx" | "pdf") {
+    setExportEnCours(`${widget.id}-${format}`);
+    try {
+      const blob = await appelApi<Blob>(`/statistiques/widgets/${widget.id}/export/`, {
+        methode: "POST",
+        corps: { format, image_data_url: poignees.current[widget.id]?.obtenirImage() ?? "" }
+      });
+      telechargerBlob(blob, `${widget.nom}.${format}`);
+    } catch (e) {
+      toast.erreur(e instanceof ErreurApi ? e.message : "Erreur lors de l'export.");
+    } finally {
+      setExportEnCours(null);
+    }
+  }
 
   async function chargerTableauxDeBord() {
     setChargement(true);
@@ -75,6 +123,7 @@ export default function TableauDeBordStats() {
   }, [tableauActif]);
 
   const libellesMesures = useMemo(() => Object.fromEntries(mesuresDisponibles.map((m) => [m.code, m.label])), [mesuresDisponibles]);
+  const unitesMesures = useMemo(() => Object.fromEntries(mesuresDisponibles.map((m) => [m.code, m.unite])), [mesuresDisponibles]);
 
   const layout: Layout[] = (tableauActif?.widgets ?? []).map((w) => ({
     i: w.id,
@@ -216,6 +265,24 @@ export default function TableauDeBordStats() {
             <Bouton variante="fantome" onClick={() => setModaleCreation(true)} iconeGauche={<Plus size={15} />}>
               Nouveau tableau de bord
             </Bouton>
+            <Bouton
+              variante="fantome"
+              onClick={() => exporterTableau("xlsx")}
+              chargement={exportEnCours === "tableau-xlsx"}
+              disabled={!tableauActif || tableauActif.widgets.length === 0}
+              iconeGauche={<FileSpreadsheet size={15} />}
+            >
+              Excel
+            </Bouton>
+            <Bouton
+              variante="fantome"
+              onClick={() => exporterTableau("pdf")}
+              chargement={exportEnCours === "tableau-pdf"}
+              disabled={!tableauActif || tableauActif.widgets.length === 0}
+              iconeGauche={<FileText size={15} />}
+            >
+              PDF
+            </Bouton>
             {estProprietaire && (
               <Bouton variante="danger" onClick={supprimerTableauDeBord} iconeGauche={<Trash2 size={15} />}>
                 Supprimer ce tableau de bord
@@ -258,6 +325,27 @@ export default function TableauDeBordStats() {
                       <Carte style={{ height: "100%", display: "flex", flexDirection: "column" }}>
                         <div className="eva-widget-poignee" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, cursor: estProprietaire ? "grab" : "default" }}>
                           <h2 style={{ fontSize: 13.5 }}>{widget.nom}</h2>
+                          <div style={{ display: "flex", gap: 4 }}>
+                            <button
+                              type="button"
+                              onClick={() => exporterWidget(widget, "xlsx")}
+                              disabled={exportEnCours !== null}
+                              className="eva-bouton eva-bouton--petit eva-bouton--fantome"
+                              aria-label="Exporter ce graphique en Excel"
+                              title="Excel"
+                            >
+                              <FileSpreadsheet size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => exporterWidget(widget, "pdf")}
+                              disabled={exportEnCours !== null}
+                              className="eva-bouton eva-bouton--petit eva-bouton--fantome"
+                              aria-label="Exporter ce graphique en PDF"
+                              title="PDF"
+                            >
+                              <FileText size={13} />
+                            </button>
                           {estProprietaire && (
                             <button
                               type="button"
@@ -268,10 +356,28 @@ export default function TableauDeBordStats() {
                               <Trash2 size={13} />
                             </button>
                           )}
+                          </div>
                         </div>
                         <div style={{ flex: 1, minHeight: 0 }}>
-                          {donnees ? (
-                            <GraphiqueECharts option={construireOptionECharts(donnees, widget.type_graphique, libellesMesures)} hauteur="100%" />
+                          {donnees && widget.type_graphique === "carte" ? (
+                            <GraphiqueCarte
+                              ref={(poignee) => {
+                                poignees.current[widget.id] = poignee;
+                              }}
+                              resultat={donnees}
+                              parametres={widget.parametres_carte}
+                              libellesMesures={libellesMesures}
+                              unites={unitesMesures}
+                              hauteur="100%"
+                            />
+                          ) : donnees ? (
+                            <GraphiqueECharts
+                              ref={(poignee) => {
+                                poignees.current[widget.id] = poignee;
+                              }}
+                              option={construireOptionECharts(donnees, widget.type_graphique, libellesMesures)}
+                              hauteur="100%"
+                            />
                           ) : (
                             <p style={{ fontSize: 12.5, color: "var(--couleur-gris-service-2)" }}>Chargement...</p>
                           )}

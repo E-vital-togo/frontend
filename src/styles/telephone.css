@@ -1,0 +1,188 @@
+/*
+  Champ telephone (selecteur de pays + saisie). Fichier UNIQUE partage par :
+  l'app CEC (import dans components/ui/ChampTelephone.tsx), l'app DHIS2
+  (copie via `npm run sync:telephone`) et les gabarits Django (compile en
+  backend/static/css/evital-telephone.css par `npm run build:telephone-django`).
+  Les couleurs viennent des jetons de l'app hote quand ils existent
+  (--couleur-* cote CEC, --ev-* cote Django) avec la charte E-Vital en repli,
+  de sorte que le champ est juste partout sans CSS supplementaire. Une app
+  peut surcharger les variables --tel-* sur .eva-tel (voir DHIS2).
+*/
+
+.eva-tel {
+  --tel-accent: var(--couleur-emeraude, var(--ev-emeraude, #0B7A57));
+  --tel-anneau: var(--ombre-anneau-focus, 0 0 0 3px rgba(11, 122, 87, 0.22));
+  --tel-bordure: var(--couleur-bordure-forte, #C9D2C6);
+  --tel-bordure-douce: var(--couleur-bordure, #E2E7DF);
+  --tel-fond: var(--couleur-blanc, var(--ev-blanc, #FFFFFF));
+  --tel-fond-desactive: var(--couleur-fond-desactive, #F1F3EF);
+  --tel-fond-actif: var(--couleur-emeraude-fond, #E7F3EE);
+  --tel-texte: var(--couleur-encre, var(--ev-encre, #14231C));
+  --tel-texte-doux: var(--couleur-gris-service-2, var(--ev-gris-2, #6B7A73));
+  --tel-erreur: var(--couleur-erreur, #B3261E);
+  --tel-erreur-anneau: 0 0 0 3px rgba(179, 38, 30, 0.18);
+  --tel-erreur-fond: var(--couleur-erreur-fond, #FBEAE9);
+  --tel-succes: var(--couleur-emeraude-actif, var(--ev-emeraude-vif, #16B37D));
+  --tel-rayon: var(--rayon-petit, 6px);
+  --tel-ombre-panneau: var(--ombre-flottante, 0 8px 24px rgba(20, 35, 28, 0.14), 0 2px 6px rgba(20, 35, 28, 0.08));
+  --tel-hauteur: 42px;
+
+  position: relative;
+  width: 100%;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--tel-texte);
+  text-align: left;
+}
+.eva-tel *, .eva-tel *::before, .eva-tel *::after { box-sizing: border-box; }
+.eva-tel [hidden] { display: none !important; }
+
+/* ---- Controle : selecteur et saisie sur une seule ligne ---- */
+.eva-tel__zone { position: relative; }
+.eva-tel__controle {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  min-height: var(--tel-hauteur);
+  border: 1px solid var(--tel-bordure);
+  border-radius: var(--tel-rayon);
+  background: var(--tel-fond);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.eva-tel__controle:hover { border-color: var(--tel-texte-doux); }
+.eva-tel__controle:focus-within { border-color: var(--tel-accent); box-shadow: var(--tel-anneau); }
+
+.eva-tel .eva-tel__pays {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 0 9px 0 12px;
+  border: 0;
+  border-right: 1px solid var(--tel-bordure-douce);
+  border-radius: calc(var(--tel-rayon) - 1px) 0 0 calc(var(--tel-rayon) - 1px);
+  background: transparent;
+  color: var(--tel-texte);
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+.eva-tel .eva-tel__pays:hover:not(:disabled) { background: var(--tel-fond-actif); }
+.eva-tel .eva-tel__pays:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--tel-accent); border-radius: calc(var(--tel-rayon) - 1px) 0 0 calc(var(--tel-rayon) - 1px); }
+.eva-tel .eva-tel__pays:disabled { cursor: not-allowed; }
+
+.eva-tel__drapeau {
+  flex: none;
+  display: block;
+  width: 22px;
+  height: 15px;
+  border-radius: 2px;
+  object-fit: cover;
+  box-shadow: 0 0 0 1px rgba(20, 35, 28, 0.14);
+  background: var(--tel-bordure-douce);
+}
+.eva-tel__indicatif { font-variant-numeric: tabular-nums; color: var(--tel-texte-doux); white-space: nowrap; }
+.eva-tel__chevron { flex: none; color: var(--tel-texte-doux); transition: transform 120ms ease; }
+.eva-tel__chevron--ouvert { transform: rotate(180deg); }
+
+/* Specificite (0,3,1) : passe devant `.eva-champ input` et ses etats (focus, erreur, desactive) du theme CEC. */
+.eva-tel .eva-tel__controle input.eva-tel__saisie {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 0 calc(var(--tel-rayon) - 1px) calc(var(--tel-rayon) - 1px) 0;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+  color: var(--tel-texte);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  cursor: text;
+}
+.eva-tel .eva-tel__controle input.eva-tel__saisie::placeholder { color: var(--tel-texte-doux); opacity: 0.65; }
+.eva-tel .eva-tel__controle input.eva-tel__saisie:disabled { background: transparent; color: var(--tel-texte-doux); cursor: not-allowed; }
+
+.eva-tel__etat { flex: none; display: inline-flex; align-items: center; padding-right: 12px; color: var(--tel-succes); }
+
+/* ---- Etats ---- */
+.eva-tel--erreur .eva-tel__controle { border-color: var(--tel-erreur); }
+.eva-tel--erreur .eva-tel__controle:focus-within { border-color: var(--tel-erreur); box-shadow: var(--tel-erreur-anneau); }
+
+.eva-tel--desactive .eva-tel__controle,
+.eva-tel--desactive .eva-tel__controle:hover { background: var(--tel-fond-desactive); border-color: var(--tel-bordure-douce); cursor: not-allowed; }
+.eva-tel--desactive .eva-tel__drapeau { opacity: 0.6; }
+
+.eva-tel--lecture .eva-tel__controle,
+.eva-tel--lecture .eva-tel__controle:hover { background: var(--tel-fond-desactive); border-color: var(--tel-bordure-douce); }
+.eva-tel--lecture .eva-tel__pays { cursor: default; padding-right: 12px; }
+.eva-tel--lecture .eva-tel__pays:hover { background: transparent; }
+
+.eva-tel--verrouille .eva-tel__controle { background: var(--tel-erreur-fond); border-color: #F0C6C3; cursor: not-allowed; }
+
+/* ---- Panneau de choix du pays ---- */
+.eva-tel__panneau {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 100%;
+  min-width: min(300px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  background: var(--tel-fond);
+  border: 1px solid var(--tel-bordure);
+  border-radius: calc(var(--tel-rayon) + 2px);
+  box-shadow: var(--tel-ombre-panneau);
+  overflow: hidden;
+}
+
+.eva-tel__recherche { position: relative; padding: 8px; border-bottom: 1px solid var(--tel-bordure-douce); }
+.eva-tel__loupe { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--tel-texte-doux); pointer-events: none; }
+.eva-tel .eva-tel__panneau input.eva-tel__recherche-champ {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 9px 10px 9px 32px;
+  border: 1px solid var(--tel-bordure);
+  border-radius: var(--tel-rayon);
+  background: var(--tel-fond);
+  box-shadow: none;
+  color: var(--tel-texte);
+  font: inherit;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.eva-tel .eva-tel__panneau input.eva-tel__recherche-champ:focus { border-color: var(--tel-accent); box-shadow: var(--tel-anneau); }
+.eva-tel .eva-tel__panneau input.eva-tel__recherche-champ::-webkit-search-cancel-button { -webkit-appearance: none; }
+
+.eva-tel__liste { margin: 0; padding: 4px; list-style: none; max-height: 264px; overflow-y: auto; overscroll-behavior: contain; }
+.eva-tel__element { margin: 0; padding: 0; list-style: none; }
+.eva-tel__groupe { padding: 8px 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tel-texte-doux); }
+.eva-tel__option { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--tel-rayon); cursor: pointer; }
+.eva-tel__option--actif { background: var(--tel-fond-actif); }
+.eva-tel__option[aria-selected="true"] { font-weight: 600; }
+.eva-tel__option-nom { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eva-tel__option-indicatif { flex: none; color: var(--tel-texte-doux); font-variant-numeric: tabular-nums; }
+.eva-tel__option-coche { flex: none; display: inline-flex; color: var(--tel-accent); }
+.eva-tel__vide { padding: 18px 10px; text-align: center; color: var(--tel-texte-doux); list-style: none; }
+
+/* ---- Messages ---- */
+.eva-tel__erreur { display: flex; align-items: flex-start; gap: 5px; margin-top: 5px; font-size: 12px; line-height: 1.35; color: var(--tel-erreur); }
+.eva-tel__erreur svg { flex: none; margin-top: 1px; }
+
+/* ---- Petit ecran : 16px evite le zoom automatique d'iOS a la prise de focus ---- */
+@media (max-width: 560px) {
+  .eva-tel { --tel-hauteur: 46px; font-size: 16px; }
+  .eva-tel__panneau { min-width: 0; }
+  .eva-tel__option { padding: 11px 10px; }
+  .eva-tel__liste { max-height: 232px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eva-tel__controle, .eva-tel__pays, .eva-tel__chevron { transition: none; }
+}

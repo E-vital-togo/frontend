@@ -1,7 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
-import { BarChart3, RefreshCw, Save, Table2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { BarChart3, FileSpreadsheet, FileText, RefreshCw, Save, Table2 } from "lucide-react";
 import MiseEnPage from "../../../components/MiseEnPage";
-import { Bouton, Carte, Champ, EnteteDePage, GraphiqueECharts, Modale, Tableau } from "../../../components/ui";
+import { Bouton, Carte, Champ, EnteteDePage, GraphiqueECharts, Modale, Tableau, type PoigneeGraphique } from "../../../components/ui";
+import GraphiqueCarte from "../../../components/GraphiqueCarte";
+import PanneauStyleCarte from "../../../components/PanneauStyleCarte";
+import type { ParametresCarte } from "../../../lib/carte";
+import { useMonTerritoire } from "../../../lib/useMonTerritoire";
+import { telechargerBlob } from "../../../lib/telechargerBlob";
 import { useToast } from "../../../components/ui/ToastProvider";
 import { appelApi, ErreurApi } from "../../../lib/apiClient";
 import { construireOptionECharts } from "../../../lib/graphiques";
@@ -27,7 +32,8 @@ const TYPES_GRAPHIQUE: { code: TypeGraphiqueStat; label: string }[] = [
   { code: "anneau", label: "Anneau" },
   { code: "combo", label: "Combo (double axe)" },
   { code: "nuage_points", label: "Nuage de points" },
-  { code: "carte_chaleur", label: "Carte de chaleur" }
+  { code: "carte_chaleur", label: "Carte de chaleur" },
+  { code: "carte", label: "Carte geographique (region, prefecture ou commune)" }
 ];
 
 // Le moteur backend (apps.statistiques.moteur) accepte n'importe quel
@@ -61,6 +67,11 @@ export default function ConstructeurGraphique() {
     return seuilActif && n >= 2 ? n : null;
   };
 
+  const territoire = useMonTerritoire();
+  const [parametresCarte, setParametresCarte] = useState<Partial<ParametresCarte>>({});
+  const poigneeGraphique = useRef<PoigneeGraphique>(null);
+  const [exportEnCours, setExportEnCours] = useState<"xlsx" | "pdf" | null>(null);
+
   const [resultat, setResultat] = useState<PivotResultat | null>(null);
   const [vueTable, setVueTable] = useState(false);
   const [chargement, setChargement] = useState(false);
@@ -80,6 +91,11 @@ export default function ConstructeurGraphique() {
 
   const libellesMesures = useMemo(
     () => Object.fromEntries(mesuresDisponibles.map((m) => [m.code, m.label])),
+    [mesuresDisponibles]
+  );
+
+  const unitesMesures = useMemo(
+    () => Object.fromEntries(mesuresDisponibles.map((m) => [m.code, m.unite])),
     [mesuresDisponibles]
   );
 
@@ -125,6 +141,39 @@ export default function ConstructeurGraphique() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dimensionsChoisies, mesuresChoisies, eventType, dateMin, dateMax, tri, limite, regrouperAutres, exclureNonRenseigne, seuilActif, seuil]);
+
+  async function exporter(format: "xlsx" | "pdf") {
+    if (!resultat) return;
+    setExportEnCours(format);
+    try {
+      const nom = nomWidget.trim() || "Graphique";
+      // L'image n'existe que si le graphique est affiche (pas en vue tableau) ;
+      // les donnees, elles, sont toujours recalculees cote serveur.
+      const image = vueTable ? null : poigneeGraphique.current?.obtenirImage();
+      const blob = await appelApi<Blob>("/statistiques/pivot/export", {
+        methode: "POST",
+        corps: {
+          format,
+          nom,
+          type_graphique: typeGraphique,
+          dimensions: dimensionsChoisies,
+          mesures: mesuresChoisies,
+          filtres: filtresActuels(),
+          tri,
+          limite: limite ? Number(limite) : null,
+          regrouper_autres: regrouperAutres,
+          exclure_non_renseigne: exclureNonRenseigne,
+          seuil_petites_cellules: seuilActuel(),
+          image_data_url: image ?? ""
+        }
+      });
+      telechargerBlob(blob, `${nom}.${format}`);
+    } catch (e) {
+      toast.erreur(e instanceof ErreurApi ? e.message : "Erreur lors de l'export.");
+    } finally {
+      setExportEnCours(null);
+    }
+  }
 
   function basculerDimension(code: string) {
     setDimensionsChoisies((actuelles) =>
@@ -182,7 +231,8 @@ export default function ConstructeurGraphique() {
           limite: limite ? Number(limite) : null,
           regrouper_autres: regrouperAutres,
           exclure_non_renseigne: exclureNonRenseigne,
-          seuil_petites_cellules: seuilActuel()
+          seuil_petites_cellules: seuilActuel(),
+          parametres_carte: typeGraphique === "carte" ? parametresCarte : {}
         }
       });
       toast.succes("Graphique enregistre sur le tableau de bord.");
@@ -321,6 +371,14 @@ export default function ConstructeurGraphique() {
             dossiers
           </label>
 
+          {typeGraphique === "carte" && (
+            <PanneauStyleCarte
+              valeur={parametresCarte}
+              onChange={setParametresCarte}
+              nomZone={territoire ? territoire.nom : undefined}
+            />
+          )}
+
           <Bouton
             onClick={ouvrirModaleEnregistrement}
             disabled={!resultat || resultat.lignes.length === 0}
@@ -362,6 +420,28 @@ export default function ConstructeurGraphique() {
               >
                 <RefreshCw size={14} />
               </button>
+              <Bouton
+                variante="fantome"
+                taille="petit"
+                onClick={() => exporter("xlsx")}
+                chargement={exportEnCours === "xlsx"}
+                disabled={!resultat || resultat.lignes.length === 0}
+                iconeGauche={<FileSpreadsheet size={14} />}
+                title="Exporter en Excel (donnees + graphique)"
+              >
+                Excel
+              </Bouton>
+              <Bouton
+                variante="fantome"
+                taille="petit"
+                onClick={() => exporter("pdf")}
+                chargement={exportEnCours === "pdf"}
+                disabled={!resultat || resultat.lignes.length === 0}
+                iconeGauche={<FileText size={14} />}
+                title="Exporter en PDF (graphique + fiche methodologique + donnees)"
+              >
+                PDF
+              </Bouton>
             </div>
           </div>
 
@@ -401,7 +481,18 @@ export default function ConstructeurGraphique() {
               </tbody>
             </Tableau>
           ) : (
-            <GraphiqueECharts option={construireOptionECharts(resultat, typeGraphique, libellesMesures)} hauteur={360} />
+            typeGraphique === "carte" ? (
+              <GraphiqueCarte
+                ref={poigneeGraphique}
+                resultat={resultat}
+                parametres={parametresCarte}
+                libellesMesures={libellesMesures}
+                unites={unitesMesures}
+                hauteur={460}
+              />
+            ) : (
+              <GraphiqueECharts ref={poigneeGraphique} option={construireOptionECharts(resultat, typeGraphique, libellesMesures)} hauteur={360} />
+            )
           )}
         </Carte>
       </div>

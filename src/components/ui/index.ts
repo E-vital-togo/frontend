@@ -1,6 +1,7 @@
 export { default as Bouton, LienBouton, AncreBouton, classesBouton } from "./Bouton";
 export type { VarianteBouton, TailleBouton } from "./Bouton";
 export { default as Champ } from "./Champ";
+export { default as ChampTelephone } from "./ChampTelephone";
 export { default as Carte } from "./Carte";
 export { default as Badge } from "./Badge";
 export type { VarianteBadge } from "./Badge";
@@ -18,3 +19,4 @@ export { default as Frise } from "./Frise";
 export type { ElementFrise } from "./Frise";
 export { default as EnteteDePage } from "./EnteteDePage";
 export { default as GraphiqueECharts } from "./GraphiqueECharts";
+export type { PoigneeGraphique } from "./GraphiqueECharts";

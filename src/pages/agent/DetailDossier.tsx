@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { BellRing, CheckCircle2, Eye, FileSignature, GitCompareArrows, UserCheck } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
 import BadgeStatut from "../../components/BadgeStatut";
-import ChampDynamique from "../../components/ChampDynamique";
+import FormulaireDossier from "../../components/FormulaireDossier";
 import DemandeCorrectionActe from "../../components/DemandeCorrectionActe";
 import { Badge, Bouton, Carte, ChargementPage, EnteteDePage, Frise, Modale, Onglets } from "../../components/ui";
 import { useConfirmation } from "../../components/ui/ConfirmationProvider";
@@ -19,6 +19,8 @@ import {
   cleCacheFormulaire
 } from "../../lib/db";
 import { useConnectivite } from "../../lib/connectivite";
+import { planFormulaire } from "../../lib/formulaire";
+import { mettreEnCacheMiseEnPage, miseEnPageEnCache } from "../../lib/formulairesHorsLigne";
 import { telechargerBlob } from "../../lib/telechargerBlob";
 import { LIENS_AGENT } from "./navigation";
 import { LIENS_ADMIN_CEC } from "../admin_cec/navigation";
@@ -29,7 +31,9 @@ import {
   type DemandeModificationActe,
   type Dossier,
   type ListeOuPaginee,
+  type MiseEnPage as MiseEnPageFormulaire,
   type NotificationDossier,
+  type ReponseFormulaireEffectif,
   type SignataireMairie,
   type ValeurChamp
 } from "../../types/domaine";
@@ -39,11 +43,6 @@ const LIBELLES_STATUT_DEMANDE: Record<DemandeModificationActe["statut"], { texte
   validee: { texte: "Validee : acte reemis", variante: "succes" },
   rejetee: { texte: "Rejetee", variante: "danger" }
 };
-
-interface ReponseFormulaireEffectif {
-  champs: ChampFormulaireEffectif[];
-}
-
 
 const LIBELLES_TYPE_NOTIFICATION: Record<string, string> = {
   initiale: "Notification initiale",
@@ -81,6 +80,8 @@ export default function DetailDossier() {
   const enLigne = useConnectivite();
   const [dossier, setDossier] = useState<Dossier | null>(null);
   const [champs, setChamps] = useState<ChampFormulaireEffectif[]>([]);
+  // Etapes du formulaire ; null = liste plate (configuration lineaire, ancien serveur, ancien cache).
+  const [miseEnPage, setMiseEnPage] = useState<MiseEnPageFormulaire | null>(null);
   const [valeursModifiees, setValeursModifiees] = useState<Record<string, unknown>>({});
   const [enregistrement, setEnregistrement] = useState(false);
   const [chargement, setChargement] = useState(true);
@@ -112,22 +113,28 @@ export default function DetailDossier() {
         ]);
         setDossier(d);
         setChamps(f.champs);
+        setMiseEnPage(f.mise_en_page ?? null);
         setHorsLigne(false);
         setChargement(false);
         await mettreEnCacheDossier(d);
         await mettreEnCacheInstantane(cleCacheFormulaire(idDossier), f.champs);
+        await mettreEnCacheMiseEnPage(idDossier, f.mise_en_page);
         return;
       } catch {
         // bascule sur le cache si l'appel echoue malgre une connexion presente
       }
     }
 
-    const [enCache, formulaire] = await Promise.all([
+    const [enCache, formulaire, miseEnPageCache] = await Promise.all([
       dossierEnCache(idDossier),
-      instantaneEnCache<ChampFormulaireEffectif[]>(cleCacheFormulaire(idDossier))
+      instantaneEnCache<ChampFormulaireEffectif[]>(cleCacheFormulaire(idDossier)),
+      miseEnPageEnCache(idDossier)
     ]);
     if (enCache) setDossier(enCache);
-    if (formulaire) setChamps(formulaire.donnees);
+    if (formulaire) {
+      setChamps(formulaire.donnees);
+      setMiseEnPage(miseEnPageCache);
+    }
     setHorsLigne(true);
     setChargement(false);
   }
@@ -375,6 +382,15 @@ export default function DetailDossier() {
   const peutValider =
     dossier.statut === "recu" || dossier.statut === "notifie" || dossier.statut === "en_attente_complement";
   const champsObligatoiresManquants = champs.filter((c) => c.obligatoire && champEstVide(c.valeur_actuelle));
+  const nbModifications = Object.keys(valeursModifiees).length;
+  const enEtapes = planFormulaire(champs, miseEnPage).mode === "etapes";
+  // Bouton existant de la page : place sous la grille en mode lineaire, dans le
+  // recapitulatif (dernier pas) en mode etapes.
+  const boutonEnregistrer = (
+    <Bouton onClick={enregistrer} chargement={enregistrement} disabled={Object.keys(valeursModifiees).length === 0}>
+      Enregistrer les modifications
+    </Bouton>
+  );
   const peutEmettreActe = estAgent && dossier.statut === "complete";
   const peutRelancer = dossier.statut !== "acte_emis" && dossier.statut !== "sans_suite";
   const propositionEnAttente = dossier.nouvelle_version?.statut === "en_attente" ? dossier.nouvelle_version : null;
@@ -478,15 +494,19 @@ export default function DetailDossier() {
       {onglet === "formulaire" ? (
         <>
           <Carte style={{ marginBottom: 20 }}>
-            {champs.map((champ) => (
-              <ChampDynamique
-                key={champ.data_element_code}
-                champ={champ}
-                valeur={valeursModifiees[champ.data_element_code] ?? champ.valeur_actuelle}
+            {champs.length > 0 && (
+              <FormulaireDossier
+                key={idDossier}
+                champs={champs}
+                miseEnPage={miseEnPage}
+                valeurs={valeursModifiees}
                 onChange={modifierValeur}
                 verrouille={dossier.verrouille}
+                cleMemorisation={idDossier}
+                sautLibre
+                actionFinale={boutonEnregistrer}
               />
-            ))}
+            )}
 
             {champs.length === 0 && (
               <p style={{ color: "var(--couleur-gris-service-2)" }}>
@@ -495,10 +515,12 @@ export default function DetailDossier() {
               </p>
             )}
 
-            {champs.length > 0 && (
-              <Bouton onClick={enregistrer} chargement={enregistrement} disabled={Object.keys(valeursModifiees).length === 0}>
-                Enregistrer les modifications
-              </Bouton>
+            {champs.length > 0 && !enEtapes && <div style={{ marginTop: 20 }}>{boutonEnregistrer}</div>}
+            {champs.length > 0 && enEtapes && nbModifications > 0 && (
+              <p className="eva-sous-titre" style={{ marginTop: 12 }}>
+                {nbModifications} modification{nbModifications > 1 ? "s" : ""} non enregistrée{nbModifications > 1 ? "s" : ""} :
+                enregistrez depuis le récapitulatif (dernière étape).
+              </p>
             )}
           </Carte>
 

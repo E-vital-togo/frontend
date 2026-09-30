@@ -1,14 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import * as echarts from "echarts/core";
 import {
   BarChart,
   HeatmapChart,
   LineChart,
+  LinesChart,
+  MapChart,
   PieChart,
   ScatterChart
 } from "echarts/charts";
 import {
   DataZoomComponent,
+  GeoComponent,
+  GraphicComponent,
   GridComponent,
   LegendComponent,
   TitleComponent,
@@ -30,6 +34,10 @@ echarts.use([
   PieChart,
   ScatterChart,
   HeatmapChart,
+  LinesChart,
+  MapChart,
+  GeoComponent,
+  GraphicComponent,
   GridComponent,
   TooltipComponent,
   LegendComponent,
@@ -62,17 +70,45 @@ function memoriserLegendeVisible(visible: boolean): void {
   }
 }
 
+/** Acces imperatif au rendu : capture en PNG pour les exports PDF/Excel. */
+export interface PoigneeGraphique {
+  /** Image PNG (data URL) du rendu courant, ou null tant que le graphique n'est pas monte. */
+  obtenirImage: () => string | null;
+  instance: () => echarts.ECharts | null;
+}
+
 interface ProprietesGraphiqueECharts {
   option: EChartsOption;
+  /** Appelee a la creation de l'instance ECharts (evenements specifiques : cartes...). Retourne un nettoyage. */
+  surInstance?: (instance: echarts.ECharts) => void | (() => void);
   hauteur?: number | string;
   /** Bouton discret (coin bas droit) pour masquer/afficher la legende. Actif par defaut. */
   legendeMasquable?: boolean;
 }
 
-export default function GraphiqueECharts({ option, hauteur = 320, legendeMasquable = true }: ProprietesGraphiqueECharts) {
+const GraphiqueECharts = forwardRef<PoigneeGraphique, ProprietesGraphiqueECharts>(function GraphiqueECharts(
+  { option, hauteur = 320, legendeMasquable = true, surInstance },
+  ref
+) {
   const refConteneur = useRef<HTMLDivElement>(null);
   const refInstance = useRef<echarts.ECharts | null>(null);
   const [legendeVisible, setLegendeVisible] = useState<boolean>(lireLegendeVisible);
+  const optionRef = useRef(option);
+  optionRef.current = option;
+  const surInstanceRef = useRef(surInstance);
+  surInstanceRef.current = surInstance;
+
+  useImperativeHandle(ref, () => ({
+    obtenirImage: () =>
+      refInstance.current
+        ? refInstance.current.getDataURL({
+            type: "png",
+            pixelRatio: 2,
+            backgroundColor: typeof optionRef.current.backgroundColor === "string" ? optionRef.current.backgroundColor : "#ffffff"
+          })
+        : null,
+    instance: () => refInstance.current
+  }));
 
   useEffect(() => {
     if (!refConteneur.current) return;
@@ -81,8 +117,10 @@ export default function GraphiqueECharts({ option, hauteur = 320, legendeMasquab
 
     const observateur = new ResizeObserver(() => instance.resize());
     observateur.observe(refConteneur.current);
+    const nettoyageInstance = surInstanceRef.current?.(instance);
 
     return () => {
+      nettoyageInstance?.();
       observateur.disconnect();
       instance.dispose();
       refInstance.current = null;
@@ -136,4 +174,6 @@ export default function GraphiqueECharts({ option, hauteur = 320, legendeMasquab
       )}
     </div>
   );
-}
+});
+
+export default GraphiqueECharts;

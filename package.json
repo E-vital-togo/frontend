@@ -7,12 +7,19 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "type-check": "tsc -b"
+    "type-check": "tsc -b",
+    "build:carte-inseed": "esbuild src/lib/carte.ts --bundle --minify --format=iife --global-name=EvitalCarte --target=es2017 --outfile=../backend/static/js/evital_carte.js",
+    "build:telephone-django": "esbuild src/lib/telephoneDjango.ts --bundle --minify --format=iife --global-name=EvitalTelephone --target=es2017 --outfile=../backend/static/js/evital_telephone.js && esbuild src/styles/telephone.css --minify --outfile=../backend/static/css/evital-telephone.css",
+    "test:telephone": "node scripts/test-telephone.mjs",
+    "test:formulaire": "node scripts/test-formulaire.mjs",
+    "sync:telephone": "node scripts/sync-telephone.mjs"
   },
   "dependencies": {
+    "country-flag-icons": "^1.6.20",
     "dexie": "^4.0.8",
     "echarts": "^6.1.0",
     "html5-qrcode": "^2.3.8",
+    "libphonenumber-js": "^1.13.14",
     "lucide-react": "^1.43.0",
     "qrcode.react": "^3.1.0",
     "react": "^18.3.1",

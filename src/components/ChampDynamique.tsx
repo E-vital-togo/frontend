@@ -1,6 +1,9 @@
 import { useRef, type ReactElement } from "react";
-import Champ from "./ui/Champ";
+import { AlertCircle } from "lucide-react";
+import ChampTelephone from "./ui/ChampTelephone";
+import SelectMultiple from "./ui/SelectMultiple";
 import { useToast } from "./ui/ToastProvider";
+import { colonnesChamp, estCoche, versTexte } from "../lib/formulaire";
 import type { ChampFormulaireEffectif } from "../types/domaine";
 
 interface ProprietesChampDynamique {
@@ -15,14 +18,11 @@ interface ProprietesChampDynamique {
    * empecherait d'avertir l'agent au moment ou il tente la modification.
    */
   verrouille?: boolean;
-}
-
-function versTexte(valeur: unknown): string {
-  return typeof valeur === "string" || typeof valeur === "number" ? String(valeur) : "";
-}
-
-function estCoche(valeur: unknown): boolean {
-  return valeur === true || valeur === "true" || valeur === 1 || valeur === "1" || valeur === "oui";
+  /**
+   * Message d'erreur affiche sous le champ (champ obligatoire vide, refus du
+   * serveur...). Decide par le parent : ce composant ne valide rien lui-meme.
+   */
+  erreur?: string;
 }
 
 /**
@@ -38,10 +38,22 @@ function estCoche(valeur: unknown): boolean {
  * cote frontend. Les contraintes affichees ici (longueur, min/max, options)
  * sont un confort de saisie immediat - la validation qui fait foi reste
  * apps.catalogue.validation.valider_valeur, executee a l'enregistrement.
+ *
+ * Rendu : le champ occupe `colonnesChamp(champ)` colonnes de la grille a 12
+ * colonnes du conteneur `.eva-form-grille` (voir styles/formulaire.css) ;
+ * `placeholder` et `aide` viennent du catalogue (DataElement).
  */
-export default function ChampDynamique({ champ, valeur, onChange, verrouille = false }: ProprietesChampDynamique) {
+export default function ChampDynamique({ champ, valeur, onChange, verrouille = false, erreur }: ProprietesChampDynamique) {
   const { data_element_code: code, type_champ, contraintes, options, readonly } = champ;
   const toast = useToast();
+  const idEtiquette = `${code}-etiquette`;
+  const idMessage = `${code}-message`;
+  const placeholder = champ.placeholder || undefined;
+  // Etat commun des controles simples : erreur (aria-invalid) et description (aide/erreur).
+  const accessibilite = {
+    "aria-invalid": erreur ? (true as const) : undefined,
+    "aria-describedby": erreur || champ.aide || readonly ? idMessage : undefined
+  };
   const derniereAlerte = useRef(0);
 
   function changer(valeurBrute: unknown) {
@@ -67,11 +79,15 @@ export default function ChampDynamique({ champ, valeur, onChange, verrouille = f
         <input
           id={code}
           type="number"
+          className="eva-ctl eva-ctl--nombre"
+          inputMode={type_champ === "nombre_entier" ? "numeric" : "decimal"}
+          placeholder={placeholder}
           step={type_champ === "nombre_entier" ? 1 : "any"}
           min={contraintes.min}
           max={contraintes.max}
           value={versTexte(valeur)}
           disabled={readonly}
+          {...accessibilite}
           onChange={(e) => changer(e.target.value === "" ? null : Number(e.target.value))}
         />
       );
@@ -82,9 +98,11 @@ export default function ChampDynamique({ champ, valeur, onChange, verrouille = f
         <input
           id={code}
           type="date"
+          className="eva-ctl eva-ctl--date"
           max={contraintes.autorise_futur ? undefined : new Date().toISOString().slice(0, 10)}
           value={versTexte(valeur)}
           disabled={readonly}
+          {...accessibilite}
           onChange={(e) => changer(e.target.value || null)}
         />
       );
@@ -92,24 +110,35 @@ export default function ChampDynamique({ champ, valeur, onChange, verrouille = f
 
     case "booleen":
       controle = (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: 4 }}>
+        // Interrupteur : case a cocher native (clavier, lecteurs d'ecran),
+        // habillee en piste/pouce par formulaire.css. Emet toujours un booleen.
+        <label className={`eva-interrupteur${readonly ? " eva-interrupteur--desactive" : ""}`}>
           <input
             id={code}
             type="checkbox"
-            style={{ width: "auto" }}
+            role="switch"
             checked={estCoche(valeur)}
             disabled={readonly}
+            {...accessibilite}
             onChange={(e) => changer(e.target.checked)}
           />
-          <span style={{ fontSize: 13, color: "var(--couleur-gris-service-1)" }}>{estCoche(valeur) ? "Oui" : "Non"}</span>
-        </div>
+          <span className="eva-interrupteur__piste" aria-hidden="true" />
+          <span className="eva-interrupteur__texte">{estCoche(valeur) ? "Oui" : "Non"}</span>
+        </label>
       );
       break;
 
     case "select":
       controle = (
-        <select id={code} value={versTexte(valeur)} disabled={readonly} onChange={(e) => changer(e.target.value || null)}>
-          <option value="">-- Choisir --</option>
+        <select
+          id={code}
+          className={`eva-ctl eva-ctl--select${versTexte(valeur) === "" ? " eva-ctl--vide" : ""}`}
+          value={versTexte(valeur)}
+          disabled={readonly}
+          {...accessibilite}
+          onChange={(e) => changer(e.target.value || null)}
+        >
+          <option value="">{placeholder ?? "Choisir..."}</option>
           {options.map((option) => (
             <option key={option.valeur} value={option.valeur}>
               {option.libelle}
@@ -121,21 +150,22 @@ export default function ChampDynamique({ champ, valeur, onChange, verrouille = f
 
     case "select_multiple": {
       const valeursChoisies = Array.isArray(valeur) ? valeur.map(String) : [];
+      // Chips cochables (filtre si liste longue) a la place du <select
+      // multiple> natif ; meme valeur emise : tableau de codes, dans l'ordre des options.
       controle = (
-        <select
+        <SelectMultiple
           id={code}
-          multiple
+          options={options}
+          valeur={valeursChoisies}
           disabled={readonly}
-          value={valeursChoisies}
-          style={{ height: Math.min(160, 34 + options.length * 24), width: "100%" }}
-          onChange={(e) => changer(Array.from(e.target.selectedOptions).map((option) => option.value))}
-        >
-          {options.map((option) => (
-            <option key={option.valeur} value={option.valeur}>
-              {option.libelle}
-            </option>
-          ))}
-        </select>
+          verrouille={verrouille && !readonly}
+          etiquettePar={idEtiquette}
+          decritPar={accessibilite["aria-describedby"]}
+          invalide={!!erreur}
+          max={contraintes.max_selections}
+          min={contraintes.min_selections}
+          onChange={changer}
+        />
       );
       break;
     }
@@ -151,10 +181,14 @@ export default function ChampDynamique({ champ, valeur, onChange, verrouille = f
           <input
             id={code}
             type="text"
+            className="eva-ctl"
             list={`${code}-liste`}
             maxLength={contraintes.longueur_max}
+            placeholder={placeholder}
+            autoComplete="off"
             value={versTexte(valeur)}
             disabled={readonly}
+            {...accessibilite}
             onChange={(e) => changer(e.target.value)}
           />
           <datalist id={`${code}-liste`}>
@@ -167,8 +201,19 @@ export default function ChampDynamique({ champ, valeur, onChange, verrouille = f
       break;
 
     case "telephone":
+      // Emet du E.164 ("+22890123456") ; meme normalisation cote backend
+      // (apps.core.telephone) qui reste l'autorite de validation.
       controle = (
-        <input id={code} type="tel" value={versTexte(valeur)} disabled={readonly} onChange={(e) => changer(e.target.value)} />
+        <ChampTelephone
+          id={code}
+          valeur={versTexte(valeur)}
+          disabled={readonly}
+          verrouille={verrouille && !readonly}
+          requis={champ.obligatoire}
+          placeholder={placeholder}
+          validationNative={false}
+          onChange={(numero) => changer(numero === "" ? null : numero)}
+        />
       );
       break;
 
@@ -176,10 +221,13 @@ export default function ChampDynamique({ champ, valeur, onChange, verrouille = f
       controle = (
         <textarea
           id={code}
-          rows={3}
+          className="eva-ctl eva-ctl--zone"
+          rows={4}
           maxLength={contraintes.longueur_max}
+          placeholder={placeholder}
           value={versTexte(valeur)}
           disabled={readonly}
+          {...accessibilite}
           onChange={(e) => changer(e.target.value)}
         />
       );
@@ -191,26 +239,59 @@ export default function ChampDynamique({ champ, valeur, onChange, verrouille = f
         <input
           id={code}
           type="text"
+          className="eva-ctl"
           maxLength={contraintes.longueur_max}
+          placeholder={placeholder}
           value={versTexte(valeur)}
           disabled={readonly}
+          {...accessibilite}
           onChange={(e) => changer(e.target.value)}
         />
       );
   }
 
+  const noteLectureSeule = readonly
+    ? `Valeur issue de ${champ.source_valeur_actuelle === "dhis2" ? "DHIS2" : "une saisie précédente"}, lecture seule.`
+    : undefined;
+
+  const classes = [
+    "eva-fchamp",
+    `eva-fchamp--c${colonnesChamp(champ)}`,
+    erreur ? "eva-fchamp--erreur" : "",
+    readonly ? "eva-fchamp--lecture" : "",
+    verrouille && !readonly ? "eva-fchamp--verrouille" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <Champ
-      id={code}
-      label={champ.label}
-      requis={champ.obligatoire}
-      aide={
-        readonly
-          ? `Valeur issue de ${champ.source_valeur_actuelle === "dhis2" ? "DHIS2" : "une saisie précédente"}, lecture seule.`
-          : undefined
-      }
-    >
+    <div className={classes} data-champ={code}>
+      <label id={idEtiquette} htmlFor={code} className="eva-fchamp__label">
+        <span>
+          {champ.label}
+          {champ.obligatoire && !readonly && (
+            <span className="eva-fchamp__requis" title="Champ obligatoire" aria-hidden="true">
+              {" "}
+              *
+            </span>
+          )}
+        </span>
+        {champ.obligatoire && !readonly && <span className="eva-sr-seulement"> (obligatoire)</span>}
+        {readonly && <span className="eva-fchamp__etiquette">Lecture seule</span>}
+      </label>
       {controle}
-    </Champ>
+      {(erreur || champ.aide || noteLectureSeule) && (
+        <div id={idMessage} className={erreur ? "eva-fchamp__erreur" : "eva-fchamp__aide"}>
+          {erreur ? (
+            <>
+              <AlertCircle size={14} aria-hidden="true" />
+              <span>{erreur}</span>
+            </>
+          ) : (
+            <span>{[champ.aide, noteLectureSeule].filter(Boolean).join(" ")}</span>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { Camera, Phone, Search } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
 import BadgeStatut from "../../components/BadgeStatut";
-import { Bouton, Carte, Champ, EnteteDePage, Onglets, Tableau } from "../../components/ui";
+import { Bouton, Carte, Champ, ChampTelephone, EnteteDePage, Onglets, Tableau } from "../../components/ui";
 import { LienBouton } from "../../components/ui/Bouton";
 import { appelApi, ErreurApi } from "../../lib/apiClient";
 import { LIENS_AGENT } from "./navigation";
@@ -132,13 +132,16 @@ function OngletCode({ onTrouve }: { onTrouve: (d: Dossier) => void }) {
 }
 
 function OngletTelephone({ onTrouve }: { onTrouve: (d: Dossier) => void }) {
+  // E.164 ("+22890123456") ; le backend retrouve aussi les codes crees avec un ancien format libre.
   const [telephone, setTelephone] = useState("");
+  const [telephoneValide, setTelephoneValide] = useState(false);
   const [resultats, setResultats] = useState<CodeRetraitTrouve[] | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
 
-  async function rechercher() {
-    if (!telephone) return;
+  async function rechercher(evenement: FormEvent<HTMLFormElement>) {
+    evenement.preventDefault();
+    if (!telephone || !telephoneValide) return;
     setEnCours(true);
     setErreur(null);
     setResultats(null);
@@ -163,13 +166,15 @@ function OngletTelephone({ onTrouve }: { onTrouve: (d: Dossier) => void }) {
 
   return (
     <Carte style={{ maxWidth: 460 }}>
-      <Champ id="telephone" label="Numero de telephone du declarant">
-        <input id="telephone" type="tel" value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="Ex. 90112233" />
-      </Champ>
-      {erreur && <div className="message-erreur">{erreur}</div>}
-      <Bouton onClick={rechercher} chargement={enCours} iconeGauche={<Phone size={16} />}>
-        Rechercher
-      </Bouton>
+      <form onSubmit={rechercher} noValidate>
+        <Champ id="telephone" label="Numéro de téléphone du déclarant">
+          <ChampTelephone id="telephone" nom="telephone" valeur={telephone} onChange={setTelephone} onValidite={setTelephoneValide} />
+        </Champ>
+        {erreur && <div className="message-erreur">{erreur}</div>}
+        <Bouton type="submit" chargement={enCours} disabled={!telephone || !telephoneValide} iconeGauche={<Phone size={16} />}>
+          Rechercher
+        </Bouton>
+      </form>
 
       {resultats && resultats.length === 0 && (
         <p style={{ marginTop: 14, fontSize: 13.5, color: "var(--couleur-gris-service-2)" }}>Aucun code trouve pour ce numero.</p>

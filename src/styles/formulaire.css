@@ -1,0 +1,545 @@
+/*
+  Formulaires de dossier : grille a 12 colonnes, controles uniformes, stepper.
+  Utilise par components/FormulaireDossier.tsx, ChampDynamique.tsx et
+  ui/SelectMultiple.tsx. Couleurs, rayons et ombres viennent uniquement des
+  jetons de theme.css.
+
+  Grille : le conteneur `.eva-form` est un conteneur de requetes (container
+  queries) : les colonnes s'adaptent a la LARGEUR DU FORMULAIRE et non a celle
+  de l'ecran (un formulaire dans une carte etroite reste lisible sur un grand
+  ecran). < 480px : 1 colonne ; 480-719px : 2 colonnes ; >= 720px : 12 colonnes.
+  Navigateur sans container queries : memes seuils, calcules sur l'ecran.
+*/
+
+.eva-form { container-type: inline-size; container-name: eva-form; min-width: 0; }
+
+/* ================================= GRILLE ================================= */
+
+.eva-form-grille {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--espace-5) var(--espace-5);
+  align-items: start;
+}
+
+.eva-fchamp { grid-column: span 6; min-width: 0; display: flex; flex-direction: column; }
+.eva-fchamp--c3 { grid-column: span 3; }
+.eva-fchamp--c4 { grid-column: span 4; }
+.eva-fchamp--c6 { grid-column: span 6; }
+.eva-fchamp--c8 { grid-column: span 8; }
+.eva-fchamp--c12 { grid-column: span 12; }
+
+@supports (container-type: inline-size) {
+  @container eva-form (max-width: 719px) {
+    .eva-form-grille > .eva-fchamp--c3,
+    .eva-form-grille > .eva-fchamp--c4,
+    .eva-form-grille > .eva-fchamp--c6 { grid-column: span 6; }
+    .eva-form-grille > .eva-fchamp--c8,
+    .eva-form-grille > .eva-fchamp--c12 { grid-column: span 12; }
+  }
+  @container eva-form (max-width: 479px) {
+    .eva-form-grille { gap: var(--espace-4); }
+    .eva-form-grille > .eva-fchamp { grid-column: 1 / -1; }
+  }
+}
+@supports not (container-type: inline-size) {
+  @media (max-width: 900px) {
+    .eva-form-grille > .eva-fchamp--c3,
+    .eva-form-grille > .eva-fchamp--c4,
+    .eva-form-grille > .eva-fchamp--c6 { grid-column: span 6; }
+    .eva-form-grille > .eva-fchamp--c8,
+    .eva-form-grille > .eva-fchamp--c12 { grid-column: span 12; }
+  }
+  @media (max-width: 560px) {
+    .eva-form-grille { gap: var(--espace-4); }
+    .eva-form-grille > .eva-fchamp { grid-column: 1 / -1; }
+  }
+}
+
+/* ========================== LIBELLE, AIDE, ERREUR ========================== */
+
+.eva-fchamp__label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--espace-2);
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--couleur-gris-service-1);
+}
+.eva-fchamp__requis { color: var(--couleur-erreur); font-weight: 700; }
+.eva-fchamp__etiquette {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: var(--rayon-plein);
+  background: var(--couleur-fond-desactive);
+  color: var(--couleur-gris-service-2);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.eva-fchamp__aide,
+.eva-fchamp__erreur { margin-top: 6px; font-size: 12.5px; line-height: 1.4; }
+.eva-fchamp__aide { color: var(--couleur-gris-service-2); }
+.eva-fchamp__erreur { display: flex; align-items: flex-start; gap: 5px; color: var(--couleur-erreur); font-weight: 500; }
+.eva-fchamp__erreur svg { flex: none; margin-top: 1px; }
+
+/* Masque visuel, reste lu par les lecteurs d'ecran */
+.eva-sr-seulement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ============================ CONTROLES UNIFORMES ============================ */
+
+.eva-ctl {
+  display: block;
+  width: 100%;
+  min-height: 42px;
+  margin: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--couleur-bordure-forte);
+  border-radius: var(--rayon-petit);
+  background: var(--couleur-blanc);
+  color: var(--couleur-encre);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  transition: border-color var(--transition-rapide), box-shadow var(--transition-rapide), background var(--transition-rapide);
+}
+.eva-ctl::placeholder { color: var(--couleur-gris-service-2); opacity: 0.7; }
+.eva-ctl:hover:not(:disabled):not(:focus) { border-color: var(--couleur-gris-service-2); }
+.eva-ctl:focus,
+.eva-ctl:focus-visible { outline: none; border-color: var(--couleur-emeraude); box-shadow: var(--ombre-anneau-focus); border-radius: var(--rayon-petit); }
+.eva-ctl:disabled {
+  background: var(--couleur-fond-desactive);
+  border-color: var(--couleur-bordure);
+  color: var(--couleur-gris-service-2);
+  cursor: not-allowed;
+  -webkit-text-fill-color: var(--couleur-gris-service-2);
+  opacity: 1;
+}
+
+.eva-ctl--zone { min-height: 104px; resize: vertical; line-height: 1.5; }
+.eva-ctl--date { cursor: pointer; }
+.eva-ctl--nombre { font-variant-numeric: tabular-nums; -moz-appearance: textfield; appearance: textfield; }
+.eva-ctl--nombre::-webkit-outer-spin-button,
+.eva-ctl--nombre::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.eva-ctl--select {
+  padding-right: 38px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath d='M3 5.25 7 9.25l4-4' fill='none' stroke='%236B7A73' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 14px;
+}
+.eva-ctl--select:disabled { background-color: var(--couleur-fond-desactive); }
+.eva-ctl--vide { color: var(--couleur-gris-service-2); }
+.eva-ctl--select option { color: var(--couleur-encre); }
+
+/* ---- Etats du champ ---- */
+.eva-fchamp--erreur .eva-ctl,
+.eva-fchamp--erreur .eva-ctl:hover:not(:disabled):not(:focus),
+.eva-fchamp--erreur .eva-interrupteur,
+.eva-fchamp--erreur .eva-multi { border-color: var(--couleur-erreur); }
+.eva-fchamp--erreur .eva-ctl:focus,
+.eva-fchamp--erreur .eva-ctl:focus-visible { border-color: var(--couleur-erreur); box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.18); }
+.eva-fchamp--erreur .eva-fchamp__label { color: var(--couleur-erreur); }
+
+/* Dossier verrouille (acte emis) : controles volontairement jamais `disabled`
+   (voir ChampDynamique), d'ou un rendu propre a cet etat. */
+.eva-fchamp--verrouille .eva-ctl,
+.eva-fchamp--verrouille .eva-interrupteur,
+.eva-fchamp--verrouille .eva-multi {
+  background-color: var(--couleur-erreur-fond);
+  border-color: #F0C6C3;
+  cursor: not-allowed;
+}
+.eva-fchamp--verrouille .eva-ctl:focus { box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.14); border-color: #E0A19D; }
+
+/* ============================== INTERRUPTEUR ============================== */
+
+.eva-interrupteur {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--couleur-bordure-forte);
+  border-radius: var(--rayon-petit);
+  background: var(--couleur-blanc);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color var(--transition-rapide), box-shadow var(--transition-rapide), background var(--transition-rapide);
+}
+.eva-interrupteur:hover { border-color: var(--couleur-gris-service-2); }
+.eva-interrupteur input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+.eva-interrupteur__piste {
+  position: relative;
+  flex: none;
+  width: 38px;
+  height: 22px;
+  border-radius: var(--rayon-plein);
+  background: var(--couleur-bordure-forte);
+  transition: background var(--transition-normale);
+}
+.eva-interrupteur__piste::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--couleur-blanc);
+  box-shadow: 0 1px 3px rgba(20, 35, 28, 0.3);
+  transition: transform var(--transition-normale);
+}
+.eva-interrupteur input:checked ~ .eva-interrupteur__piste { background: var(--couleur-emeraude); }
+.eva-interrupteur input:checked ~ .eva-interrupteur__piste::after { transform: translateX(16px); }
+.eva-interrupteur:focus-within { border-color: var(--couleur-emeraude); box-shadow: var(--ombre-anneau-focus); }
+.eva-interrupteur__texte { font-size: 14px; color: var(--couleur-gris-service-1); font-weight: 500; }
+.eva-interrupteur input:checked ~ .eva-interrupteur__texte { color: var(--couleur-emeraude); font-weight: 600; }
+.eva-interrupteur--desactive,
+.eva-interrupteur--desactive:hover { background: var(--couleur-fond-desactive); border-color: var(--couleur-bordure); cursor: not-allowed; }
+.eva-interrupteur--desactive .eva-interrupteur__piste { opacity: 0.55; }
+.eva-interrupteur--desactive .eva-interrupteur__texte { color: var(--couleur-gris-service-2); }
+
+/* ============================ CHOIX MULTIPLE ============================ */
+
+.eva-multi {
+  padding: 12px;
+  border: 1px solid var(--couleur-bordure-forte);
+  border-radius: var(--rayon-petit);
+  background: var(--couleur-blanc);
+  transition: border-color var(--transition-rapide), box-shadow var(--transition-rapide);
+}
+.eva-multi:focus-within { border-color: var(--couleur-emeraude); box-shadow: var(--ombre-anneau-focus); }
+.eva-fchamp--erreur .eva-multi:focus-within { box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.18); }
+.eva-multi--desactive { background: var(--couleur-fond-desactive); border-color: var(--couleur-bordure); }
+
+.eva-multi__filtre { position: relative; margin-bottom: 12px; }
+.eva-multi__loupe { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--couleur-gris-service-2); pointer-events: none; }
+.eva-multi .eva-multi__filtre-champ { padding-left: 34px; }
+
+.eva-multi__liste { display: flex; flex-wrap: wrap; gap: 8px; max-height: 340px; overflow-y: auto; padding: 2px; margin: -2px; }
+.eva-multi__vide { margin: 0; padding: 10px 2px; font-size: 13px; color: var(--couleur-gris-service-2); }
+
+.eva-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 6px 14px 6px 8px;
+  border: 1px solid var(--couleur-bordure-forte);
+  border-radius: var(--rayon-plein);
+  background: var(--couleur-blanc);
+  color: var(--couleur-gris-service-1);
+  font-size: 13.5px;
+  line-height: 1.25;
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transition-rapide), border-color var(--transition-rapide), color var(--transition-rapide), box-shadow var(--transition-rapide);
+}
+.eva-chip:hover:not(.eva-chip--bloque) { border-color: var(--couleur-emeraude); background: var(--couleur-emeraude-fond); }
+.eva-chip input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: inherit; }
+.eva-chip:focus-within { box-shadow: var(--ombre-anneau-focus); border-color: var(--couleur-emeraude); }
+.eva-chip__marque {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--couleur-bordure-forte);
+  border-radius: 50%;
+  background: var(--couleur-blanc);
+  color: var(--couleur-blanc);
+  transition: background var(--transition-rapide), border-color var(--transition-rapide);
+}
+.eva-chip__texte { min-width: 0; overflow-wrap: anywhere; }
+.eva-chip--choisi { background: var(--couleur-emeraude-fond); border-color: var(--couleur-emeraude); color: var(--couleur-vert-profond); font-weight: 600; }
+.eva-chip--choisi .eva-chip__marque { background: var(--couleur-emeraude); border-color: var(--couleur-emeraude); }
+.eva-chip--bloque { cursor: not-allowed; opacity: 0.55; }
+.eva-multi--desactive .eva-chip--bloque { opacity: 0.75; background: transparent; }
+.eva-multi--desactive .eva-chip--choisi { background: var(--couleur-bordure); border-color: var(--couleur-bordure-forte); color: var(--couleur-gris-service-1); }
+.eva-multi--desactive .eva-chip--choisi .eva-chip__marque { background: var(--couleur-gris-service-2); border-color: var(--couleur-gris-service-2); }
+
+.eva-multi__pied { display: flex; align-items: center; justify-content: space-between; gap: var(--espace-3); margin-top: 10px; font-size: 12px; color: var(--couleur-gris-service-2); }
+.eva-multi__effacer {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: var(--rayon-petit);
+  background: none;
+  color: var(--couleur-gris-service-1);
+  font-size: 12px;
+  cursor: pointer;
+}
+.eva-multi__effacer:hover { background: var(--couleur-fond-desactive); color: var(--couleur-erreur); }
+
+/* =============================== STEPPER =============================== */
+
+.eva-etapes { scroll-margin-top: 76px; }
+
+/* ---- En-tete des etapes ---- */
+.eva-etapes__entete { margin-bottom: var(--espace-4); overflow-x: auto; padding-bottom: 2px; }
+.eva-etapes__entete ol { display: flex; margin: 0; padding: 0; list-style: none; min-width: min-content; }
+.eva-etapes__item { position: relative; flex: 1 1 0; min-width: 76px; }
+/* Connecteur entre deux puces */
+.eva-etapes__item:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 21px;
+  left: calc(50% + 22px);
+  right: calc(-50% + 22px);
+  height: 2px;
+  border-radius: 2px;
+  background: var(--couleur-bordure-forte);
+  transition: background var(--transition-normale);
+}
+.eva-etapes__item--termine:not(:last-child)::after { background: var(--couleur-emeraude); }
+
+.eva-etapes__bouton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 6px 6px;
+  border: 0;
+  border-radius: var(--rayon-standard);
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.eva-etapes__bouton:focus-visible { outline: none; box-shadow: var(--ombre-anneau-focus); }
+.eva-etapes__puce {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 2px solid var(--couleur-bordure-forte);
+  border-radius: 50%;
+  background: var(--couleur-blanc);
+  color: var(--couleur-gris-service-2);
+  font-family: var(--police-donnees);
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: background var(--transition-normale), border-color var(--transition-normale), color var(--transition-normale), box-shadow var(--transition-normale);
+}
+.eva-etapes__libelle {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  text-align: center;
+  color: var(--couleur-gris-service-2);
+  overflow-wrap: anywhere;
+}
+.eva-etapes__bouton:hover .eva-etapes__puce { border-color: var(--couleur-emeraude); color: var(--couleur-emeraude); }
+
+.eva-etapes__item--courant .eva-etapes__puce {
+  border-color: var(--couleur-emeraude);
+  background: var(--couleur-emeraude);
+  color: var(--couleur-blanc);
+  box-shadow: 0 0 0 4px var(--couleur-emeraude-fond-vif);
+}
+.eva-etapes__item--courant .eva-etapes__libelle { color: var(--couleur-encre); font-weight: 600; }
+.eva-etapes__item--courant .eva-etapes__bouton:hover .eva-etapes__puce { color: var(--couleur-blanc); }
+
+.eva-etapes__item--termine .eva-etapes__puce { border-color: var(--couleur-emeraude); background: var(--couleur-emeraude-fond); color: var(--couleur-emeraude); }
+.eva-etapes__item--termine .eva-etapes__libelle { color: var(--couleur-gris-service-1); }
+
+.eva-etapes__item--erreur .eva-etapes__puce { border-color: var(--couleur-erreur); background: var(--couleur-erreur-fond); color: var(--couleur-erreur); }
+.eva-etapes__item--erreur .eva-etapes__libelle { color: var(--couleur-erreur); font-weight: 600; }
+.eva-etapes__item--erreur .eva-etapes__bouton:hover .eva-etapes__puce { border-color: var(--couleur-erreur); color: var(--couleur-erreur); }
+
+/* ---- Progression ---- */
+.eva-etapes__progression { display: flex; align-items: center; gap: var(--espace-4); margin-bottom: var(--espace-5); }
+.eva-etapes__compteur { flex: none; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--couleur-gris-service-2); white-space: nowrap; }
+.eva-etapes__barre { flex: 1; height: 6px; border-radius: var(--rayon-plein); background: var(--couleur-bordure); overflow: hidden; }
+.eva-etapes__barre span { display: block; height: 100%; border-radius: inherit; background: var(--couleur-emeraude); transition: width var(--transition-normale); }
+
+/* ---- Titre de l'etape ---- */
+.eva-etapes__titre { margin-bottom: var(--espace-5); padding-bottom: var(--espace-4); border-bottom: 1px solid var(--couleur-bordure); }
+.eva-etapes__titre h2 { font-size: 19px; letter-spacing: -0.01em; color: var(--couleur-encre); }
+.eva-etapes__titre h2:focus { outline: none; }
+.eva-etapes__titre h2:focus-visible { outline: none; box-shadow: none; }
+.eva-etapes__titre p { margin-top: 4px; font-size: 13.5px; color: var(--couleur-gris-service-2); }
+
+.eva-etapes__panneau { animation: eva-etape-entree 180ms ease; }
+.eva-etapes__panneau[hidden] { display: none; }
+@keyframes eva-etape-entree { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* ---- Alerte de validation / bandeaux ---- */
+.eva-etapes__alerte,
+.eva-etapes__bandeau {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espace-3);
+  margin-bottom: var(--espace-5);
+  padding: var(--espace-3) var(--espace-4);
+  border-radius: var(--rayon-standard);
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+.eva-etapes__alerte,
+.eva-etapes__bandeau--alerte { background: var(--couleur-erreur-fond); border: 1px solid #F0C6C3; color: var(--couleur-erreur); }
+.eva-etapes__bandeau--ok { background: var(--couleur-emeraude-fond); border: 1px solid var(--couleur-emeraude-fond-vif); color: var(--couleur-vert-profond); }
+.eva-etapes__alerte > svg,
+.eva-etapes__bandeau > svg { flex: none; margin-top: 1px; }
+.eva-etapes__alerte strong,
+.eva-etapes__bandeau strong { font-weight: 600; }
+.eva-etapes__alerte ul,
+.eva-etapes__bandeau ul { margin: 6px 0 0; padding-left: 18px; }
+.eva-etapes__alerte li,
+.eva-etapes__bandeau li { margin: 2px 0; }
+.eva-etapes__alerte ul { display: flex; flex-wrap: wrap; gap: 2px 16px; padding-left: 0; list-style: none; }
+.eva-etapes__alerte li button,
+.eva-etapes__bandeau li button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.eva-etapes__bandeau-etape { color: var(--couleur-gris-service-2); }
+
+/* ---- Pied : Precedent / Suivant ---- */
+.eva-etapes__pied {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  margin-top: var(--espace-6);
+  padding-top: var(--espace-4);
+  border-top: 1px solid var(--couleur-bordure);
+}
+.eva-etapes__pied--final { flex-wrap: wrap; }
+
+/* ---- Recapitulatif ---- */
+.eva-recap { display: flex; flex-direction: column; }
+.eva-recap .eva-etapes__bandeau { margin-bottom: var(--espace-4); }
+.eva-recap__groupe { margin-bottom: var(--espace-4); border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-standard); overflow: hidden; background: var(--couleur-blanc); }
+.eva-recap__entete { display: flex; align-items: center; justify-content: space-between; gap: var(--espace-3); padding: 10px 14px; background: var(--couleur-papier); border-bottom: 1px solid var(--couleur-bordure); }
+.eva-recap__entete h3 { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.eva-recap__numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--couleur-emeraude-fond);
+  color: var(--couleur-emeraude);
+  font-family: var(--police-donnees);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.eva-recap__modifier {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: var(--rayon-petit);
+  background: none;
+  color: var(--couleur-emeraude);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.eva-recap__modifier:hover { background: var(--couleur-emeraude-fond); }
+.eva-recap__liste { margin: 0; }
+.eva-recap__ligne { display: grid; grid-template-columns: minmax(130px, 36%) 1fr; gap: var(--espace-3); padding: 10px 14px; font-size: 13.5px; }
+.eva-recap__ligne + .eva-recap__ligne { border-top: 1px solid var(--couleur-bordure); }
+.eva-recap__ligne dt { color: var(--couleur-gris-service-2); }
+.eva-recap__ligne dd { margin: 0; color: var(--couleur-encre); font-weight: 500; overflow-wrap: anywhere; }
+.eva-recap__ligne dd.eva-recap__vide { color: var(--couleur-gris-service-2); font-weight: 400; font-style: italic; }
+.eva-recap__ligne dd.eva-recap__manquant { color: var(--couleur-erreur); font-weight: 600; }
+
+/* ---- Section unique (etape seule affichee comme formulaire lineaire) ---- */
+.eva-form__section { margin-bottom: var(--espace-5); }
+.eva-form__section-titre { font-size: 16px; }
+.eva-form__section-description { margin-top: 4px; font-size: 13.5px; color: var(--couleur-gris-service-2); }
+
+/* ============================ PETIT ECRAN (TACTILE) ============================ */
+
+@media (max-width: 560px) {
+  /* 16px : evite le zoom automatique d'iOS a la prise de focus */
+  .eva-ctl { min-height: 46px; font-size: 16px; }
+  .eva-interrupteur { min-height: 46px; }
+  .eva-chip { min-height: 42px; font-size: 15px; }
+  .eva-multi__effacer { padding: 6px 8px; }
+  .eva-fchamp__label { font-size: 13.5px; }
+
+  /* Stepper compact : puces seules, titre de l'etape dans le compteur */
+  .eva-etapes__entete { margin-left: calc(-1 * var(--espace-1)); margin-right: calc(-1 * var(--espace-1)); }
+  .eva-etapes__item { min-width: 0; }
+  .eva-etapes__libelle { display: none; }
+  .eva-etapes__bouton { padding: 2px 0; }
+  .eva-etapes__puce { width: 30px; height: 30px; font-size: 12.5px; }
+  .eva-etapes__item:not(:last-child)::after { top: 17px; left: calc(50% + 18px); right: calc(-50% + 18px); }
+  .eva-etapes__compteur { white-space: normal; }
+  .eva-etapes__progression { flex-direction: column; align-items: stretch; gap: var(--espace-2); }
+  .eva-etapes__titre h2 { font-size: 17px; }
+
+  /* Boutons pleine largeur, geste principal en haut (le pouce arrive du bas) */
+  .eva-etapes__pied { flex-direction: column-reverse; align-items: stretch; }
+  .eva-etapes__pied > span:empty { display: none; }
+  .eva-etapes__pied .eva-bouton { width: 100%; min-height: 48px; font-size: 15px; }
+  .eva-recap__ligne { grid-template-columns: 1fr; gap: 2px; }
+  .eva-recap__ligne dt { font-size: 12.5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eva-etapes__panneau { animation: none; }
+  .eva-ctl, .eva-interrupteur, .eva-interrupteur__piste, .eva-interrupteur__piste::after,
+  .eva-chip, .eva-etapes__puce, .eva-etapes__barre span { transition: none; }
+}
+
+/* ===================== PAGE PUBLIQUE DE COMPLETION (parent) ===================== */
+
+.eva-ecran-centre--form { align-items: flex-start; padding-top: var(--espace-7); padding-bottom: var(--espace-7); }
+@media (max-width: 560px) {
+  .eva-ecran-centre--form { padding: var(--espace-2) var(--espace-2) var(--espace-6); }
+  .eva-carte--form { padding: var(--espace-4); border-radius: var(--rayon-standard); }
+}

@@ -1,6 +1,13 @@
 import { appelApi } from "./apiClient";
-import { cleCacheFormulaire, dossiersAvecActionsEnAttente, instantaneEnCache, mettreEnCacheInstantane } from "./db";
-import type { ChampFormulaireEffectif, TypeEvenement } from "../types/domaine";
+import {
+  cleCacheFormulaire,
+  cleCacheMiseEnPage,
+  dossiersAvecActionsEnAttente,
+  instantaneEnCache,
+  mettreEnCacheInstantane,
+  supprimerInstantane
+} from "./db";
+import type { ChampFormulaireEffectif, MiseEnPage, TypeEvenement } from "../types/domaine";
 
 /**
  * Partie du formulaire qui ne depend QUE de (contexte, event_type) : le
@@ -19,6 +26,8 @@ interface ValeurDossier {
 interface ReponseFormulairesGroupes {
   contexte: string;
   schemas: Record<string, SchemaChamp[]>;
+  /** Absent d'un ancien serveur : les formulaires restent alors en liste plate. */
+  mises_en_page?: Record<string, MiseEnPage>;
   dossiers: Record<string, { event_type: TypeEvenement; version: number; valeurs: Record<string, ValeurDossier> }>;
 }
 
@@ -67,8 +76,26 @@ export async function precacherFormulaires(idsDossiers: string[], forcer = false
       });
 
       await mettreEnCacheInstantane(cleCacheFormulaire(idDossier), champs);
+      await mettreEnCacheMiseEnPage(idDossier, reponse.mises_en_page?.[donnees.event_type]);
     })
   );
+}
+
+/**
+ * Met en cache la mise en page (etapes) du formulaire d'un dossier, a cote
+ * des champs (voir cleCacheMiseEnPage). Sans mise en page (ancien serveur),
+ * l'entree precedente est SUPPRIMEE : une configuration perimee ne doit pas
+ * etre appliquee a des champs plus recents.
+ */
+export async function mettreEnCacheMiseEnPage(idDossier: string, miseEnPage: MiseEnPage | undefined | null): Promise<void> {
+  if (miseEnPage) await mettreEnCacheInstantane(cleCacheMiseEnPage(idDossier), miseEnPage);
+  else await supprimerInstantane(cleCacheMiseEnPage(idDossier));
+}
+
+/** Mise en page en cache, ou null : le formulaire s'affiche alors en liste plate. */
+export async function miseEnPageEnCache(idDossier: string): Promise<MiseEnPage | null> {
+  const instantane = await instantaneEnCache<MiseEnPage>(cleCacheMiseEnPage(idDossier));
+  return instantane?.donnees ?? null;
 }
 
 /**

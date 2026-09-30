@@ -50,6 +50,16 @@ export function cleCacheFormulaire(idDossier: string): string {
 }
 
 /**
+ * Cle de cache de la mise en page (etapes) du formulaire d'un dossier. Cle
+ * SEPAREE de cleCacheFormulaire : le cache des champs garde exactement sa
+ * forme d'avant les formulaires par etapes (aucune entree existante n'est
+ * invalidee), et une entree sans mise en page s'affiche en liste plate.
+ */
+export function cleCacheMiseEnPage(idDossier: string): string {
+  return `dossier_mise_en_page::${idDossier}`;
+}
+
+/**
  * Au-dela de ce delai, une entree de cache est consideree comme trop
  * ancienne pour etre montree a un agent : mieux vaut un ecran qui dit
  * "indisponible hors-ligne" qu'un dossier d'etat civil peri me presente
@@ -199,6 +209,10 @@ export async function mettreEnCacheInstantane<T>(cle: string, donnees: T): Promi
   await baseLocale.instantanesRequetes.put({ cle, donnees, horodatage: new Date().toISOString() });
 }
 
+export async function supprimerInstantane(cle: string): Promise<void> {
+  await baseLocale.instantanesRequetes.delete(cle);
+}
+
 export async function instantaneEnCache<T>(cle: string): Promise<{ donnees: T; horodatage: string } | undefined> {
   const entree = await baseLocale.instantanesRequetes.get(cle);
   if (!entree) return undefined;
@@ -227,7 +241,7 @@ export async function dossiersAvecActionsEnAttente(): Promise<Set<string>> {
 export async function purgerCacheExpire(): Promise<void> {
   const limite = new Date(Date.now() - DUREE_VIE_CACHE_MS).toISOString();
   const proteges = await dossiersAvecActionsEnAttente();
-  const clesProtegees = new Set([...proteges].map(cleCacheFormulaire));
+  const clesProtegees = new Set([...proteges].flatMap((id) => [cleCacheFormulaire(id), cleCacheMiseEnPage(id)]));
 
   const instantanes = await baseLocale.instantanesRequetes.toArray();
   const clesExpirees = instantanes

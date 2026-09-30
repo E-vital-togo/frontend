@@ -108,6 +108,11 @@ export interface OptionChampEffective {
   libelle: string;
 }
 
+// Miroir d'apps.catalogue ChampFormulaire.largeur : grille de 12 colonnes
+// (quart=3, tiers=4, moitie=6, deux_tiers=8, complet=12). "auto" laisse le
+// rendu choisir selon type_champ (voir lib/formulaire.ts).
+export type LargeurChamp = "auto" | "quart" | "tiers" | "moitie" | "deux_tiers" | "complet";
+
 export interface ChampFormulaireEffectif {
   data_element_code: string;
   label: string;
@@ -118,6 +123,37 @@ export interface ChampFormulaireEffectif {
   options: OptionChampEffective[];
   valeur_actuelle: unknown;
   source_valeur_actuelle: string | null;
+  // Mise en page (formulaires par etapes). Optionnels : absents d'un ancien
+  // serveur ou d'une entree de cache hors-ligne anterieure a ce chantier, ou
+  // le rendu retombe sur la liste plate.
+  etape_id?: string | null;
+  largeur?: LargeurChamp;
+  placeholder?: string;
+  aide?: string;
+}
+
+export interface EtapeMiseEnPage {
+  /** null = etape virtuelle "Autres informations" fournie par le serveur. */
+  id: string | null;
+  titre: string;
+  description: string;
+  ordre: number;
+}
+
+/**
+ * Mise en page d'un formulaire effectif (reponse de /dossiers/{id}/formulaire/
+ * et /completion/{code}). Mode "lineaire" : `etapes` est vide. Mode "etapes" :
+ * `etapes` est dans l'ordre de rendu et `champs` deja ordonne par etape.
+ */
+export interface MiseEnPage {
+  mode: "lineaire" | "etapes";
+  etapes: EtapeMiseEnPage[];
+}
+
+/** Reponse des endpoints de formulaire effectif ; `mise_en_page` peut manquer (ancien serveur). */
+export interface ReponseFormulaireEffectif {
+  champs: ChampFormulaireEffectif[];
+  mise_en_page?: MiseEnPage;
 }
 
 export interface ValeurChamp {
@@ -282,7 +318,8 @@ export type TypeGraphiqueStat =
   | "anneau"
   | "combo"
   | "nuage_points"
-  | "carte_chaleur";
+  | "carte_chaleur"
+  | "carte";
 
 export interface WidgetGraphique extends PivotRequete {
   id: string;
@@ -294,6 +331,8 @@ export interface WidgetGraphique extends PivotRequete {
   regrouper_autres: boolean;
   exclure_non_renseigne: boolean;
   seuil_petites_cellules: number | null;
+  /** Apparence des cartes (vide = defauts) ; voir lib/carte.ts. */
+  parametres_carte?: Partial<import("../lib/carte").ParametresCarte>;
   position_x: number;
   position_y: number;
   largeur: number;

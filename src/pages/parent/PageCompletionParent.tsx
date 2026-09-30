@@ -1,23 +1,18 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { CheckCircle2 } from "lucide-react";
-import ChampDynamique from "../../components/ChampDynamique";
+import FormulaireDossier from "../../components/FormulaireDossier";
 import Logo from "../../components/Logo";
 import { Bouton } from "../../components/ui";
 import { appelApiPublic, ErreurApiPublique } from "../../lib/apiPublic";
-import type { ChampFormulaireEffectif } from "../../types/domaine";
-
-interface ReponseFormulaireEffectif {
-  champs: ChampFormulaireEffectif[];
-}
-
-function champEstVide(valeur: unknown): boolean {
-  return valeur === null || valeur === undefined || valeur === "" || (Array.isArray(valeur) && valeur.length === 0);
-}
+import { champsManquants, planFormulaire, valeurEffective } from "../../lib/formulaire";
+import type { ChampFormulaireEffectif, MiseEnPage, ReponseFormulaireEffectif } from "../../types/domaine";
 
 export default function PageCompletionParent() {
   const { code } = useParams<{ code: string }>();
   const [champs, setChamps] = useState<ChampFormulaireEffectif[] | null>(null);
+  const [miseEnPage, setMiseEnPage] = useState<MiseEnPage | null>(null);
+  const [erreursChamps, setErreursChamps] = useState<Record<string, string>>({});
   const [valeurs, setValeurs] = useState<Record<string, unknown>>({});
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoye, setEnvoye] = useState(false);
@@ -26,22 +21,25 @@ export default function PageCompletionParent() {
   useEffect(() => {
     if (!code) return;
     appelApiPublic<ReponseFormulaireEffectif>(`/completion/${code}`)
-      .then((donnees) => setChamps(donnees.champs))
+      .then((donnees) => {
+        setChamps(donnees.champs);
+        setMiseEnPage(donnees.mise_en_page ?? null);
+      })
       .catch(() => setErreur("Ce lien n'est plus valide, ou le code est incorrect."));
   }, [code]);
 
   async function soumettre(evenement: FormEvent<HTMLFormElement>) {
     evenement.preventDefault();
     if (!code || !champs) return;
-    const manquants = champs.filter(
-      (c) => c.obligatoire && champEstVide(valeurs[c.data_element_code] ?? c.valeur_actuelle)
-    );
+    const manquants = champsManquants(champs, (c) => valeurEffective(c, valeurs));
     if (manquants.length > 0) {
+      setErreursChamps(Object.fromEntries(manquants.map((c) => [c.data_element_code, "Ce champ est obligatoire."])));
       setErreur(`Champs obligatoires manquants : ${manquants.map((c) => c.label).join(", ")}.`);
       return;
     }
     setEnCours(true);
     setErreur(null);
+    setErreursChamps({});
     try {
       const corps = {
         valeurs: Object.entries(valeurs).map(([data_element_code, valeur]) => ({ data_element_code, valeur }))
@@ -57,9 +55,26 @@ export default function PageCompletionParent() {
     }
   }
 
+  function modifierValeur(codeChamp: string, valeur: unknown) {
+    setValeurs((v) => ({ ...v, [codeChamp]: valeur }));
+    // L'erreur d'un champ disparait des qu'on le modifie.
+    setErreursChamps((precedentes) => {
+      if (!(codeChamp in precedentes)) return precedentes;
+      const { [codeChamp]: _retire, ...reste } = precedentes;
+      return reste;
+    });
+  }
+
+  const enEtapes = !!champs && planFormulaire(champs, miseEnPage).mode === "etapes";
+  const boutonEnvoyer = (
+    <Bouton type="submit" chargement={enCours} style={enEtapes ? undefined : { width: "100%" }}>
+      Envoyer
+    </Bouton>
+  );
+
   return (
-    <div className="eva-ecran-centre">
-      <div className="eva-carte" style={{ width: "100%", maxWidth: 480 }}>
+    <div className="eva-ecran-centre eva-ecran-centre--form">
+      <div className="eva-carte eva-carte--form" style={{ width: "100%", maxWidth: 640 }}>
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
           <Logo variante="vertical" hauteur={90} />
         </div>
@@ -87,23 +102,25 @@ export default function PageCompletionParent() {
         ) : !champs ? (
           <p style={{ textAlign: "center" }}>Chargement du formulaire...</p>
         ) : (
-          <form onSubmit={soumettre}>
+          // noValidate : les etapes non affichees restent montees, un controle natif
+          // invalide mais masque bloquerait l'envoi sans message. Le controle des
+          // champs obligatoires est fait dans soumettre(), le serveur fait foi.
+          <form onSubmit={soumettre} noValidate>
             <h1 style={{ fontSize: 18, color: "var(--couleur-emeraude)", marginBottom: 4 }}>Complement de declaration</h1>
             <p className="eva-sous-titre" style={{ marginBottom: 16 }}>
               Remplissez uniquement les informations demandees ci-dessous, puis validez.
             </p>
             {erreur && <div className="message-erreur">{erreur}</div>}
-            {champs.map((champ) => (
-              <ChampDynamique
-                key={champ.data_element_code}
-                champ={champ}
-                valeur={valeurs[champ.data_element_code] ?? champ.valeur_actuelle}
-                onChange={(code, valeur) => setValeurs((v) => ({ ...v, [code]: valeur }))}
-              />
-            ))}
-            <Bouton type="submit" chargement={enCours} style={{ width: "100%" }}>
-              Envoyer
-            </Bouton>
+            <FormulaireDossier
+              champs={champs}
+              miseEnPage={miseEnPage}
+              valeurs={valeurs}
+              onChange={modifierValeur}
+              erreurs={erreursChamps}
+              cleMemorisation={code ? `completion:${code}` : undefined}
+              actionFinale={boutonEnvoyer}
+            />
+            {!enEtapes && <div style={{ marginTop: 24 }}>{boutonEnvoyer}</div>}
           </form>
         )}
       </div>

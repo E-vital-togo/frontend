@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { Phone, Search, ShieldCheck } from "lucide-react";
 import Logo from "../../components/Logo";
-import { Bouton, Champ } from "../../components/ui";
+import { Bouton, Champ, ChampTelephone } from "../../components/ui";
 import { appelApiPublic, ErreurApiPublique } from "../../lib/apiPublic";
 import type { CodeRetraitTrouve } from "../../types/domaine";
 
@@ -65,8 +65,8 @@ export default function PageRetrouverCode() {
               Indiquez le numero de telephone utilise lors de la declaration. Un code de verification vous sera envoye par SMS.
             </p>
             <form onSubmit={demanderCode}>
-              <Champ id="telephone" label="Numero de telephone" requis>
-                <input id="telephone" type="tel" required value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="Ex. 90112233" />
+              <Champ id="telephone" label="Numéro de téléphone" requis>
+                <ChampTelephone id="telephone" nom="telephone" requis valeur={telephone} onChange={setTelephone} />
               </Champ>
               {erreur && <div className="message-erreur">{erreur}</div>}
               <Bouton type="submit" chargement={enCours} style={{ width: "100%" }} iconeGauche={<Phone size={16} />}>
