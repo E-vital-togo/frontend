@@ -10,6 +10,7 @@
     "type-check": "tsc -b",
     "build:carte-inseed": "esbuild src/lib/carte.ts --bundle --minify --format=iife --global-name=EvitalCarte --target=es2017 --outfile=../backend/static/js/evital_carte.js",
     "build:telephone-django": "esbuild src/lib/telephoneDjango.ts --bundle --minify --format=iife --global-name=EvitalTelephone --target=es2017 --outfile=../backend/static/js/evital_telephone.js && esbuild src/styles/telephone.css --minify --outfile=../backend/static/css/evital-telephone.css",
+    "build:selecteur-django": "esbuild src/lib/selecteurDjango.ts --bundle --minify --format=iife --global-name=EvitalSelecteur --target=es2017 --outfile=../backend/static/js/evital_selecteur.js && esbuild src/styles/selecteur.css --minify --outfile=../backend/static/css/evital-selecteur.css",
     "test:telephone": "node scripts/test-telephone.mjs",
     "test:formulaire": "node scripts/test-formulaire.mjs",
     "sync:telephone": "node scripts/sync-telephone.mjs"

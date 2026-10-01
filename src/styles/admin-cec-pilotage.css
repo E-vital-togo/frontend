@@ -1,0 +1,302 @@
+/*
+  E-VITAL - Espace de pilotage de l'administrateur CEC (listes, demandes,
+  comptes, campagnes, signataires, personnalisation).
+  Charge apres theme.css et composants.css. Classes prefixees eva-ac-,
+  uniquement des jetons de theme.css. Voir docs/design-system-react.md.
+*/
+
+/* ------------------------------------------------------------------------
+   Barres d'outils : case a cocher, rangee de pilules (les listes deroulantes : <Selecteur compact />)
+   ------------------------------------------------------------------------ */
+.eva-ac-case {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  min-height: var(--hauteur-controle);
+  font-size: 14px;
+  color: var(--couleur-gris-service-1);
+  cursor: pointer;
+}
+.eva-ac-case input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--couleur-emeraude);
+  cursor: pointer;
+}
+
+.eva-ac-pilules {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3) var(--espace-4);
+  margin: 0 0 var(--espace-4);
+  min-width: 0;
+}
+.eva-ac-pilules > .eva-filtres { flex: 1 1 auto; }
+.eva-ac-pilules > .eva-compteur { flex: none; }
+
+/* ------------------------------------------------------------------------
+   Cellules de liste : identite, resultat, detail d'echec
+   ------------------------------------------------------------------------ */
+.eva-ac-identite { display: inline-flex; align-items: center; gap: var(--espace-3); min-width: 0; }
+.eva-ac-identite__texte { display: inline-flex; flex-direction: column; gap: 2px; min-width: 0; }
+.eva-ac-identite__detail {
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--couleur-texte-discret);
+  overflow-wrap: anywhere;
+}
+
+.eva-ac-badges { display: inline-flex; align-items: center; gap: var(--espace-2); flex-wrap: wrap; }
+
+.eva-ac-resultat { display: inline-flex; align-items: center; gap: var(--espace-2); }
+.eva-ac-resultat__code { font-size: 12px; color: var(--couleur-texte-discret); }
+
+.eva-ac-echec {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: 420px;
+  color: var(--couleur-erreur-profond);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.eva-ac-echec > svg { flex: none; margin-top: 2px; }
+.eva-ac-echec__texte {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------------------
+   Demande de modification : synthese et comparaison avant / apres
+   ------------------------------------------------------------------------ */
+.eva-ac-synthese {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--espace-3) var(--espace-4);
+  margin: 0 0 var(--espace-5);
+  padding: var(--espace-4);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-papier);
+}
+.eva-ac-synthese dt { margin: 0 0 4px; font-size: 12px; font-weight: 500; color: var(--couleur-texte-discret); }
+.eva-ac-synthese dd { margin: 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+
+.eva-ac-titre-groupe {
+  margin: 0 0 var(--espace-3);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--couleur-gris-service-1);
+}
+
+.eva-ac-diffs { list-style: none; margin: 0 0 var(--espace-5); padding: 0; display: flex; flex-direction: column; gap: var(--espace-3); }
+.eva-ac-diff {
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-blanc);
+}
+.eva-ac-diff__champ { display: flex; align-items: baseline; gap: var(--espace-2); flex-wrap: wrap; margin-bottom: var(--espace-2); }
+.eva-ac-diff__libelle { font-size: 14px; font-weight: 600; color: var(--couleur-encre); }
+.eva-ac-diff__code { font-size: 11.5px; color: var(--couleur-texte-discret); }
+.eva-ac-diff__valeurs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: var(--espace-2);
+}
+.eva-ac-diff__valeur {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--espace-2) var(--espace-3);
+  border: 1px solid transparent;
+  border-radius: var(--rayon-champ);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.eva-ac-diff__valeur--avant { background: var(--couleur-erreur-fond); border-color: var(--couleur-erreur-bordure); color: var(--couleur-erreur-profond); }
+.eva-ac-diff__valeur--avant > span:last-child:not(.eva-ac-diff__vide) { text-decoration: line-through; text-decoration-thickness: 1px; }
+.eva-ac-diff__valeur--apres { background: var(--couleur-emeraude-fond); border-color: var(--couleur-succes-bordure); color: var(--couleur-succes-texte); font-weight: 600; }
+.eva-ac-diff__etiquette { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.85; }
+.eva-ac-diff__vide { font-style: italic; font-weight: 400; opacity: 0.85; }
+.eva-ac-diff__fleche { align-self: center; color: var(--couleur-texte-discret); }
+
+.eva-ac-etape { margin-top: var(--espace-4); display: flex; flex-direction: column; gap: var(--espace-4); }
+
+/* ------------------------------------------------------------------------
+   Formulaires en modale : groupes de champs
+   ------------------------------------------------------------------------ */
+.eva-ac-alerte-formulaire { margin-bottom: var(--espace-4); }
+
+.eva-ac-groupe { margin: 0 0 var(--espace-5); padding: 0; border: 0; min-width: 0; }
+.eva-ac-groupe:last-child { margin-bottom: 0; }
+.eva-ac-groupe__titre {
+  display: block;
+  width: 100%;
+  margin: 0 0 var(--espace-3);
+  padding: 0 0 var(--espace-2);
+  border-bottom: 1px solid var(--couleur-bordure);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--couleur-gris-service-1);
+}
+
+.eva-ac-apercu-seuils { display: flex; align-items: center; gap: var(--espace-2); flex-wrap: wrap; min-height: 24px; }
+
+.eva-ac-variables { display: flex; align-items: center; gap: var(--espace-2); flex-wrap: wrap; }
+.eva-ac-variable {
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px solid var(--couleur-bordure-forte);
+  border-radius: var(--rayon-plein);
+  background: var(--couleur-blanc);
+  color: var(--couleur-emeraude-profond);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background var(--transition-rapide), border-color var(--transition-rapide);
+}
+.eva-ac-variable:hover { background: var(--couleur-emeraude-fond); border-color: var(--couleur-emeraude); }
+
+/* ------------------------------------------------------------------------
+   Campagnes de relance : cartes
+   ------------------------------------------------------------------------ */
+.eva-ac-campagnes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: var(--espace-4);
+}
+.eva-ac-campagnes--charge { opacity: 0.6; pointer-events: none; }
+.eva-ac-campagnes > li { min-width: 0; display: flex; }
+.eva-ac-campagnes > li > .eva-carte { flex: 1; display: flex; flex-direction: column; gap: var(--espace-4); }
+
+.eva-ac-campagne--inactive { background: var(--couleur-papier); }
+.eva-ac-campagne--inactive .eva-ac-campagne__titre { color: var(--couleur-texte-discret); }
+
+.eva-ac-campagne__entete { display: flex; align-items: center; justify-content: space-between; gap: var(--espace-3); }
+.eva-ac-campagne__titre { display: flex; align-items: center; gap: var(--espace-2); min-width: 0; color: var(--couleur-emeraude-profond); }
+.eva-ac-campagne__titre > svg { flex: none; }
+.eva-ac-campagne__titre h2 { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.3; color: inherit; overflow-wrap: anywhere; }
+.eva-ac-campagne__outils { display: flex; align-items: center; gap: var(--espace-2); flex: none; }
+
+.eva-ac-campagne__infos { margin: 0; display: grid; gap: var(--espace-3); }
+.eva-ac-campagne__infos > div { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: var(--espace-3); }
+.eva-ac-campagne__infos dt { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; color: var(--couleur-texte-discret); }
+.eva-ac-campagne__infos dd { margin: 0; font-size: 14px; font-weight: 500; }
+.eva-ac-seuils { display: inline-flex; gap: var(--espace-2); flex-wrap: wrap; }
+
+.eva-ac-campagne__message {
+  margin: 0;
+  padding: var(--espace-3);
+  border-left: 3px solid var(--couleur-citron-profond);
+  border-radius: 0 var(--rayon-champ) var(--rayon-champ) 0;
+  background: var(--couleur-papier);
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--couleur-gris-service-1);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.eva-ac-campagne__message--defaut { border-left-color: var(--couleur-bordure-forte); font-style: italic; color: var(--couleur-texte-discret); }
+
+.eva-ac-campagne__pied {
+  margin-top: auto;
+  padding-top: var(--espace-3);
+  border-top: 1px solid var(--couleur-bordure);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  flex-wrap: wrap;
+}
+
+/* ------------------------------------------------------------------------
+   Personnalisation de la mairie : formulaire de page, fichier, apercu
+   ------------------------------------------------------------------------ */
+.eva-ac-formulaire-page { min-width: 0; }
+
+.eva-ac-fichier {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+  margin-top: calc(var(--espace-2) * -1);
+  padding: var(--espace-2) var(--espace-2) var(--espace-2) var(--espace-3);
+  border: 1px solid var(--couleur-succes-bordure);
+  border-radius: var(--rayon-champ);
+  background: var(--couleur-emeraude-fond);
+  color: var(--couleur-succes-texte);
+  font-size: 13px;
+}
+.eva-ac-fichier__nom { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.eva-ac-fichier__taille { flex: none; font-size: 12px; }
+
+.eva-ac-apercu {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-4);
+  margin-bottom: var(--espace-4);
+  padding: var(--espace-5);
+  border: 1px dashed var(--couleur-bordure-forte);
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-papier);
+}
+.eva-ac-apercu__logo {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-blanc);
+  overflow: hidden;
+}
+.eva-ac-apercu__logo img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
+.eva-ac-apercu__absent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: var(--espace-2);
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--couleur-texte-discret);
+}
+.eva-ac-apercu__texte { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.eva-ac-apercu__republique { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--couleur-texte-discret); }
+.eva-ac-apercu__nom { font-size: 17px; line-height: 1.25; color: var(--couleur-encre); overflow-wrap: anywhere; }
+.eva-ac-apercu__detail { font-size: 12.5px; color: var(--couleur-gris-service-1); overflow-wrap: anywhere; }
+
+/* ------------------------------------------------------------------------
+   Responsive
+   ------------------------------------------------------------------------ */
+@media (max-width: 720px) {
+  .eva-barre-outils .eva-ac-case { width: 100%; }
+  .eva-ac-pilules { flex-direction: column; align-items: stretch; }
+  .eva-ac-pilules > .eva-compteur { align-self: flex-start; }
+
+  .eva-ac-diff__valeurs { grid-template-columns: minmax(0, 1fr); }
+  .eva-ac-diff__fleche { justify-self: center; transform: rotate(90deg); }
+
+  .eva-ac-campagne__infos > div { grid-template-columns: 84px minmax(0, 1fr); }
+  .eva-ac-apercu { flex-direction: column; align-items: flex-start; padding: var(--espace-4); }
+  .eva-ac-echec { max-width: none; }
+  .eva-ac-echec > svg { display: none; }
+}

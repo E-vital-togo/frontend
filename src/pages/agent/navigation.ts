@@ -10,11 +10,11 @@ export const LIENS_AGENT: LienNavigation[] = [
     cleCompteur: "echeances",
     sousLiens: [
       { chemin: "/agent/dossiers?event_type=naissance", libelle: "Naissance", cleCompteur: "echeancesNaissance" },
-      { chemin: "/agent/dossiers?event_type=deces", libelle: "Deces", cleCompteur: "echeancesDeces" }
+      { chemin: "/agent/dossiers?event_type=deces", libelle: "Décès", cleCompteur: "echeancesDeces" }
     ]
   },
   { chemin: "/agent/dossiers/nouveau", libelle: "Nouveau dossier", icone: FilePlus },
-  { chemin: "/agent/retrait", libelle: "Retrait", icone: QrCode },
+  { chemin: "/agent/retrait", libelle: "Retrait d'acte", icone: QrCode },
   { chemin: "/agent/conflits", libelle: "Conflits", icone: AlertTriangle, cleCompteur: "conflits" },
   { chemin: "/agent/synchronisation", libelle: "Synchronisation", icone: RefreshCw, cleCompteur: "syncEchouees" }
 ];

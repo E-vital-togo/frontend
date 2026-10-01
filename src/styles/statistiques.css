@@ -1,0 +1,526 @@
+/*
+  E-VITAL - Ecrans de statistiques : tableaux de bord agent et admin CEC,
+  constructeur de graphique, tableaux de bord en grille, panneau de style de
+  carte. Classes prefixees `eva-st-`. Utilise UNIQUEMENT les jetons de
+  theme.css (aucune couleur ni police en dur). Complete, sans la modifier, la
+  base de theme.css et composants.css.
+
+  Table des matieres
+   1. Page : blocs, alertes, rafraichissement, raccourcis
+   2. Lignes de dossiers (evenement, echeance)
+   3. Periode et graphiques de la vue d'ensemble
+   4. Constructeur : mise en page et etapes repliables
+   5. Constructeur : choix du type, pilules, champs
+   6. Constructeur : apercu, etat vide, pied d'actions, modale
+   7. Panneau de style de carte
+   8. Carte geographique (habillage)
+   9. Tableaux de bord en grille : barre, widgets
+*/
+
+/* =========================================================================
+   1. PAGE
+   ========================================================================= */
+.eva-st-bloc { margin-bottom: var(--espace-6); }
+.eva-st-alerte-page { margin-bottom: var(--espace-5); }
+
+/* Contenu deja affiche pendant un rechargement (changement de filtre) */
+.eva-st-rafraichit { opacity: 0.55; pointer-events: none; transition: opacity var(--transition-normale); }
+
+.eva-st-raccourcis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 232px), 1fr));
+  gap: var(--espace-3);
+}
+.eva-carte.eva-st-raccourci {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  padding: var(--espace-4);
+  min-width: 0;
+}
+.eva-st-raccourci__icone {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--rayon-champ);
+  background: var(--couleur-emeraude-fond);
+  color: var(--couleur-emeraude);
+  transition: background var(--transition-rapide), color var(--transition-rapide);
+}
+.eva-st-raccourci:hover .eva-st-raccourci__icone { background: var(--couleur-emeraude); color: var(--couleur-blanc); }
+.eva-st-raccourci__texte { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.eva-st-raccourci__titre { font-size: 14.5px; font-weight: 600; color: var(--couleur-encre); line-height: 1.3; }
+.eva-st-raccourci__description { font-size: 12.5px; color: var(--couleur-texte-discret); line-height: 1.4; }
+.eva-st-raccourci__fleche { flex: none; color: var(--couleur-texte-discret); transition: transform var(--transition-rapide), color var(--transition-rapide); }
+.eva-st-raccourci:hover .eva-st-raccourci__fleche { transform: translateX(3px); color: var(--couleur-emeraude); }
+
+/* Chargement de la page des tableaux de bord */
+.eva-st-chargement { display: flex; flex-direction: column; gap: var(--espace-4); }
+.eva-st-chargement__grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: var(--espace-4); }
+
+/* Astuce discrete sous un titre ou un choix */
+.eva-st-astuce {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espace-2);
+  margin: var(--espace-3) 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--couleur-texte-discret);
+}
+.eva-st-astuce > svg { flex: none; margin-top: 2px; }
+.eva-st-astuce--page { margin: 0 0 var(--espace-4); }
+
+/* =========================================================================
+   2. LIGNES DE DOSSIERS
+   ========================================================================= */
+.eva-st-evenement { display: inline-flex; align-items: center; gap: var(--espace-2); flex-wrap: wrap; min-width: 0; }
+.eva-st-evenement__nom { font-weight: 500; color: var(--couleur-gris-service-1); overflow-wrap: anywhere; }
+
+.eva-st-echeance { display: inline-flex; align-items: center; gap: var(--espace-2) var(--espace-3); flex-wrap: wrap; }
+.eva-st-echeance__date { font-size: 12px; color: var(--couleur-texte-discret); }
+
+/* =========================================================================
+   3. PERIODE ET GRAPHIQUES DE LA VUE D'ENSEMBLE
+   ========================================================================= */
+.eva-carte.eva-st-periode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--espace-4) var(--espace-6);
+  margin-bottom: var(--espace-5);
+  padding: var(--espace-4) var(--espace-5);
+}
+.eva-st-periode__filtres { display: flex; flex-direction: column; gap: var(--espace-2); min-width: 0; }
+.eva-st-periode__titre { font-size: 13px; font-weight: 600; color: var(--couleur-gris-service-1); }
+.eva-st-periode__dates { display: flex; align-items: flex-end; gap: var(--espace-3); min-width: 0; }
+.eva-st-periode__dates .eva-champ { flex: 0 0 168px; margin-bottom: 0; }
+@media (max-width: 560px) {
+  .eva-st-periode__dates { flex-wrap: wrap; width: 100%; }
+  .eva-st-periode__dates .eva-champ { flex: 1 1 140px; }
+}
+.eva-st-periode__aide { flex: 1 1 100%; margin: 0; font-size: 12.5px; color: var(--couleur-texte-discret); }
+
+.eva-st-graphiques {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: var(--espace-5);
+  margin-bottom: var(--espace-6);
+  align-items: start;
+}
+.eva-st-graphiques > * { min-width: 0; }
+
+/* =========================================================================
+   4. CONSTRUCTEUR : MISE EN PAGE ET ETAPES REPLIABLES
+   ========================================================================= */
+.eva-st-constructeur { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--espace-5); align-items: start; }
+@media (min-width: 1100px) {
+  .eva-st-constructeur { grid-template-columns: minmax(360px, 440px) minmax(0, 1fr); }
+  .eva-st-apercu { position: sticky; top: calc(var(--hauteur-barre) + var(--espace-4)); }
+}
+.eva-st-configuration, .eva-st-apercu { min-width: 0; }
+
+.eva-st-etapes { display: flex; flex-direction: column; margin-top: calc(var(--espace-2) * -1); }
+.eva-st-etape { border-top: 1px solid var(--couleur-bordure); }
+.eva-st-etape:first-child { border-top: 0; }
+.eva-st-etape__titre { margin: 0; font-size: inherit; font-weight: inherit; }
+.eva-st-etape__bouton {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  min-height: 60px;
+  padding: var(--espace-3) var(--espace-2);
+  margin: 0 calc(var(--espace-2) * -1);
+  width: calc(100% + var(--espace-4));
+  border: 0;
+  border-radius: var(--rayon-champ);
+  background: transparent;
+  color: var(--couleur-encre);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-rapide);
+}
+.eva-st-etape__bouton:hover { background: var(--couleur-emeraude-fond-doux); }
+.eva-st-etape__bouton:focus-visible { outline-offset: -2px; }
+.eva-st-etape__numero {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--couleur-bordure-champ);
+  border-radius: 50%;
+  font-family: var(--police-donnees);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--couleur-texte-discret);
+  background: var(--couleur-blanc);
+  transition: background var(--transition-rapide), border-color var(--transition-rapide), color var(--transition-rapide);
+}
+.eva-st-etape__numero.est-complete { background: var(--couleur-emeraude); border-color: var(--couleur-emeraude); color: var(--couleur-blanc); }
+.eva-st-etape__texte { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.eva-st-etape__nom { font-size: 14.5px; font-weight: 600; line-height: 1.35; }
+.eva-st-etape__resume { font-size: 12.5px; line-height: 1.4; color: var(--couleur-texte-discret); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eva-st-etape.est-ouverte .eva-st-etape__resume { display: none; }
+.eva-st-etape__chevron { flex: none; color: var(--couleur-texte-discret); transition: transform var(--transition-normale); }
+.eva-st-etape.est-ouverte .eva-st-etape__chevron { transform: rotate(180deg); }
+.eva-st-etape__corps { padding: var(--espace-1) 0 var(--espace-5); }
+.eva-st-consigne { margin: 0 0 var(--espace-3); font-size: 13px; line-height: 1.5; color: var(--couleur-texte-discret); }
+
+/* =========================================================================
+   5. CONSTRUCTEUR : TYPE, PILULES, CHAMPS
+   ========================================================================= */
+.eva-st-types { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: var(--espace-2); }
+.eva-st-type {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 78px;
+  padding: var(--espace-3) var(--espace-2);
+  border: 1px solid var(--couleur-bordure-forte);
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-blanc);
+  color: var(--couleur-gris-service-1);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--transition-rapide), background var(--transition-rapide), color var(--transition-rapide), box-shadow var(--transition-rapide);
+}
+.eva-st-type:hover { border-color: var(--couleur-emeraude); background: var(--couleur-emeraude-fond-doux); }
+.eva-st-type.est-choisi {
+  border-color: var(--couleur-emeraude);
+  background: var(--couleur-emeraude-fond);
+  color: var(--couleur-emeraude-profond);
+  box-shadow: inset 0 0 0 1px var(--couleur-emeraude);
+}
+.eva-st-type:focus-within { outline: 2px solid var(--couleur-focus); outline-offset: 2px; }
+
+.eva-st-selecteur { display: flex; flex-direction: column; gap: var(--espace-3); }
+/* La recherche est une ligne : sans cela son flex-basis de barre d'outils devient une hauteur en colonne */
+.eva-st-selecteur > .eva-recherche { flex: none; max-width: none; }
+.eva-st-choix { display: flex; flex-wrap: wrap; gap: var(--espace-2); margin: 0; padding: 0; list-style: none; }
+.eva-st-choix__puce {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  min-height: 40px;
+  padding: 4px 12px 4px 5px;
+  border: 1px solid var(--couleur-emeraude);
+  border-radius: var(--rayon-plein);
+  background: var(--couleur-emeraude-fond);
+  color: var(--couleur-emeraude-profond);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-rapide);
+}
+.eva-st-choix__puce:hover { background: var(--couleur-emeraude-fond-vif); }
+.eva-st-choix__puce > svg { flex: none; opacity: 0.7; }
+.eva-st-choix__rang {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--couleur-emeraude);
+  color: var(--couleur-blanc);
+  font-family: var(--police-donnees);
+  font-size: 12.5px;
+}
+.eva-st-choix__texte { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.eva-st-choix__role { font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.8; }
+
+.eva-st-pilules, .eva-st-pilules-squelette { display: flex; flex-wrap: wrap; gap: var(--espace-2); }
+.eva-st-pilule {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 var(--espace-3);
+  border: 1px solid var(--couleur-bordure-forte);
+  border-radius: var(--rayon-plein);
+  background: var(--couleur-blanc);
+  color: var(--couleur-gris-service-1);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--transition-rapide), background var(--transition-rapide), color var(--transition-rapide);
+}
+.eva-st-pilule:hover:not(:disabled) { border-color: var(--couleur-emeraude); background: var(--couleur-emeraude-fond-doux); color: var(--couleur-emeraude-profond); }
+.eva-st-pilule.est-choisie { border-color: var(--couleur-emeraude); background: var(--couleur-emeraude-fond); color: var(--couleur-emeraude-profond); font-weight: 600; }
+.eva-st-pilule:disabled { opacity: 0.45; cursor: not-allowed; }
+@media (pointer: coarse) {
+  .eva-st-pilule { min-height: 40px; }
+}
+
+.eva-st-selecteur__vide {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+  margin: 0;
+  padding: var(--espace-3);
+  border-radius: var(--rayon-champ);
+  background: var(--couleur-neutre-fond);
+  font-size: 13px;
+  color: var(--couleur-texte-discret);
+}
+.eva-st-selecteur__pied { margin: 0; font-size: 12px; color: var(--couleur-texte-discret); }
+
+.eva-st-champs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--espace-4); }
+.eva-st-champs__large { grid-column: 1 / -1; }
+@media (max-width: 420px) {
+  .eva-st-champs { grid-template-columns: minmax(0, 1fr); }
+}
+.eva-st-interrupteurs { display: flex; flex-direction: column; gap: var(--espace-3); margin-top: var(--espace-3); }
+.eva-st-seuil { margin: var(--espace-2) 0 0; }
+
+/* =========================================================================
+   6. CONSTRUCTEUR : APERCU, ETAT VIDE, PIED D'ACTIONS, MODALE
+   ========================================================================= */
+.eva-st-apercu__barre { display: flex; align-items: center; justify-content: space-between; gap: var(--espace-3); margin-bottom: var(--espace-4); flex-wrap: wrap; }
+.eva-st-apercu__zone { position: relative; min-width: 0; }
+.eva-st-apercu__info { display: flex; align-items: center; flex-wrap: wrap; gap: var(--espace-2) var(--espace-4); margin: var(--espace-3) 0 0; font-size: 12.5px; color: var(--couleur-texte-discret); }
+.eva-st-apercu__info-alerte { display: inline-flex; align-items: center; gap: 5px; color: var(--couleur-citron-texte); font-weight: 500; }
+
+.eva-st-pied { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--espace-3); width: 100%; }
+.eva-st-pied__groupe { display: flex; align-items: center; flex-wrap: wrap; gap: var(--espace-2); }
+.eva-st-pied__etiquette { font-size: 12.5px; font-weight: 600; color: var(--couleur-texte-discret); margin-right: var(--espace-1); }
+@media (max-width: 560px) {
+  .eva-st-pied > .eva-bouton { width: 100%; }
+}
+
+.eva-st-vide { display: flex; flex-direction: column; align-items: center; text-align: center; padding: var(--espace-7) var(--espace-4); }
+.eva-st-vide__titre { margin: var(--espace-3) 0 var(--espace-1); font-size: 16px; font-weight: 600; color: var(--couleur-encre); }
+.eva-st-vide__texte { margin: 0; max-width: 40ch; font-size: 13.5px; line-height: 1.55; color: var(--couleur-texte-discret); }
+.eva-st-vide__etapes { display: flex; flex-direction: column; gap: var(--espace-2); margin: var(--espace-4) 0 0; padding: 0; list-style: none; text-align: left; font-size: 13.5px; color: var(--couleur-gris-service-1); }
+.eva-st-vide__etapes li { display: flex; align-items: center; gap: var(--espace-2); }
+.eva-st-vide__coche {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--couleur-bordure-champ);
+  border-radius: 50%;
+  color: var(--couleur-blanc);
+}
+.eva-st-vide__etapes li.est-faite { color: var(--couleur-texte-discret); }
+.eva-st-vide__etapes li.est-faite .eva-st-vide__coche { background: var(--couleur-emeraude); border-color: var(--couleur-emeraude); }
+
+.eva-st-illustration { width: 176px; height: auto; max-width: 60%; }
+.eva-st-illustration__axe { stroke: var(--couleur-bordure-forte); stroke-width: 1.5; stroke-linecap: round; }
+.eva-st-illustration__grille { stroke: var(--couleur-bordure); stroke-width: 1; stroke-dasharray: 3 4; }
+.eva-st-illustration__barre { fill: var(--couleur-emeraude-fond-vif); }
+.eva-st-illustration__barre--forte { fill: var(--couleur-emeraude-actif); fill-opacity: 0.35; }
+.eva-st-illustration__courbe { fill: none; stroke: var(--couleur-citron-profond); stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 4 6; }
+
+.eva-st-masque { font-style: italic; color: var(--couleur-texte-discret); }
+
+.eva-st-recap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-1);
+  margin: 0 0 var(--espace-4);
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-champ);
+  background: var(--couleur-papier);
+  font-size: 13.5px;
+}
+.eva-st-recap > div { display: flex; gap: var(--espace-3); }
+.eva-st-recap dt { flex: 0 0 88px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--couleur-texte-discret); padding-top: 2px; }
+.eva-st-recap dd { margin: 0; min-width: 0; font-weight: 500; color: var(--couleur-encre); overflow-wrap: anywhere; }
+.eva-st-cible { margin-bottom: var(--espace-3); }
+.eva-st-cible__etiquette { display: block; margin-bottom: var(--espace-2); font-size: 13px; font-weight: 600; color: var(--couleur-gris-service-1); }
+
+/* =========================================================================
+   7. PANNEAU DE STYLE DE CARTE
+   ========================================================================= */
+.eva-st-styles { display: flex; flex-direction: column; gap: var(--espace-2); }
+.eva-st-style { border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-standard); background: var(--couleur-papier); }
+.eva-st-style__titre {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-2);
+  min-height: 44px;
+  padding: var(--espace-2) var(--espace-4);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--couleur-encre);
+  cursor: pointer;
+  list-style: none;
+}
+.eva-st-style__titre::-webkit-details-marker { display: none; }
+.eva-st-style__titre:focus-visible { outline-offset: -2px; border-radius: var(--rayon-standard); }
+.eva-st-style__chevron { flex: none; color: var(--couleur-texte-discret); transition: transform var(--transition-normale); }
+.eva-st-style[open] > .eva-st-style__titre .eva-st-style__chevron { transform: rotate(180deg); }
+.eva-st-style[open] > .eva-st-style__titre { border-bottom: 1px solid var(--couleur-bordure); }
+.eva-st-style__corps { display: flex; flex-direction: column; gap: var(--espace-3); padding: var(--espace-4); background: var(--couleur-blanc); border-radius: 0 0 var(--rayon-standard) var(--rayon-standard); }
+.eva-st-style__corps > .eva-champ, .eva-st-style__corps .eva-st-duo > .eva-champ, .eva-st-style__corps .eva-st-trio > .eva-champ { margin-bottom: 0; }
+
+.eva-st-duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--espace-3); }
+.eva-st-trio { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: var(--espace-3); }
+@media (max-width: 420px) {
+  .eva-st-duo { grid-template-columns: minmax(0, 1fr); }
+}
+
+.eva-st-palettes { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: var(--espace-2); }
+.eva-st-palette {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--espace-2);
+  border: 1px solid var(--couleur-bordure-forte);
+  border-radius: var(--rayon-champ);
+  background: var(--couleur-blanc);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--couleur-gris-service-1);
+  cursor: pointer;
+  transition: border-color var(--transition-rapide), background var(--transition-rapide);
+}
+.eva-st-palette:hover { border-color: var(--couleur-emeraude); }
+.eva-st-palette.est-choisie { border-color: var(--couleur-emeraude); background: var(--couleur-emeraude-fond-doux); box-shadow: inset 0 0 0 1px var(--couleur-emeraude); color: var(--couleur-emeraude-profond); font-weight: 600; }
+.eva-st-palette:focus-within { outline: 2px solid var(--couleur-focus); outline-offset: 2px; }
+.eva-st-palette__degrade { display: block; height: 14px; border-radius: var(--rayon-petit); box-shadow: inset 0 0 0 1px var(--couleur-bordure); }
+
+.eva-st-apercu-palette { display: flex; flex-direction: column; gap: 4px; }
+.eva-st-apercu-palette__classes { display: flex; gap: 3px; height: 20px; }
+.eva-st-apercu-palette__classe { flex: 1; border-radius: var(--rayon-petit); box-shadow: inset 0 0 0 1px var(--couleur-bordure); }
+.eva-st-apercu-palette__degrade { height: 20px; border-radius: var(--rayon-petit); box-shadow: inset 0 0 0 1px var(--couleur-bordure); }
+.eva-st-apercu-palette__bornes { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--couleur-texte-discret); }
+
+.eva-st-couleur { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.eva-st-couleur__label { font-size: 13px; font-weight: 500; color: var(--couleur-gris-service-1); }
+.eva-st-couleur__controle { display: flex; align-items: center; gap: var(--espace-2); }
+.eva-st-couleur input[type="color"] {
+  flex: none;
+  width: 44px;
+  height: 36px;
+  padding: 3px;
+  border: 1px solid var(--couleur-bordure-champ);
+  border-radius: var(--rayon-champ);
+  background: var(--couleur-blanc);
+  cursor: pointer;
+}
+.eva-st-couleur__code { font-size: 12px; color: var(--couleur-texte-discret); }
+
+.eva-st-curseur { display: flex; flex-direction: column; gap: 2px; }
+.eva-st-curseur__entete { display: flex; align-items: baseline; justify-content: space-between; gap: var(--espace-2); font-size: 13px; font-weight: 500; color: var(--couleur-gris-service-1); }
+.eva-st-curseur__valeur { font-size: 12px; color: var(--couleur-texte-discret); }
+.eva-st-curseur input[type="range"] { width: 100%; min-height: 28px; margin: 0; accent-color: var(--couleur-emeraude); cursor: pointer; }
+
+/* =========================================================================
+   8. CARTE GEOGRAPHIQUE (HABILLAGE)
+   ========================================================================= */
+.eva-st-carte { position: relative; width: 100%; min-width: 0; }
+.eva-st-carte__coordonnees {
+  position: absolute;
+  left: 50%;
+  bottom: var(--espace-2);
+  transform: translateX(-50%);
+  padding: 2px 9px;
+  border-radius: var(--rayon-plein);
+  background: rgba(20, 35, 28, 0.78);
+  color: var(--couleur-blanc);
+  font-family: var(--police-donnees);
+  font-size: 10.5px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.eva-st-carte__coordonnees.avec-source { bottom: calc(var(--espace-4) + var(--espace-1)); }
+.eva-st-carte-etat { display: flex; align-items: center; justify-content: center; width: 100%; min-width: 0; }
+.eva-st-carte-etat > [role="status"] { width: 100%; height: 100%; }
+.eva-st-carte-etat > [role="status"] > [aria-hidden="true"] { height: 100%; }
+
+/* =========================================================================
+   9. TABLEAUX DE BORD EN GRILLE
+   ========================================================================= */
+.eva-carte.eva-st-barre-tableau {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--espace-3) var(--espace-5);
+  margin-bottom: var(--espace-4);
+  padding: var(--espace-4) var(--espace-5);
+}
+.eva-st-barre-tableau__champ { flex: 0 1 320px; min-width: min(100%, 220px); }
+.eva-st-barre-tableau__champ .eva-champ { margin-bottom: 0; }
+.eva-st-barre-tableau__etat { display: flex; align-items: center; flex-wrap: wrap; gap: var(--espace-3); min-height: var(--hauteur-controle); }
+.eva-st-barre-tableau__actions { margin-left: auto; }
+@media (max-width: 720px) {
+  .eva-st-barre-tableau__actions { margin-left: 0; width: 100%; }
+}
+
+.eva-carte.eva-st-widget {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: var(--espace-3) var(--espace-4) var(--espace-4);
+  overflow: hidden;
+}
+.eva-st-widget__entete { flex: none; display: flex; align-items: flex-start; justify-content: space-between; gap: var(--espace-2); margin-bottom: var(--espace-2); }
+.eva-st-widget__identite { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--espace-1); }
+.eva-st-widget__identite.est-deplacable { cursor: grab; }
+.eva-st-widget__identite.est-deplacable:active { cursor: grabbing; }
+.eva-st-widget__poignee { flex: none; margin-left: -6px; color: var(--couleur-bordure-forte); transition: color var(--transition-rapide); }
+.eva-st-widget:hover .eva-st-widget__poignee { color: var(--couleur-gris-service-2-marque); }
+.eva-st-widget__textes { min-width: 0; }
+.eva-st-widget__titre { margin: 0; font-size: 14.5px; font-weight: 600; line-height: 1.35; letter-spacing: -0.01em; color: var(--couleur-encre); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eva-st-widget__sous-titre { margin: 0; font-size: 12px; line-height: 1.4; color: var(--couleur-texte-discret); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eva-st-widget__actions { flex: none; display: flex; align-items: center; gap: var(--espace-1); }
+.eva-st-widget__corps { flex: 1; min-height: 0; position: relative; }
+.eva-st-widget__corps > .eva-etat-vide { height: 100%; justify-content: center; }
+.eva-st-widget__corps > [role="status"] { height: 100%; }
+.eva-st-widget__corps > [role="status"] > [aria-hidden="true"] { height: 100%; }
+
+.eva-st-pile { display: flex; flex-direction: column; gap: var(--espace-4); }
+.eva-st-pile__element { height: 340px; min-width: 0; }
+.eva-st-pile__element--carte { height: 440px; }
+
+/* Grille react-grid-layout : emplacement de depot et poignee de redimensionnement discrets */
+.eva-st-grille .react-grid-item.react-grid-placeholder {
+  background: var(--couleur-emeraude-fond-vif);
+  border: 2px dashed var(--couleur-emeraude);
+  border-radius: var(--rayon-standard);
+  opacity: 0.6;
+}
+.eva-st-grille .react-grid-item.react-draggable-dragging .eva-st-widget,
+.eva-st-grille .react-grid-item.resizing .eva-st-widget { box-shadow: var(--ombre-flottante); border-color: var(--couleur-emeraude); }
+.eva-st-grille .react-grid-item > .react-resizable-handle { opacity: 0; transition: opacity var(--transition-rapide); }
+.eva-st-grille .react-grid-item:hover > .react-resizable-handle,
+.eva-st-grille .react-grid-item.resizing > .react-resizable-handle { opacity: 1; }
+.eva-st-grille .react-grid-item > .react-resizable-handle::after {
+  right: 5px;
+  bottom: 5px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--couleur-gris-service-2-marque);
+  border-bottom: 2px solid var(--couleur-gris-service-2-marque);
+  border-bottom-right-radius: 2px;
+}
+@media (pointer: coarse) {
+  .eva-st-grille .react-grid-item > .react-resizable-handle { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eva-st-etape__chevron, .eva-st-style__chevron, .eva-st-raccourci__fleche, .eva-st-rafraichit { transition: none; }
+}

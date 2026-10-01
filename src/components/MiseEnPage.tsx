@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Bell, ChevronDown, ChevronUp, LogOut, Menu, UserCircle2, X } from "lucide-react";
+import { AlertTriangle, Bell, BellOff, CheckCircle2, ChevronDown, Clock, FileEdit, LogOut, Menu, RefreshCw, UserCircle2, X } from "lucide-react";
 import Logo from "./Logo";
+import Avatar from "./ui/Avatar";
+import MenuDeroulant, { EnteteMenu, ItemMenu, SeparateurMenu } from "./ui/MenuDeroulant";
+import { useMediaQuery } from "./ui/useMediaQuery";
 import { useAuth } from "../context/AuthContext";
 import { dossiersAvecActionsEnAttente, listerActionsEchouees, listerActionsEnAttente, purgerCacheExpire } from "../lib/db";
 import { precacherFormulaires } from "../lib/formulairesHorsLigne";
 import { synchroniser, surRetourConnexion } from "../lib/syncService";
 import { useCompteurs } from "../lib/useCompteurs";
 import { estEnLigne, useConnectivite } from "../lib/connectivite";
-import type { LienNavigation } from "../types/domaine";
+import type { LienNavigation, Role } from "../types/domaine";
 
 interface ProprietesMiseEnPage {
   liens: LienNavigation[];
@@ -16,9 +19,17 @@ interface ProprietesMiseEnPage {
 }
 
 const CHEMIN_COMPTE = "/mon-compte";
+const REQUETE_MOBILE = "(max-width: 900px)";
 
-function initiales(nom: string, prenoms: string): string {
-  return `${prenoms.charAt(0)}${nom.charAt(0)}`.toUpperCase();
+const LIBELLES_ROLE: Record<Role, string> = {
+  agent_cec: "Agent d'état civil",
+  admin_cec: "Administrateur CEC",
+  admin_inseed: "Administrateur INSEED",
+  admin_general: "Administrateur général"
+};
+
+function pluriel(nombre: number, singulier: string, plurielTexte: string): string {
+  return `${nombre} ${nombre > 1 ? plurielTexte : singulier}`;
 }
 
 export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
@@ -30,9 +41,9 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
   const [nombreEnAttente, setNombreEnAttente] = useState(0);
   const [nombreEchouees, setNombreEchouees] = useState(0);
   const enLigne = useConnectivite();
+  const [enSynchronisation, setEnSynchronisation] = useState(false);
   const [barreOuverte, setBarreOuverte] = useState(false);
-  const [menuUtilisateurOuvert, setMenuUtilisateurOuvert] = useState(false);
-  const [notificationsOuvertes, setNotificationsOuvertes] = useState(false);
+  const estMobile = useMediaQuery(REQUETE_MOBILE);
   // Un groupe s'ouvre par defaut si on est deja sur sa page (ex: arrivee
   // directe sur /admin-cec/dossiers) ; l'utilisateur peut ensuite le
   // deplier/replier librement, y compris pour consulter un autre groupe que
@@ -47,8 +58,9 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
     });
     return initial;
   });
-  const refMenuUtilisateur = useRef<HTMLDivElement>(null);
-  const refNotifications = useRef<HTMLDivElement>(null);
+  const refBoutonMenu = useRef<HTMLButtonElement>(null);
+  const refNavigation = useRef<HTMLElement>(null);
+  const refPrincipal = useRef<HTMLElement>(null);
 
   async function rafraichirCompteurSync() {
     const [actions, echouees] = await Promise.all([listerActionsEnAttente(), listerActionsEchouees()]);
@@ -69,6 +81,7 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
       // proprement de son cote). Dans tous les cas la file locale reste
       // intacte et sera rejouee au prochain retour de connexion.
       let dossiersSynchronises: string[] = [];
+      setEnSynchronisation(true);
       try {
         dossiersSynchronises = [...(await dossiersAvecActionsEnAttente())];
         await synchroniser();
@@ -84,6 +97,7 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
         await precacherFormulaires(dossiersSynchronises, true).catch(() => {});
       }
       await rafraichirCompteurSync();
+      setEnSynchronisation(false);
     }
 
     // surRetourConnexion ne reagit qu'a une transition hors-ligne -> en-ligne
@@ -109,18 +123,31 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
     setBarreOuverte(false);
   }, [location.pathname]);
 
+  // Tiroir mobile : Echap ferme, le defilement de la page est fige, le reste de la
+  // page est rendu inerte, le focus entre dans le menu puis revient au bouton.
   useEffect(() => {
-    function surClicExterieur(evenement: MouseEvent) {
-      if (refMenuUtilisateur.current && !refMenuUtilisateur.current.contains(evenement.target as Node)) {
-        setMenuUtilisateurOuvert(false);
-      }
-      if (refNotifications.current && !refNotifications.current.contains(evenement.target as Node)) {
-        setNotificationsOuvertes(false);
-      }
+    if (!barreOuverte) return;
+    const ouvertDepuis = refBoutonMenu.current;
+    function surEchap(evenement: KeyboardEvent) {
+      if (evenement.key === "Escape") setBarreOuverte(false);
     }
-    document.addEventListener("mousedown", surClicExterieur);
-    return () => document.removeEventListener("mousedown", surClicExterieur);
-  }, []);
+    document.addEventListener("keydown", surEchap);
+    document.body.classList.add("eva-nav-ouverte");
+    const principal = refPrincipal.current as (HTMLElement & { inert?: boolean }) | null;
+    if (principal) principal.inert = true;
+    refNavigation.current?.querySelector<HTMLElement>("a, button")?.focus();
+    return () => {
+      document.removeEventListener("keydown", surEchap);
+      document.body.classList.remove("eva-nav-ouverte");
+      if (principal) principal.inert = false;
+      ouvertDepuis?.focus();
+    };
+  }, [barreOuverte]);
+
+  // Passage en affichage large : le tiroir n'a plus lieu d'etre
+  useEffect(() => {
+    if (!estMobile) setBarreOuverte(false);
+  }, [estMobile]);
 
   function seDeconnecter() {
     deconnecter();
@@ -148,159 +175,246 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
     syncEchouees: nombreEchouees
   };
 
+  const estAgent = utilisateur?.role === "agent_cec";
+  const libelleConnexion = enSynchronisation ? "Synchronisation en cours" : enLigne ? "En ligne" : "Hors ligne";
+  const indicateurSynchro = (
+    <>
+      {enSynchronisation ? <RefreshCw size={13} className="eva-statut-connexion__rotation" aria-hidden="true" /> : <span className="eva-statut-connexion__point" aria-hidden="true" />}
+      <span className="eva-statut-connexion__libelle">{libelleConnexion}</span>
+      {nombreEnAttente > 0 && (
+        <span className="eva-statut-connexion__attente" title={`${pluriel(nombreEnAttente, "action en attente", "actions en attente")} de synchronisation`}>
+          {nombreEnAttente}
+          <span className="eva-sr-only"> {nombreEnAttente > 1 ? "actions en attente" : "action en attente"}</span>
+        </span>
+      )}
+    </>
+  );
+  const classesSynchro = `eva-statut-connexion${enLigne ? "" : " eva-statut-connexion--hors-ligne"}${enSynchronisation ? " eva-statut-connexion--synchro" : ""}`;
+
+  const notifications: Array<{ cle: string; vers: string; icone: typeof Clock; texte: string }> = [];
+  if (compteurs.echeances > 0)
+    notifications.push({
+      cle: "echeances",
+      vers: "/agent/dossiers?echeance=1",
+      icone: Clock,
+      texte: `${pluriel(compteurs.echeances, "dossier proche", "dossiers proches")} de l'échéance`
+    });
+  if (compteurs.conflits > 0)
+    notifications.push({
+      cle: "conflits",
+      vers: utilisateur?.role === "admin_cec" ? "/admin-cec/conflits" : "/agent/conflits",
+      icone: AlertTriangle,
+      texte: pluriel(compteurs.conflits, "conflit de synchronisation", "conflits de synchronisation")
+    });
+  if (compteurs.notificationsEchouees > 0)
+    notifications.push({
+      cle: "notifications",
+      vers: "/admin-cec/notifications-echouees",
+      icone: BellOff,
+      texte: pluriel(compteurs.notificationsEchouees, "notification en échec", "notifications en échec")
+    });
+  if (compteurs.demandes > 0)
+    notifications.push({
+      cle: "demandes",
+      vers: "/admin-cec/demandes-modification",
+      icone: FileEdit,
+      texte: pluriel(compteurs.demandes, "demande de modification en attente", "demandes de modification en attente")
+    });
+  if (nombreEchouees > 0 && estAgent)
+    notifications.push({
+      cle: "synchro",
+      vers: "/agent/synchronisation",
+      icone: RefreshCw,
+      texte: pluriel(nombreEchouees, "synchronisation en échec", "synchronisations en échec")
+    });
+
   return (
     <div className="eva-app">
+      <a href="#contenu" className="eva-lien-evitement">
+        Aller au contenu
+      </a>
       <header className="eva-entete">
         <div className="eva-entete__gauche">
-          <button className="eva-bouton-hamburger" onClick={() => setBarreOuverte((v) => !v)} aria-label="Ouvrir le menu">
-            {barreOuverte ? <X size={22} /> : <Menu size={22} />}
+          <button
+            ref={refBoutonMenu}
+            type="button"
+            className="eva-bouton-hamburger"
+            onClick={() => setBarreOuverte((v) => !v)}
+            aria-label={barreOuverte ? "Fermer le menu" : "Ouvrir le menu"}
+            aria-expanded={barreOuverte}
+            aria-controls="navigation-principale"
+          >
+            {barreOuverte ? <X size={22} aria-hidden="true" /> : <Menu size={22} aria-hidden="true" />}
           </button>
-          <Logo variante="horizontal-inverse" hauteur={24} />
+          <Link to="/" className="eva-entete__logo" aria-label="E-Vital, accueil">
+            <Logo variante="horizontal-inverse" hauteur={26} alt="" />
+          </Link>
         </div>
         <div className="eva-entete__droite">
-          <span
-            className={`eva-statut-connexion${enLigne ? "" : " eva-statut-connexion--hors-ligne"}`}
-            title={enLigne ? "Connecte" : "Hors-ligne"}
-          >
-            <span className="eva-statut-connexion__point" />
-            {enLigne ? "En ligne" : "Hors-ligne"}
-            {nombreEnAttente > 0 && ` · ${nombreEnAttente} en attente`}
-          </span>
+          {estAgent ? (
+            <Link to="/agent/synchronisation" className={classesSynchro} role="status" title="Voir la synchronisation">
+              {indicateurSynchro}
+            </Link>
+          ) : (
+            <span className={classesSynchro} role="status">
+              {indicateurSynchro}
+            </span>
+          )}
 
-          <div className="eva-menu-utilisateur" ref={refNotifications}>
-            <button
-              className="eva-menu-utilisateur__declencheur"
-              onClick={() => setNotificationsOuvertes((v) => !v)}
-              aria-label="Notifications"
+          <div className="eva-menu-utilisateur">
+            <MenuDeroulant
+              ariaLabel={totalNotifications > 0 ? `Notifications, ${totalNotifications} à traiter` : "Notifications"}
+              classeDeclencheur="eva-menu-utilisateur__declencheur eva-menu-utilisateur__declencheur--icone"
+              classePanneau="eva-menu-deroulant--notifications"
+              declencheur={
+                <>
+                  <Bell size={18} aria-hidden="true" />
+                  {totalNotifications > 0 && (
+                    <span className="eva-menu-utilisateur__pastille" aria-hidden="true">
+                      {totalNotifications > 99 ? "99+" : totalNotifications}
+                    </span>
+                  )}
+                </>
+              }
             >
-              <Bell size={17} />
-              {totalNotifications > 0 && <span className="eva-puce eva-puce--alerte">{totalNotifications}</span>}
-            </button>
-            {notificationsOuvertes && (
-              <div className="eva-menu-deroulant" style={{ minWidth: 260 }}>
-                <div className="eva-menu-deroulant__entete" style={{ fontSize: 13, fontWeight: 600 }}>
-                  Notifications
+              <EnteteMenu>
+                <strong>Notifications</strong>
+                <span>{totalNotifications > 0 ? `${pluriel(totalNotifications, "élément demande", "éléments demandent")} votre attention` : "Tout est à jour"}</span>
+              </EnteteMenu>
+              {notifications.length === 0 && (
+                <div className="eva-menu-deroulant__vide" role="presentation">
+                  <CheckCircle2 size={24} aria-hidden="true" />
+                  Rien à signaler.
                 </div>
-                {totalNotifications === 0 && (
-                  <div style={{ padding: "10px 10px", fontSize: 13, color: "var(--couleur-gris-service-2)" }}>
-                    Rien a signaler.
-                  </div>
-                )}
-                {compteurs.echeances > 0 && (
-                  <Link to="/agent/dossiers?echeance=1" className="eva-menu-deroulant__item">
-                    {compteurs.echeances} dossier(s) proche(s) de l'echeance
-                  </Link>
-                )}
-                {compteurs.conflits > 0 && (
-                  <Link
-                    to={utilisateur?.role === "admin_cec" ? "/admin-cec/conflits" : "/agent/conflits"}
-                    className="eva-menu-deroulant__item"
-                  >
-                    {compteurs.conflits} conflit(s) de synchronisation
-                  </Link>
-                )}
-                {compteurs.notificationsEchouees > 0 && (
-                  <Link to="/admin-cec/notifications-echouees" className="eva-menu-deroulant__item">
-                    {compteurs.notificationsEchouees} notification(s) en echec
-                  </Link>
-                )}
-                {compteurs.demandes > 0 && (
-                  <Link to="/admin-cec/demandes-modification" className="eva-menu-deroulant__item">
-                    {compteurs.demandes} demande(s) de modification en attente
-                  </Link>
-                )}
-                {nombreEchouees > 0 && utilisateur?.role === "agent_cec" && (
-                  <Link to="/agent/synchronisation" className="eva-menu-deroulant__item">
-                    {nombreEchouees} synchronisation(s) en echec
-                  </Link>
-                )}
-              </div>
-            )}
+              )}
+              {notifications.map((notification) => (
+                <ItemMenu key={notification.cle} vers={notification.vers} icone={notification.icone}>
+                  {notification.texte}
+                </ItemMenu>
+              ))}
+            </MenuDeroulant>
           </div>
 
-          <div className="eva-menu-utilisateur" ref={refMenuUtilisateur}>
-            <button className="eva-menu-utilisateur__declencheur" onClick={() => setMenuUtilisateurOuvert((v) => !v)}>
-              <span className="eva-avatar">{utilisateur ? initiales(utilisateur.nom, utilisateur.prenoms) : ""}</span>
-              <span>{utilisateur?.prenoms}</span>
-            </button>
-            {menuUtilisateurOuvert && (
-              <div className="eva-menu-deroulant">
-                <div className="eva-menu-deroulant__entete">
-                  <div style={{ fontWeight: 600, fontSize: 13.5 }}>
-                    {utilisateur?.prenoms} {utilisateur?.nom}
-                  </div>
-                  <div className="texte-mono" style={{ fontSize: 11.5, color: "var(--couleur-gris-service-2)" }}>
-                    {utilisateur?.email}
-                  </div>
-                </div>
-                <Link to={CHEMIN_COMPTE} className="eva-menu-deroulant__item" onClick={() => setMenuUtilisateurOuvert(false)}>
-                  <UserCircle2 size={16} /> Mon compte
-                </Link>
-                <button className="eva-menu-deroulant__item eva-menu-deroulant__item--danger" onClick={seDeconnecter}>
-                  <LogOut size={16} /> Deconnexion
-                </button>
-              </div>
-            )}
+          <div className="eva-menu-utilisateur">
+            <MenuDeroulant
+              ariaLabel="Menu utilisateur"
+              classeDeclencheur="eva-menu-utilisateur__declencheur"
+              declencheur={
+                <>
+                  {utilisateur && <Avatar nom={utilisateur.nom} prenoms={utilisateur.prenoms} />}
+                  <span className="eva-menu-utilisateur__nom">{utilisateur?.prenoms}</span>
+                  <ChevronDown size={15} aria-hidden="true" />
+                </>
+              }
+            >
+              <EnteteMenu>
+                <strong>
+                  {utilisateur?.prenoms} {utilisateur?.nom}
+                </strong>
+                <span className="texte-mono">{utilisateur?.email}</span>
+                {utilisateur && <span>{LIBELLES_ROLE[utilisateur.role]}</span>}
+              </EnteteMenu>
+              <ItemMenu vers={CHEMIN_COMPTE} icone={UserCircle2}>
+                Mon compte
+              </ItemMenu>
+              <SeparateurMenu />
+              <ItemMenu icone={LogOut} danger onClick={seDeconnecter}>
+                Déconnexion
+              </ItemMenu>
+            </MenuDeroulant>
           </div>
         </div>
       </header>
 
       <div className="eva-corps">
-        {barreOuverte && <div className="eva-fond-superposition-mobile" onClick={() => setBarreOuverte(false)} />}
-        <nav className={`eva-barre-laterale${barreOuverte ? " eva-barre-laterale--ouverte" : ""}`}>
-          {liens.map((lien) => {
-            const Icone = lien.icone;
-            const compteur = lien.cleCompteur ? compteurParCle[lien.cleCompteur] : 0;
+        {barreOuverte && <div className="eva-fond-superposition-mobile" onClick={() => setBarreOuverte(false)} aria-hidden="true" />}
+        <nav
+          ref={refNavigation}
+          id="navigation-principale"
+          aria-label="Navigation principale"
+          className={`eva-barre-laterale${barreOuverte ? " eva-barre-laterale--ouverte" : ""}`}
+        >
+          <div className="eva-barre-laterale__defilement">
+            {liens.map((lien) => {
+              const Icone = lien.icone;
+              const compteur = lien.cleCompteur ? compteurParCle[lien.cleCompteur] : 0;
 
-            if (!lien.sousLiens) {
-              const actif = location.pathname === lien.chemin;
+              if (!lien.sousLiens) {
+                const actif = location.pathname === lien.chemin;
+                return (
+                  <Link
+                    key={lien.chemin}
+                    to={lien.chemin}
+                    className={`eva-lien-nav${actif ? " eva-lien-nav--actif" : ""}`}
+                    aria-current={actif ? "page" : undefined}
+                  >
+                    <Icone size={18} aria-hidden="true" />
+                    <span className="eva-lien-nav__texte">{lien.libelle}</span>
+                    {compteur > 0 && <span className="eva-puce eva-lien-nav__puce">{compteur}</span>}
+                  </Link>
+                );
+              }
+
+              const actifSection = location.pathname === lien.chemin;
+              const ouvert = !!groupesOuverts[lien.chemin];
+              const sousActif = lien.sousLiens.some((sl) => `${location.pathname}${location.search}` === sl.chemin);
+              const idSousMenu = `sous-menu-${lien.chemin.replace(/[^a-z0-9]+/gi, "-")}`;
               return (
-                <Link key={lien.chemin} to={lien.chemin} className={`eva-lien-nav${actif ? " eva-lien-nav--actif" : ""}`}>
-                  <Icone size={17} />
-                  {lien.libelle}
-                  {compteur > 0 && <span className="eva-puce eva-lien-nav__puce">{compteur}</span>}
-                </Link>
-              );
-            }
-
-            const actifSection = location.pathname === lien.chemin;
-            const ouvert = !!groupesOuverts[lien.chemin];
-            return (
-              <div key={lien.chemin} className="eva-groupe-nav">
-                <button
-                  type="button"
-                  className={`eva-lien-nav--g${actifSection ? " eva-lien-nav--actif" : ""}`}
-                  onClick={() => basculerGroupe(lien.chemin)}
-                  aria-expanded={ouvert}
-                >
-                  <Icone size={17} />
-                  {lien.libelle}
-                  {compteur > 0 && <span className="eva-puce eva-lien-nav__puce">{compteur}</span>}
-                  {ouvert ? <ChevronUp size={15} className="eva-lien-nav__chevron" /> : <ChevronDown size={15} className="eva-lien-nav__chevron" />}
-                </button>
-                {ouvert && (
-                  <div className="eva-sous-menu">
-                    {lien.sousLiens.map((sousLien) => {
-                      const sousActif = `${location.pathname}${location.search}` === sousLien.chemin;
-                      const sousCompteur = sousLien.cleCompteur ? compteurParCle[sousLien.cleCompteur] : 0;
-                      return (
-                        <Link
-                          key={sousLien.chemin}
-                          to={sousLien.chemin}
-                          className={`eva-lien-nav eva-sous-lien-nav${sousActif ? " eva-lien-nav--actif" : ""}`}
-                        >
-                          {sousLien.libelle}
-                          {sousCompteur > 0 && <span className="eva-puce eva-lien-nav__puce">{sousCompteur}</span>}
-                        </Link>
-                      );
-                    })}
+                <div key={lien.chemin} className="eva-groupe-nav">
+                  <button
+                    type="button"
+                    className={`eva-lien-nav eva-lien-nav--groupe${actifSection && !sousActif ? " eva-lien-nav--actif" : ""}${sousActif ? " eva-lien-nav--parent" : ""}`}
+                    onClick={() => basculerGroupe(lien.chemin)}
+                    aria-expanded={ouvert}
+                    aria-controls={idSousMenu}
+                  >
+                    <Icone size={18} aria-hidden="true" />
+                    <span className="eva-lien-nav__texte">{lien.libelle}</span>
+                    {compteur > 0 && <span className="eva-puce">{compteur}</span>}
+                    <ChevronDown size={15} className="eva-lien-nav__chevron" aria-hidden="true" />
+                  </button>
+                  <div id={idSousMenu} className={`eva-sous-menu-enveloppe${ouvert ? " eva-sous-menu-enveloppe--ouvert" : ""}`}>
+                    <div className="eva-sous-menu">
+                      {lien.sousLiens.map((sousLien) => {
+                        const sousActifLien = `${location.pathname}${location.search}` === sousLien.chemin;
+                        const sousCompteur = sousLien.cleCompteur ? compteurParCle[sousLien.cleCompteur] : 0;
+                        return (
+                          <Link
+                            key={sousLien.chemin}
+                            to={sousLien.chemin}
+                            className={`eva-lien-nav eva-sous-lien-nav${sousActifLien ? " eva-lien-nav--actif" : ""}`}
+                            aria-current={sousActifLien ? "page" : undefined}
+                          >
+                            <span className="eva-lien-nav__texte">{sousLien.libelle}</span>
+                            {sousCompteur > 0 && <span className="eva-puce eva-lien-nav__puce">{sousCompteur}</span>}
+                          </Link>
+                        );
+                      })}
+                    </div>
                   </div>
-                )}
-              </div>
-            );
-          })}
+                </div>
+              );
+            })}
+          </div>
+          <div className="eva-barre-laterale__pied">
+            <div className="eva-barre-laterale__etat">
+              <span className={`eva-point-statut ${enLigne ? "eva-point-statut--ok" : "eva-point-statut--attente"}`} aria-hidden="true" />
+              {libelleConnexion}
+            </div>
+            {!enLigne && <p>Vos saisies restent sur cet appareil et seront envoyées dès le retour de la connexion.</p>}
+            {nombreEnAttente > 0 &&
+              (estAgent ? (
+                <p>
+                  <Link to="/agent/synchronisation">{pluriel(nombreEnAttente, "action en attente", "actions en attente")}</Link> de synchronisation.
+                </p>
+              ) : (
+                <p>{pluriel(nombreEnAttente, "action en attente", "actions en attente")} de synchronisation.</p>
+              ))}
+          </div>
         </nav>
-        <main className="eva-principal">{children}</main>
+        <main className="eva-principal" id="contenu" tabIndex={-1} ref={refPrincipal}>
+          {children}
+        </main>
       </div>
     </div>
   );

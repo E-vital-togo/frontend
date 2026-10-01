@@ -78,7 +78,7 @@ export class ErreurApi extends Error {
  */
 export class ErreurReseau extends ErreurApi {
   constructor() {
-    super("Connexion au serveur impossible. Verifiez votre reseau.", "reseau_indisponible", 0);
+    super("Connexion au serveur impossible. Vérifiez votre réseau.", "reseau_indisponible", 0);
   }
 }
 
@@ -87,15 +87,15 @@ export class ErreurReseau extends ErreurApi {
  * (page HTML d'un proxy, 502 sans JSON, reponse vide...).
  */
 const MESSAGES_PAR_STATUT: Record<number, string> = {
-  400: "Requete invalide.",
-  401: "Session expiree. Reconnectez-vous.",
-  403: "Vous n'avez pas les droits necessaires pour cette action.",
+  400: "Requête invalide.",
+  401: "Session expirée. Reconnectez-vous.",
+  403: "Vous n'avez pas les droits nécessaires pour cette action.",
   404: "Ressource introuvable.",
-  429: "Trop de tentatives. Reessayez dans quelques instants.",
-  500: "Le serveur rencontre un probleme. Reessayez plus tard.",
-  502: "Le serveur est momentanement injoignable. Reessayez plus tard.",
-  503: "Le serveur est momentanement indisponible. Reessayez plus tard.",
-  504: "Le serveur met trop de temps a repondre. Reessayez plus tard."
+  429: "Trop de tentatives. Réessayez dans quelques instants.",
+  500: "Le serveur rencontre un problème. Réessayez plus tard.",
+  502: "Le serveur est momentanément injoignable. Réessayez plus tard.",
+  503: "Le serveur est momentanément indisponible. Réessayez plus tard.",
+  504: "Le serveur met trop de temps à répondre. Réessayez plus tard."
 };
 
 /**
@@ -268,7 +268,7 @@ export async function appelApi<T = unknown>(chemin: string, options: OptionsAppe
       // valid for any token type", en anglais) : il peut s'afficher une
       // fraction de seconde avant que la redirection vers /connexion
       // n'intervienne.
-      throw new ErreurApi("Session expiree. Reconnectez-vous.", "session_expiree", 401);
+      throw new ErreurApi("Session expirée. Reconnectez-vous.", "session_expiree", 401);
     }
   }
 

@@ -1,33 +1,73 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import { Camera, Phone, Search } from "lucide-react";
+import { ArrowRight, Baby, Camera, CheckCircle2, Flower2, Keyboard, Phone, QrCode, RotateCcw, Search } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
 import BadgeStatut from "../../components/BadgeStatut";
-import { Bouton, Carte, Champ, ChampTelephone, EnteteDePage, Onglets, Tableau } from "../../components/ui";
-import { LienBouton } from "../../components/ui/Bouton";
+import { Alerte, Bouton, Carte, Champ, ChampTelephone, EnteteDePage, LienBouton, Onglets, Spinner } from "../../components/ui";
 import { appelApi, ErreurApi } from "../../lib/apiClient";
 import { LIENS_AGENT } from "./navigation";
 import type { CodeRetraitTrouve, Dossier } from "../../types/domaine";
+import "../../styles/agent.css";
 
 const ID_LECTEUR = "eva-lecteur-qr";
+const PREFIXE_ONGLETS = "retrait";
 
-function ResultatDossier({ dossier }: { dossier: Dossier }) {
+function formaterDate(valeur: string | null | undefined): string {
+  if (!valeur) return "Non renseignée";
+  const date = new Date(valeur);
+  return Number.isNaN(date.getTime()) ? valeur : date.toLocaleDateString("fr-FR");
+}
+
+/** Numéro d'étape + titre : la page se lit comme un parcours (méthode, recherche, dossier). */
+function TitreEtape({ numero, titre, fait }: { numero: number; titre: string; fait?: boolean }) {
   return (
-    <Carte style={{ marginTop: 16, borderColor: "var(--couleur-emeraude)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <div>
-          <div style={{ fontWeight: 600 }}>Dossier {dossier.event_type === "naissance" ? "naissance" : "deces"}</div>
-          <div className="texte-mono" style={{ fontSize: 12, color: "var(--couleur-gris-service-2)" }}>{dossier.id}</div>
+    <h2 className="eva-ag-etape">
+      <span className={fait ? "eva-ag-etape__pastille eva-ag-etape__pastille--fait" : "eva-ag-etape__pastille"} aria-hidden="true">
+        {fait ? <CheckCircle2 size={16} /> : numero}
+      </span>
+      <span className="eva-sr-only">Étape {numero} : </span>
+      {titre}
+    </h2>
+  );
+}
+
+function ResultatDossier({ dossier, onNouvelleRecherche }: { dossier: Dossier; onNouvelleRecherche: () => void }) {
+  const naissance = dossier.event_type === "naissance";
+  return (
+    <Carte className="eva-ag-resultat" variante="accent" aria-live="polite">
+      <div className="eva-ag-resultat__entete">
+        <span className="eva-ag-resultat__icone" aria-hidden="true">
+          {naissance ? <Baby size={22} /> : <Flower2 size={22} />}
+        </span>
+        <div className="eva-ag-resultat__titre">
+          <span className="eva-ag-resultat__type">Dossier de {naissance ? "naissance" : "décès"}</span>
+          <span className="texte-mono eva-texte-petit eva-texte-discret">{dossier.id}</span>
         </div>
         <BadgeStatut statut={dossier.statut} />
       </div>
-      <LienBouton to={`/agent/dossiers/${dossier.id}`}>Ouvrir le dossier</LienBouton>
+      <dl className="eva-definitions">
+        <dt>Nom</dt>
+        <dd>{dossier.nom || "Non renseigné"}</dd>
+        <dt>Date de déclaration</dt>
+        <dd>{formaterDate(dossier.date_declaration)}</dd>
+        <dt>Date limite</dt>
+        <dd>{formaterDate(dossier.date_limite)}</dd>
+      </dl>
+      <div className="eva-groupe-boutons eva-ag-resultat__actions">
+        <LienBouton to={`/agent/dossiers/${dossier.id}`} iconeDroite={<ArrowRight size={16} />}>
+          Ouvrir le dossier
+        </LienBouton>
+        <Bouton variante="secondaire" onClick={onNouvelleRecherche} iconeGauche={<RotateCcw size={16} />}>
+          Nouvelle recherche
+        </Bouton>
+      </div>
     </Carte>
   );
 }
 
-function OngletScanner({ onTrouve }: { onTrouve: (d: Dossier) => void }) {
+function OngletScanner({ onTrouve, onReessayer }: { onTrouve: (d: Dossier) => void; onReessayer: () => void }) {
   const [erreur, setErreur] = useState<string | null>(null);
+  const [erreurCamera, setErreurCamera] = useState(false);
   const [actif, setActif] = useState(false);
   const instance = useRef<Html5Qrcode | null>(null);
 
@@ -54,29 +94,32 @@ function OngletScanner({ onTrouve }: { onTrouve: (d: Dossier) => void }) {
           }
         },
         () => {
-          // erreur de decodage frame par frame : bruit normal, on ignore
+          // erreur de décodage frame par frame : bruit normal, on ignore
         }
       )
       .then(() => {
         if (demonte) {
-          // Composant demonte pendant le demarrage (changement d'onglet
-          // rapide, StrictMode en dev) : la camera a bien demarre entre
-          // temps, on l'arrete plutot que de laisser le flux ouvert.
+          // Composant démonté pendant le démarrage (changement d'onglet
+          // rapide, StrictMode en dev) : la caméra a bien démarré entre
+          // temps, on l'arrête plutôt que de laisser le flux ouvert.
           lecteur.stop().catch(() => undefined);
         } else {
           setActif(true);
         }
       })
       .catch(() => {
-        if (!demonte) setErreur("Impossible d'acceder a la camera. Verifiez les autorisations du navigateur.");
+        if (!demonte) {
+          setErreurCamera(true);
+          setErreur("Impossible d'accéder à la caméra. Vérifiez les autorisations du navigateur.");
+        }
       });
 
     return () => {
       demonte = true;
       // lecteur.stop() lance une exception SYNCHRONE (pas une promesse
-      // rejetee) si le scan n'a pas encore demarre - inevitable si ce
-      // cleanup s'execute avant la resolution de start() (StrictMode en dev
-      // double les effets au montage). isScanning evite l'appel dans ce cas.
+      // rejetée) si le scan n'a pas encore démarré - inévitable si ce
+      // cleanup s'exécute avant la résolution de start() (StrictMode en dev
+      // double les effets au montage). isScanning évite l'appel dans ce cas.
       if (lecteur.isScanning) {
         lecteur.stop().catch(() => undefined);
       }
@@ -84,18 +127,35 @@ function OngletScanner({ onTrouve }: { onTrouve: (d: Dossier) => void }) {
   }, [onTrouve]);
 
   return (
-    <div>
-      {erreur && <div className="message-erreur">{erreur}</div>}
-      <div
-        id={ID_LECTEUR}
-        style={{ maxWidth: 360, margin: "0 auto", borderRadius: "var(--rayon-standard)", overflow: "hidden", background: "#000" }}
-      />
-      {!actif && !erreur && (
-        <p style={{ textAlign: "center", color: "var(--couleur-gris-service-2)", fontSize: 13, marginTop: 10 }}>
-          Demarrage de la camera...
-        </p>
+    <Carte className="eva-ag-scanner">
+      <p className="eva-ag-aide">
+        <Camera size={16} aria-hidden="true" />
+        Autorisez l'accès à la caméra, puis présentez le QR code remis au déclarant.
+      </p>
+      {erreur && (
+        <Alerte
+          variante={erreurCamera ? "erreur" : "avertissement"}
+          onFermer={erreurCamera ? undefined : () => setErreur(null)}
+          actions={
+            erreurCamera ? (
+              <Bouton variante="secondaire" taille="petit" onClick={onReessayer} iconeGauche={<RotateCcw size={14} />}>
+                Réessayer
+              </Bouton>
+            ) : undefined
+          }
+        >
+          {erreur}
+        </Alerte>
       )}
-    </div>
+      <div className={erreurCamera ? "eva-ag-lecteur eva-ag-lecteur--masque" : "eva-ag-lecteur"}>
+        <div id={ID_LECTEUR} className="eva-ag-lecteur__cadre" />
+        {!actif && !erreur && (
+          <p className="eva-ag-lecteur__attente" role="status">
+            <Spinner /> Démarrage de la caméra...
+          </p>
+        )}
+      </div>
+    </Carte>
   );
 }
 
@@ -104,12 +164,14 @@ function OngletCode({ onTrouve }: { onTrouve: (d: Dossier) => void }) {
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
 
-  async function rechercher() {
-    if (!code) return;
+  async function rechercher(evenement: FormEvent<HTMLFormElement>) {
+    evenement.preventDefault();
+    const codeSaisi = code.trim();
+    if (!codeSaisi) return;
     setEnCours(true);
     setErreur(null);
     try {
-      const dossier = await appelApi<Dossier>(`/codes-retrait/verifier/${code}`);
+      const dossier = await appelApi<Dossier>(`/codes-retrait/verifier/${codeSaisi}`);
       onTrouve(dossier);
     } catch (e) {
       setErreur(e instanceof ErreurApi ? e.message : "Code introuvable.");
@@ -119,25 +181,40 @@ function OngletCode({ onTrouve }: { onTrouve: (d: Dossier) => void }) {
   }
 
   return (
-    <Carte style={{ maxWidth: 420 }}>
-      <Champ id="code-retrait" label="Code de retrait">
-        <input id="code-retrait" className="texte-mono" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="Ex. AB12CD34" />
-      </Champ>
-      {erreur && <div className="message-erreur">{erreur}</div>}
-      <Bouton onClick={rechercher} chargement={enCours} iconeGauche={<Search size={16} />}>
-        Rechercher
-      </Bouton>
+    <Carte className="eva-ag-formulaire">
+      <form onSubmit={rechercher} noValidate>
+        <Champ id="code-retrait" label="Code de retrait" aide="Le code remis au déclarant, en lettres et chiffres (les majuscules sont appliquées automatiquement).">
+          <input
+            id="code-retrait"
+            className="texte-mono"
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            placeholder="Ex. AB12CD34"
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            autoFocus
+          />
+        </Champ>
+        {erreur && <Alerte variante="erreur" compacte>{erreur}</Alerte>}
+        <div className="eva-ag-formulaire__actions">
+          <Bouton type="submit" chargement={enCours} disabled={!code.trim()} iconeGauche={<Search size={16} />}>
+            Rechercher le dossier
+          </Bouton>
+        </div>
+      </form>
     </Carte>
   );
 }
 
 function OngletTelephone({ onTrouve }: { onTrouve: (d: Dossier) => void }) {
-  // E.164 ("+22890123456") ; le backend retrouve aussi les codes crees avec un ancien format libre.
+  // E.164 ("+22890123456") ; le backend retrouve aussi les codes créés avec un ancien format libre.
   const [telephone, setTelephone] = useState("");
   const [telephoneValide, setTelephoneValide] = useState(false);
   const [resultats, setResultats] = useState<CodeRetraitTrouve[] | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [ouverture, setOuverture] = useState<string | null>(null);
 
   async function rechercher(evenement: FormEvent<HTMLFormElement>) {
     evenement.preventDefault();
@@ -156,99 +233,141 @@ function OngletTelephone({ onTrouve }: { onTrouve: (d: Dossier) => void }) {
   }
 
   async function ouvrir(codeTrouve: CodeRetraitTrouve) {
+    setOuverture(codeTrouve.code);
     try {
       const dossier = await appelApi<Dossier>(`/codes-retrait/verifier/${codeTrouve.code}`);
       onTrouve(dossier);
     } catch {
       setErreur("Ce dossier n'est plus accessible.");
+    } finally {
+      setOuverture(null);
     }
   }
 
   return (
-    <Carte style={{ maxWidth: 460 }}>
-      <form onSubmit={rechercher} noValidate>
-        <Champ id="telephone" label="Numéro de téléphone du déclarant">
-          <ChampTelephone id="telephone" nom="telephone" valeur={telephone} onChange={setTelephone} onValidite={setTelephoneValide} />
-        </Champ>
-        {erreur && <div className="message-erreur">{erreur}</div>}
-        <Bouton type="submit" chargement={enCours} disabled={!telephone || !telephoneValide} iconeGauche={<Phone size={16} />}>
-          Rechercher
-        </Bouton>
-      </form>
+    <div className="eva-ag-telephone">
+      <Carte className="eva-ag-formulaire">
+        <form onSubmit={rechercher} noValidate>
+          <Champ id="telephone" label="Numéro de téléphone du déclarant" aide="Le numéro donné lors de la déclaration du dossier.">
+            <ChampTelephone id="telephone" nom="telephone" valeur={telephone} onChange={setTelephone} onValidite={setTelephoneValide} />
+          </Champ>
+          {erreur && <Alerte variante="erreur" compacte>{erreur}</Alerte>}
+          <div className="eva-ag-formulaire__actions">
+            <Bouton type="submit" chargement={enCours} disabled={!telephone || !telephoneValide} iconeGauche={<Search size={16} />}>
+              Rechercher les codes
+            </Bouton>
+          </div>
+        </form>
+      </Carte>
 
-      {resultats && resultats.length === 0 && (
-        <p style={{ marginTop: 14, fontSize: 13.5, color: "var(--couleur-gris-service-2)" }}>Aucun code trouve pour ce numero.</p>
-      )}
-      {resultats && resultats.length > 0 && (
-        <div style={{ marginTop: 16 }}>
-          <Tableau>
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Emis le</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
+      <div aria-live="polite">
+        {resultats && resultats.length === 0 && (
+          <Alerte variante="info" titre="Aucun code trouvé pour ce numéro">
+            Vérifiez le numéro, ou essayez avec le code de retrait remis au déclarant.
+          </Alerte>
+        )}
+        {resultats && resultats.length > 0 && (
+          <section aria-label="Codes trouvés">
+            <p className="eva-ag-compteur-resultats">
+              {resultats.length} code{resultats.length > 1 ? "s" : ""} trouvé{resultats.length > 1 ? "s" : ""}
+            </p>
+            <ul className="eva-ag-cartes-codes">
               {resultats.map((r) => (
-                <tr key={r.code}>
-                  <td className="texte-mono">{r.code}</td>
-                  <td className="texte-mono">{new Date(r.created_at).toLocaleDateString("fr-FR")}</td>
-                  <td>
-                    <Bouton variante="fantome" taille="petit" onClick={() => ouvrir(r)}>
+                <li key={r.code}>
+                  <Carte className="eva-ag-code">
+                    <span className="eva-ag-code__icone" aria-hidden="true">
+                      <QrCode size={20} />
+                    </span>
+                    <div className="eva-ag-code__corps">
+                      <span className="texte-mono eva-ag-code__valeur">{r.code}</span>
+                      <span className="eva-texte-petit eva-texte-discret">Émis le {formaterDate(r.created_at)}</span>
+                    </div>
+                    <Bouton
+                      variante="secondaire"
+                      taille="petit"
+                      onClick={() => ouvrir(r)}
+                      chargement={ouverture === r.code}
+                      disabled={ouverture !== null}
+                      iconeDroite={<ArrowRight size={15} />}
+                    >
                       Ouvrir
                     </Bouton>
-                  </td>
-                </tr>
+                  </Carte>
+                </li>
               ))}
-            </tbody>
-          </Tableau>
-        </div>
-      )}
-    </Carte>
+            </ul>
+          </section>
+        )}
+      </div>
+    </div>
   );
 }
 
 export default function PageRetrait() {
   const [onglet, setOnglet] = useState("code");
   const [dossierTrouve, setDossierTrouve] = useState<Dossier | null>(null);
-
-  function surTrouve(dossier: Dossier) {
-    setDossierTrouve(dossier);
-  }
+  const [tentativeScanner, setTentativeScanner] = useState(0);
 
   function changerOnglet(id: string) {
     setOnglet(id);
     setDossierTrouve(null);
   }
 
+  // Focus sur le résultat dès qu'un dossier est retrouvé (lecteurs d'écran, clavier).
+  const refResultat = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (dossierTrouve) refResultat.current?.focus();
+  }, [dossierTrouve]);
+
   return (
     <MiseEnPage liens={LIENS_AGENT}>
-      <EnteteDePage titre="Retrait" sousTitre="Retrouver un dossier a partir du code remis au parent/declarant." />
-      <Onglets
-        onglets={[
-          { id: "code", libelle: "Saisir un code" },
-          { id: "scanner", libelle: "Scanner un QR" },
-          { id: "telephone", libelle: "Par telephone" }
-        ]}
-        actif={onglet}
-        onChanger={changerOnglet}
+      <EnteteDePage
+        titre="Retrait d'acte"
+        sousTitre="Retrouvez un dossier à partir du code, du QR code ou du numéro de téléphone remis au déclarant."
       />
 
-      {onglet === "scanner" && (
-        <>
-          {!dossierTrouve && (
-            <p style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--couleur-gris-service-2)", marginBottom: 14, justifyContent: "center" }}>
-              <Camera size={15} /> Autorisez l'acces a la camera puis presentez le QR code du declarant.
-            </p>
-          )}
-          {!dossierTrouve && <OngletScanner onTrouve={surTrouve} />}
-        </>
-      )}
-      {onglet === "code" && !dossierTrouve && <OngletCode onTrouve={surTrouve} />}
-      {onglet === "telephone" && !dossierTrouve && <OngletTelephone onTrouve={surTrouve} />}
+      <div className="eva-ag-parcours">
+        <section className="eva-ag-parcours__etape" aria-labelledby="retrait-etape-1">
+          <div id="retrait-etape-1">
+            <TitreEtape numero={1} titre="Choisissez comment retrouver le dossier" fait={!!dossierTrouve} />
+          </div>
+          <Onglets
+            variante="pilules"
+            ariaLabel="Méthode de recherche"
+            prefixeId={PREFIXE_ONGLETS}
+            actif={onglet}
+            onChanger={changerOnglet}
+            onglets={[
+              { id: "code", libelle: "Saisir un code", icone: <Keyboard size={16} aria-hidden="true" /> },
+              { id: "scanner", libelle: "Scanner un QR", icone: <QrCode size={16} aria-hidden="true" /> },
+              { id: "telephone", libelle: "Par téléphone", icone: <Phone size={16} aria-hidden="true" /> }
+            ]}
+          />
+        </section>
 
-      {dossierTrouve && <ResultatDossier dossier={dossierTrouve} />}
+        <section className="eva-ag-parcours__etape" aria-labelledby="retrait-etape-2">
+          <div id="retrait-etape-2">
+            <TitreEtape
+              numero={2}
+              titre={dossierTrouve ? "Dossier retrouvé" : onglet === "scanner" ? "Présentez le QR code" : onglet === "telephone" ? "Saisissez le numéro" : "Saisissez le code"}
+              fait={!!dossierTrouve}
+            />
+          </div>
+          <div role="tabpanel" id={`${PREFIXE_ONGLETS}-panneau-${onglet}`} aria-labelledby={`${PREFIXE_ONGLETS}-${onglet}`}>
+            {dossierTrouve ? (
+              <div ref={refResultat} tabIndex={-1} className="eva-ag-resultat-focus">
+                <ResultatDossier dossier={dossierTrouve} onNouvelleRecherche={() => setDossierTrouve(null)} />
+              </div>
+            ) : onglet === "scanner" ? (
+              <OngletScanner key={tentativeScanner} onTrouve={setDossierTrouve} onReessayer={() => setTentativeScanner((n) => n + 1)} />
+            ) : onglet === "telephone" ? (
+              <OngletTelephone onTrouve={setDossierTrouve} />
+            ) : (
+              <OngletCode onTrouve={setDossierTrouve} />
+            )}
+          </div>
+        </section>
+      </div>
     </MiseEnPage>
   );
 }

@@ -1,6 +1,9 @@
-import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type * as echarts from "echarts/core";
+import { AlertCircle, MapPinOff, Map as IconeCarte } from "lucide-react";
 import GraphiqueECharts, { type PoigneeGraphique } from "./ui/GraphiqueECharts";
+import EtatVide from "./ui/EtatVide";
+import Squelette from "./ui/Squelette";
 import {
   NIVEAU_PAR_DIMENSION,
   construireOptionCarte,
@@ -11,6 +14,8 @@ import {
 } from "../lib/carte";
 import { chargerFondCarte, type FondCarte } from "../lib/fondsCarte";
 import type { PivotResultat } from "../types/domaine";
+
+import "../styles/statistiques.css";
 
 interface ProprietesGraphiqueCarte {
   resultat: PivotResultat;
@@ -93,43 +98,60 @@ const GraphiqueCarte = forwardRef<PoigneeGraphique, ProprietesGraphiqueCarte>(fu
   }, []);
 
   if (!niveau) {
-    return <Message texte="Une carte demande une dimension territoriale en premier : region, prefecture ou commune." />;
+    return (
+      <Etat hauteur={hauteur}>
+        <EtatVide
+          compact
+          variante="attention"
+          icone={<IconeCarte size={22} />}
+          titre="Une dimension territoriale est requise"
+          description="Choisissez d'abord une région, une préfecture ou une commune comme première dimension."
+        />
+      </Etat>
+    );
   }
-  if (etat.type === "chargement") return <Message texte="Chargement du fond de carte..." />;
-  if (etat.type === "erreur") return <Message texte="Le fond de carte n'a pas pu etre charge. Reessayez." erreur />;
+  if (etat.type === "chargement") {
+    return (
+      <Etat hauteur={hauteur}>
+        <Squelette variante="bloc" hauteur="100%" libelle="Chargement du fond de carte" />
+      </Etat>
+    );
+  }
+  if (etat.type === "erreur") {
+    return (
+      <Etat hauteur={hauteur}>
+        <EtatVide compact variante="erreur" icone={<AlertCircle size={22} />} titre="Le fond de carte n'a pas pu être chargé" description="Vérifiez votre connexion, puis modifiez un réglage pour réessayer." />
+      </Etat>
+    );
+  }
   if (etat.type === "vide") {
-    return <Message texte="Aucun contour n'est disponible pour ce niveau. Le referentiel geographique doit etre importe par l'administration generale." />;
+    return (
+      <Etat hauteur={hauteur}>
+        <EtatVide
+          compact
+          variante="neutre"
+          icone={<MapPinOff size={22} />}
+          titre="Aucun contour disponible pour ce niveau"
+          description="Le référentiel géographique doit être importé par l'administration générale."
+        />
+      </Etat>
+    );
   }
 
   return (
-    <div style={{ position: "relative", width: "100%", height: hauteur }}>
+    <div className="eva-st-carte" style={{ height: hauteur }}>
       <GraphiqueECharts ref={ref} option={option!} hauteur="100%" legendeMasquable={false} surInstance={surInstance} />
-      {p.coordonnees && coordonnees && (
-        <div
-          style={{
-            position: "absolute",
-            left: "50%",
-            bottom: p.source ? 18 : 6,
-            transform: "translateX(-50%)",
-            padding: "2px 9px",
-            fontSize: 10.5,
-            borderRadius: 10,
-            background: "rgba(18,38,30,0.78)",
-            color: "#fff",
-            pointerEvents: "none",
-            whiteSpace: "nowrap"
-          }}
-        >
-          {coordonnees}
-        </div>
-      )}
+      {p.coordonnees && coordonnees && <div className={`eva-st-carte__coordonnees${p.source ? " avec-source" : ""}`}>{coordonnees}</div>}
     </div>
   );
 });
 
-function Message({ texte, erreur = false }: { texte: string; erreur?: boolean }) {
+/** Cadre d'un etat de la carte (chargement, erreur, vide) : meme hauteur que la carte pour ne pas faire sauter la page. */
+function Etat({ hauteur, children }: { hauteur: number | string; children: ReactNode }) {
   return (
-    <p style={{ padding: "28px 12px", textAlign: "center", fontSize: 13, color: erreur ? "var(--couleur-erreur, #B3261E)" : "var(--couleur-gris-service-2)" }}>{texte}</p>
+    <div className="eva-st-carte-etat" style={{ height: hauteur }}>
+      {children}
+    </div>
   );
 }
 

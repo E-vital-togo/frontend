@@ -108,7 +108,7 @@
   min-height: 42px;
   margin: 0;
   padding: 9px 12px;
-  border: 1px solid var(--couleur-bordure-forte);
+  border: 1px solid var(--couleur-bordure-champ);
   border-radius: var(--rayon-petit);
   background: var(--couleur-blanc);
   color: var(--couleur-encre);
@@ -179,7 +179,7 @@
   gap: 12px;
   min-height: 42px;
   padding: 0 12px;
-  border: 1px solid var(--couleur-bordure-forte);
+  border: 1px solid var(--couleur-bordure-champ);
   border-radius: var(--rayon-petit);
   background: var(--couleur-blanc);
   cursor: pointer;
@@ -231,7 +231,7 @@
 
 .eva-multi {
   padding: 12px;
-  border: 1px solid var(--couleur-bordure-forte);
+  border: 1px solid var(--couleur-bordure-champ);
   border-radius: var(--rayon-petit);
   background: var(--couleur-blanc);
   transition: border-color var(--transition-rapide), box-shadow var(--transition-rapide);

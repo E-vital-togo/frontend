@@ -1,23 +1,37 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { Phone, Search, ShieldCheck } from "lucide-react";
-import Logo from "../../components/Logo";
-import { Bouton, Champ, ChampTelephone } from "../../components/ui";
-import { appelApiPublic, ErreurApiPublique } from "../../lib/apiPublic";
+import { CheckCircle2, FileText, MessageSquareText, Phone, Search, ShieldCheck, WifiOff } from "lucide-react";
+import ChampCode from "../../components/auth/ChampCode";
+import EcranResultat from "../../components/auth/EcranResultat";
+import EtapesParcours from "../../components/auth/EtapesParcours";
+import { accentuer, decrireErreur, type MessageErreur } from "../../components/auth/messagesAuth";
+import { useEcheance } from "../../components/auth/useEcheance";
+import { Alerte, Bouton, Champ, ChampTelephone, LienBouton, PageAuth } from "../../components/ui";
+import { appelApiPublic } from "../../lib/apiPublic";
+import { useConnectivite } from "../../lib/connectivite";
 import type { CodeRetraitTrouve } from "../../types/domaine";
+import "../../styles/auth.css";
+
+const LONGUEUR_CODE = 6;
+/** Pause avant de pouvoir demander un nouveau SMS (evite les envois en rafale). */
+const PAUSE_RENVOI_MS = 30_000;
 
 export default function PageRetrouverCode() {
+  const enLigne = useConnectivite();
   const [etape, setEtape] = useState<"telephone" | "code">("telephone");
   const [telephone, setTelephone] = useState("");
   const [codeVerification, setCodeVerification] = useState("");
   const [resultats, setResultats] = useState<CodeRetraitTrouve[] | null>(null);
   const [enCours, setEnCours] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
+  const [envoiEnCours, setEnvoiEnCours] = useState(false);
+  const [erreur, setErreur] = useState<MessageErreur | null>(null);
+  const [erreurCode, setErreurCode] = useState<string | undefined>();
   const [messageEnvoi, setMessageEnvoi] = useState<string | null>(null);
+  const [renvoye, setRenvoye] = useState(false);
+  const [finPause, setFinPause] = useState<number | null>(null);
+  const pause = useEcheance(finPause);
 
-  async function demanderCode(evenement: FormEvent<HTMLFormElement>) {
-    evenement.preventDefault();
-    setEnCours(true);
+  async function envoyerCode(): Promise<boolean> {
     setErreur(null);
     try {
       const donnees = await appelApiPublic<{ message: string }>("/codes-retrait/retrouver/demander-code", {
@@ -25,19 +39,42 @@ export default function PageRetrouverCode() {
         body: JSON.stringify({ telephone })
       });
       setMessageEnvoi(donnees.message);
-      setEtape("code");
+      setFinPause(Date.now() + PAUSE_RENVOI_MS);
+      return true;
     } catch (e) {
-      setErreur(e instanceof ErreurApiPublique ? e.message : "Erreur d'envoi du code.");
-    } finally {
-      setEnCours(false);
+      setErreur(decrireErreur(e, "Envoi impossible", "Erreur d'envoi du code."));
+      return false;
     }
+  }
+
+  async function demanderCode(evenement: FormEvent<HTMLFormElement>) {
+    evenement.preventDefault();
+    setEnCours(true);
+    setRenvoye(false);
+    if (await envoyerCode()) setEtape("code");
+    setEnCours(false);
+  }
+
+  async function renvoyerCode() {
+    setEnvoiEnCours(true);
+    setRenvoye(false);
+    setErreurCode(undefined);
+    if (await envoyerCode()) {
+      setCodeVerification("");
+      setRenvoye(true);
+    }
+    setEnvoiEnCours(false);
   }
 
   async function verifierCode(evenement: FormEvent<HTMLFormElement>) {
     evenement.preventDefault();
-    setEnCours(true);
     setErreur(null);
     setResultats(null);
+    if (codeVerification.length < LONGUEUR_CODE) {
+      setErreurCode(`Saisissez les ${LONGUEUR_CODE} chiffres reçus par SMS.`);
+      return;
+    }
+    setEnCours(true);
     try {
       const donnees = await appelApiPublic<CodeRetraitTrouve[]>("/codes-retrait/retrouver", {
         method: "POST",
@@ -45,98 +82,170 @@ export default function PageRetrouverCode() {
       });
       setResultats(donnees);
     } catch (e) {
-      setErreur(e instanceof ErreurApiPublique ? e.message : "Erreur de verification.");
+      const description = decrireErreur(e, "Vérification impossible", "Erreur de vérification.");
+      if (description.variante === "erreur") setErreurCode(description.message);
+      else setErreur(description);
     } finally {
       setEnCours(false);
     }
   }
 
-  return (
-    <div className="eva-ecran-centre">
-      <div className="eva-carte" style={{ width: "100%", maxWidth: 460 }}>
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
-          <Logo variante="vertical" hauteur={90} />
-        </div>
-        <h1 style={{ fontSize: 18, color: "var(--couleur-emeraude)", marginBottom: 4, textAlign: "center" }}>J'ai perdu mon code</h1>
+  function changerDeNumero() {
+    setEtape("telephone");
+    setCodeVerification("");
+    setErreur(null);
+    setErreurCode(undefined);
+    setRenvoye(false);
+    setFinPause(null);
+  }
 
-        {etape === "telephone" && (
-          <>
-            <p className="eva-sous-titre" style={{ marginBottom: 18, textAlign: "center" }}>
-              Indiquez le numero de telephone utilise lors de la declaration. Un code de verification vous sera envoye par SMS.
-            </p>
-            <form onSubmit={demanderCode}>
-              <Champ id="telephone" label="Numéro de téléphone" requis>
-                <ChampTelephone id="telephone" nom="telephone" requis valeur={telephone} onChange={setTelephone} />
-              </Champ>
-              {erreur && <div className="message-erreur">{erreur}</div>}
-              <Bouton type="submit" chargement={enCours} style={{ width: "100%" }} iconeGauche={<Phone size={16} />}>
-                Recevoir le code par SMS
+  function recommencer() {
+    setResultats(null);
+    changerDeNumero();
+  }
+
+  const alertes = (
+    <>
+      {!enLigne && (
+        <Alerte variante="avertissement" titre="Vous êtes hors ligne" icone={<WifiOff size={18} aria-hidden="true" />}>
+          Rétablissez votre connexion internet pour continuer.
+        </Alerte>
+      )}
+      {erreur && (
+        <Alerte variante={erreur.variante} titre={erreur.titre}>
+          {erreur.message}
+        </Alerte>
+      )}
+    </>
+  );
+
+  // Etape 3 : aucun code pour ce numero
+  if (resultats && resultats.length === 0) {
+    return (
+      <PageAuth>
+        <EcranResultat
+          ton="attention"
+          icone={<Search size={34} />}
+          titre="Aucun code trouvé"
+          actions={
+            <>
+              <Bouton type="button" pleineLargeur onClick={recommencer}>
+                Essayer un autre numéro
               </Bouton>
-            </form>
-          </>
-        )}
+              <LienBouton to="/completion" variante="secondaire" pleineLargeur>
+                Saisir un code
+              </LienBouton>
+            </>
+          }
+        >
+          <p>Aucun code de retrait n'est associé à ce numéro de téléphone.</p>
+          <p>Vérifiez que c'est bien le numéro indiqué lors de la déclaration, ou rendez-vous à la mairie avec une pièce d'identité.</p>
+        </EcranResultat>
+      </PageAuth>
+    );
+  }
 
-        {etape === "code" && (
-          <>
-            <p className="eva-sous-titre" style={{ marginBottom: 18, textAlign: "center" }}>
-              {messageEnvoi || "Un code de verification vient de vous etre envoye par SMS."}
-            </p>
-            <form onSubmit={verifierCode}>
-              <Champ id="code_verification" label="Code de verification (SMS)" requis>
-                <input
-                  id="code_verification"
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  required
-                  value={codeVerification}
-                  onChange={(e) => setCodeVerification(e.target.value)}
-                  placeholder="Ex. 123456"
-                />
-              </Champ>
-              {erreur && <div className="message-erreur">{erreur}</div>}
-              <Bouton type="submit" chargement={enCours} style={{ width: "100%" }} iconeGauche={<ShieldCheck size={16} />}>
-                Verifier et afficher mes codes
-              </Bouton>
-              <button
-                type="button"
-                onClick={() => { setEtape("telephone"); setCodeVerification(""); setErreur(null); }}
-                className="eva-bouton eva-bouton--fantome eva-bouton--petit"
-                style={{ width: "100%", marginTop: 8 }}
-              >
-                Changer de numero / renvoyer le code
-              </button>
-            </form>
-          </>
-        )}
-
-        {resultats && resultats.length === 0 && (
-          <p style={{ marginTop: 18, fontSize: 13.5, textAlign: "center", color: "var(--couleur-gris-service-2)" }}>
-            <Search size={14} style={{ verticalAlign: "-2px", marginRight: 4 }} />
-            Aucun code trouve pour ce numero. Rendez-vous a la mairie avec une piece d'identite.
-          </p>
-        )}
-        {resultats && resultats.length > 0 && (
-          <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 10 }}>
-            {resultats.map((r) => (
-              <div key={r.code} className="eva-carte" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div className="texte-mono" style={{ fontWeight: 600 }}>{r.code}</div>
-                  <div style={{ fontSize: 11.5, color: "var(--couleur-gris-service-2)" }}>{new Date(r.created_at).toLocaleDateString("fr-FR")}</div>
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <Link to={`/completion/statut/${r.code}`} className="eva-bouton eva-bouton--fantome eva-bouton--petit">
-                    Statut
-                  </Link>
-                  <Link to={`/completion/${r.code}`} className="eva-bouton eva-bouton--secondaire eva-bouton--petit">
-                    Completer
-                  </Link>
-                </div>
+  // Etape 3 : codes retrouves
+  if (resultats) {
+    return (
+      <PageAuth
+        titre={resultats.length > 1 ? "Voici vos codes de retrait" : "Voici votre code de retrait"}
+        description="Utilisez-le pour compléter votre déclaration ou suivre son avancement."
+        icone={<CheckCircle2 size={26} />}
+        alignementHaut
+      >
+        <EtapesParcours actuelle={0} />
+        <ul className="eva-acces-codes">
+          {resultats.map((r) => (
+            <li key={r.code} className="eva-acces-codes__item">
+              <div className="eva-acces-codes__info">
+                <span className="eva-acces-codes__etiquette">Code de retrait</span>
+                <span className="eva-acces-codes__code texte-mono">{r.code}</span>
+                <span className="eva-acces-codes__date">Déclaration du {new Date(r.created_at).toLocaleDateString("fr-FR")}</span>
               </div>
-            ))}
-          </div>
+              <div className="eva-acces-codes__actions">
+                <LienBouton to={`/completion/${r.code}`} iconeGauche={<FileText size={16} />}>
+                  Compléter
+                </LienBouton>
+                <LienBouton to={`/completion/statut/${r.code}`} variante="secondaire">
+                  Voir le statut
+                </LienBouton>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <div className="eva-auth__pied">
+          <button type="button" className="eva-auth__lien" onClick={recommencer}>
+            Rechercher avec un autre numéro
+          </button>
+        </div>
+      </PageAuth>
+    );
+  }
+
+  // Etape 2 : code recu par SMS
+  if (etape === "code") {
+    return (
+      <PageAuth
+        titre="Code reçu par SMS"
+        icone={<MessageSquareText size={26} />}
+        description={
+          <>
+            {accentuer(messageEnvoi || "Un code de vérification vient de vous être envoyé par SMS.")}
+            <strong className="texte-mono eva-acces-bloc">{telephone}</strong>
+          </>
+        }
+        retour={{ libelle: "Changer de numéro", onClick: changerDeNumero }}
+        message={alertes}
+      >
+        <EtapesParcours actuelle={0} />
+        {renvoye && (
+          <Alerte variante="succes" compacte>
+            Un nouveau code vient de vous être envoyé.
+          </Alerte>
         )}
-      </div>
-    </div>
+        <form onSubmit={verifierCode}>
+          <ChampCode id="code_verification" label="Code de vérification (SMS)" libelleMasque valeur={codeVerification} onChange={(v) => { setCodeVerification(v); setErreurCode(undefined); }} longueur={LONGUEUR_CODE} autoFocus erreur={erreurCode} />
+          <div className="eva-auth__actions">
+            <Bouton type="submit" pleineLargeur chargement={enCours} iconeGauche={<ShieldCheck size={17} />}>
+              Afficher mes codes
+            </Bouton>
+          </div>
+        </form>
+        <div className="eva-acces-renvoi">
+          <Bouton type="button" variante="fantome" chargement={envoiEnCours} disabled={pause > 0} onClick={renvoyerCode}>
+            {pause > 0 ? `Renvoyer le code dans ${pause} s` : "Renvoyer le code par SMS"}
+          </Bouton>
+        </div>
+      </PageAuth>
+    );
+  }
+
+  // Etape 1 : numero de telephone
+  return (
+    <PageAuth
+      titre="J'ai perdu mon code"
+      icone={<Phone size={26} />}
+      description="Indiquez le numéro de téléphone utilisé lors de la déclaration. Un code de vérification vous sera envoyé par SMS."
+      retour={{ libelle: "Saisir mon code", vers: "/completion" }}
+      message={alertes}
+      pied={
+        <p className="eva-acces-pied__lien">
+          Toujours bloqué ? Rendez-vous à la mairie avec une pièce d'identité, ou <Link to="/connexion">connectez-vous</Link> si vous êtes agent.
+        </p>
+      }
+    >
+      <EtapesParcours actuelle={0} />
+      <form onSubmit={demanderCode}>
+        <Champ id="telephone" label="Numéro de téléphone" requis>
+          <ChampTelephone id="telephone" nom="telephone" requis valeur={telephone} onChange={setTelephone} />
+        </Champ>
+        <div className="eva-auth__actions">
+          <Bouton type="submit" pleineLargeur chargement={enCours} iconeGauche={<Phone size={17} />}>
+            Recevoir le code par SMS
+          </Bouton>
+        </div>
+      </form>
+    </PageAuth>
   );
 }

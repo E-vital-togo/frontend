@@ -1,69 +1,112 @@
 import { useEffect, useState } from "react";
-import { ScrollText } from "lucide-react";
+import { RefreshCw, ScrollText } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
-import { ChargementPage, EnteteDePage, EtatVide, Pagination, Tableau } from "../../components/ui";
+import { Badge, BarreOutils, Bouton, EnteteDePage, ListeResponsive, Pagination, type ColonneListe } from "../../components/ui";
 import { appelApi } from "../../lib/apiClient";
 import { LIENS_ADMIN_CEC } from "./navigation";
-import type { ReponseJournalZone } from "../../types/domaine";
+import { compterAvecUnite, formaterDateHeure, messageErreur } from "./outils";
+import type { EntreeJournalZone, ReponseJournalZone } from "../../types/domaine";
+import "../../styles/admin-cec-pilotage.css";
+
+const COLONNES: ColonneListe<EntreeJournalZone>[] = [
+  {
+    id: "date",
+    libelle: "Date",
+    principale: true,
+    nowrap: true,
+    rendu: (e) => <span className="texte-mono">{formaterDateHeure(e.created_at)}</span>
+  },
+  { id: "auteur", libelle: "Auteur", rendu: (e) => e.auteur || "-" },
+  { id: "action", libelle: "Action", rendu: (e) => e.libelle },
+  {
+    id: "statut",
+    libelle: "Résultat",
+    rendu: (e) => (
+      <span className="eva-ac-resultat">
+        <Badge variante={e.succes ? "succes" : "danger"} point>
+          {e.succes ? "Réussie" : "Échec"}
+        </Badge>
+        <span className="eva-ac-resultat__code texte-mono" title="Code de réponse du serveur">
+          {e.statut}
+        </span>
+      </span>
+    )
+  }
+];
 
 export default function JournalZone() {
   const [reponse, setReponse] = useState<ReponseJournalZone | null>(null);
   const [page, setPage] = useState(1);
   const [chargement, setChargement] = useState(true);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [rechargement, setRechargement] = useState(0);
 
   useEffect(() => {
+    let obsolete = false;
     setChargement(true);
+    setErreur(null);
     appelApi<ReponseJournalZone>(`/journal-zone/?page=${page}`)
-      .then(setReponse)
-      .finally(() => setChargement(false));
-  }, [page]);
+      .then((donnees) => {
+        if (!obsolete) setReponse(donnees);
+      })
+      .catch((e) => {
+        if (!obsolete) setErreur(messageErreur(e, "Impossible de charger le journal."));
+      })
+      .finally(() => {
+        if (!obsolete) setChargement(false);
+      });
+    return () => {
+      obsolete = true;
+    };
+  }, [page, rechargement]);
+
+  const entrees = reponse?.results ?? [];
 
   return (
     <MiseEnPage liens={LIENS_ADMIN_CEC}>
-      <EnteteDePage
-        titre="Journal de la zone"
-        sousTitre="Actions recentes des agents et administrateurs de votre perimetre."
+      <EnteteDePage titre="Journal de la zone" sousTitre="Actions récentes des agents et administrateurs de votre périmètre." />
+
+      <BarreOutils
+        compteur={reponse && !erreur ? compterAvecUnite(reponse.count, "action enregistrée", "actions enregistrées") : undefined}
+        actions={
+          <Bouton
+            variante="secondaire"
+            taille="petit"
+            onClick={() => setRechargement((n) => n + 1)}
+            disabled={chargement}
+            iconeGauche={<RefreshCw size={14} />}
+          >
+            Actualiser
+          </Bouton>
+        }
       />
 
-      {chargement ? (
-        <ChargementPage />
-      ) : !reponse || reponse.results.length === 0 ? (
-        <EtatVide icone={<ScrollText size={28} />} titre="Aucune action enregistree pour le moment" />
-      ) : (
-        <>
-          <Tableau>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Auteur</th>
-                <th>Action</th>
-                <th>Statut</th>
-              </tr>
-            </thead>
-            <tbody>
-              {reponse.results.map((entree, index) => (
-                <tr key={index}>
-                  <td className="texte-mono">{new Date(entree.created_at).toLocaleString("fr-FR")}</td>
-                  <td>{entree.auteur}</td>
-                  <td className="eva-tableau__cellule-large">{entree.libelle}</td>
-                  <td>
-                    <span className={`eva-badge ${entree.succes ? "eva-badge--succes" : "eva-badge--danger"}`}>
-                      {entree.statut}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Tableau>
-          <Pagination
-            page={reponse.page}
-            taillepage={reponse.page_size}
-            total={reponse.count}
-            aSuivant={reponse.page * reponse.page_size < reponse.count}
-            aPrecedent={reponse.page > 1}
-            onChanger={setPage}
-          />
-        </>
+      <ListeResponsive<EntreeJournalZone>
+        legende="Journal de la zone"
+        lignes={entrees}
+        cle={(e, index) => `${e.created_at}-${index}`}
+        colonnes={COLONNES}
+        chargement={chargement}
+        erreur={erreur}
+        onReessayer={() => setRechargement((n) => n + 1)}
+        hauteurMax="none"
+        sansSurvol
+        vide={{
+          icone: <ScrollText size={26} />,
+          titre: "Aucune action enregistrée pour le moment",
+          description: "Les actions des agents et administrateurs de votre zone apparaîtront ici."
+        }}
+      />
+
+      {reponse && !erreur && (
+        <Pagination
+          page={reponse.page}
+          taillepage={reponse.page_size}
+          total={reponse.count}
+          aSuivant={reponse.page * reponse.page_size < reponse.count}
+          aPrecedent={reponse.page > 1}
+          onChanger={setPage}
+        />
       )}
     </MiseEnPage>
   );

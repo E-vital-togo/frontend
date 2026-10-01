@@ -28,6 +28,9 @@ function normaliser(texte: string): string {
 }
 
 /**
+ * OBSOLETE : ChampDynamique utilise desormais `Selecteur multiple` (liste deroulante avec recherche, cases et puces).
+ * Ce composant n'est plus reference ; il est conserve le temps de verifier qu'aucune page externe n'en depend.
+ *
  * Choix multiple sous forme de "chips" cochables, avec filtre quand la liste
  * est longue : bien plus lisible et tactile que le <select multiple> natif
  * (liste ouverte, selection a coups de Ctrl/Cmd-clic, impossible sur mobile).

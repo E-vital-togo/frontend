@@ -1,0 +1,444 @@
+/*
+  E-VITAL - Ecrans d'acces et parcours parent (React).
+  ATTENTION a l'ordre de cascade : main.tsx importe App avant les feuilles
+  globales, donc ce fichier est evalue AVANT theme.css et composants.css. Toute
+  regle qui surcharge un style global doit etre plus specifique (selecteur
+  compose), jamais compter sur l'ordre des sources. Utilise uniquement les
+  jetons de theme.css. Classes prefixees eva-acces- (acces) ; ne redefinit aucune classe
+  eva-* existante. S'appuie sur PageAuth (composants.css, section 9).
+
+  Table des matieres
+   1. Champs avec icone (email, mot de passe)
+   2. Champs de saisie d'un code (cases, code de retrait)
+   3. Pied de carte et petits textes
+   4. Fil des etapes du parcours parent
+   5. Ecran de resultat (succes, erreur, introuvable)
+   6. Parcours parent : codes retrouves, suivi, formulaire
+   7. Accueil : choix de l'espace
+   8. Mon compte
+   9. Petit ecran (tactile)
+  10. Correctifs locaux de PageAuth (voir le rapport : a integrer a composants.css)
+*/
+
+/* =========================================================================
+   1. CHAMPS AVEC ICONE
+   ========================================================================= */
+.eva-acces-groupe { position: relative; display: flex; align-items: center; }
+.eva-acces-groupe > input { flex: 1; padding-left: 42px; }
+.eva-acces-groupe > input:has(~ .eva-acces-groupe__action) { padding-right: 48px; }
+.eva-acces-groupe__icone {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  display: inline-flex;
+  color: var(--couleur-texte-discret);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.eva-acces-groupe:focus-within .eva-acces-groupe__icone { color: var(--couleur-emeraude); }
+.eva-acces-groupe .eva-bouton.eva-acces-groupe__action {
+  position: absolute;
+  right: 3px;
+  top: 50%;
+  width: 40px;
+  min-height: 40px;
+  height: 40px;
+  transform: translateY(-50%);
+  color: var(--couleur-texte-discret);
+}
+.eva-acces-groupe .eva-bouton.eva-acces-groupe__action:focus-visible { outline-offset: -3px; }
+.eva-acces-rangee-lien { display: flex; justify-content: flex-end; margin: calc(-1 * var(--espace-2)) calc(-1 * var(--espace-3)) 0 0; }
+.eva-acces-rangee-lien .eva-auth__lien { color: var(--couleur-emeraude); font-size: 13px; font-weight: 500; text-underline-offset: 3px; }
+.eva-acces-rangee-lien .eva-auth__lien:hover { color: var(--couleur-emeraude-profond); }
+
+/* =========================================================================
+   2. SAISIE D'UN CODE
+   ========================================================================= */
+.eva-acces-champ-code { margin-bottom: var(--espace-1); }
+.eva-acces-champ-code__label { display: block; margin: 0 0 var(--espace-2); font-size: 13px; font-weight: 500; color: var(--couleur-gris-service-1); }
+.eva-acces-code { position: relative; }
+.eva-acces-code__cases { display: grid; grid-template-columns: repeat(var(--eva-acces-n, 6), minmax(0, 1fr)); gap: var(--espace-2); }
+.eva-acces-code__case {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+  border: 1px solid var(--couleur-bordure-champ);
+  border-radius: var(--rayon-champ);
+  background: var(--couleur-blanc);
+  color: var(--couleur-encre);
+  font-family: var(--police-donnees);
+  font-size: 26px;
+  font-weight: 500;
+  transition: border-color var(--transition-rapide), box-shadow var(--transition-rapide), background-color var(--transition-rapide);
+}
+.eva-acces-code__case.est-rempli { border-color: var(--couleur-emeraude); background: var(--couleur-emeraude-fond-doux); }
+.eva-acces-code.est-focus .eva-acces-code__case.est-active { border-color: var(--couleur-emeraude); background: var(--couleur-blanc); box-shadow: var(--ombre-anneau-focus); }
+.eva-acces-code.est-focus .eva-acces-code__case.est-active:empty::after {
+  content: "";
+  width: 2px;
+  height: 28px;
+  background: var(--couleur-emeraude);
+  animation: eva-acces-clignote 1s steps(1) infinite;
+}
+.eva-acces-champ-code.est-erreur .eva-acces-code__case { border-color: var(--couleur-erreur); background: var(--couleur-erreur-fond); }
+.eva-acces-champ-code.est-erreur .eva-acces-code__cases { animation: eva-acces-secousse 360ms ease; }
+.eva-acces-code__champ {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  opacity: 0;
+  /* 16px : evite le zoom automatique d'iOS a la prise de focus */
+  font-size: 16px;
+  cursor: text;
+}
+.eva-acces-champ-code__erreur { margin: var(--espace-3) 0 0; text-align: center; font-size: 13.5px; font-weight: 500; line-height: 1.45; color: var(--couleur-erreur); }
+.eva-acces-champ-code__aide { margin: var(--espace-3) 0 0; text-align: center; font-size: 13px; color: var(--couleur-texte-discret); }
+.eva-acces-minuteur {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: var(--espace-4) 0 0;
+  font-size: 13px;
+  color: var(--couleur-texte-discret);
+}
+.eva-acces-minuteur strong { color: var(--couleur-encre); font-weight: 600; }
+
+/* Code de retrait (8 caracteres alphanumeriques) : grand champ monospace */
+html .eva-auth .eva-champ input.eva-acces-entree-code:not([type="checkbox"]):not([type="radio"]) {
+  min-height: 56px;
+  font-family: var(--police-donnees);
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-align: center;
+  text-transform: uppercase;
+}
+html .eva-auth .eva-champ input.eva-acces-entree-code::placeholder { letter-spacing: 0.16em; font-weight: 400; }
+.eva-auth .eva-champ:has(.eva-acces-entree-code) .eva-champ__aide { text-align: center; }
+
+@keyframes eva-acces-clignote { 50% { opacity: 0; } }
+@keyframes eva-acces-secousse {
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+
+/* =========================================================================
+   3. PIED DE CARTE ET PETITS TEXTES
+   ========================================================================= */
+.eva-acces-pied__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--rayon-champ);
+  background: var(--couleur-emeraude-fond-doux);
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.eva-acces-pied__note > svg { flex: none; margin-top: 2px; color: var(--couleur-emeraude); }
+.eva-acces-pied__lien { margin: 0; line-height: 1.6; }
+.eva-acces-pied__lien a { white-space: nowrap; }
+.eva-acces-pied__note + .eva-acces-pied__lien { margin-top: var(--espace-3); }
+.eva-acces-bloc { display: block; margin-top: var(--espace-1); overflow-wrap: anywhere; }
+.eva-acces-email { font-family: var(--police-donnees); font-size: 13px; overflow-wrap: anywhere; }
+.eva-acces-espace-haut { margin-top: var(--espace-4); }
+.eva-acces-espace-bas { margin-bottom: var(--espace-4); }
+.eva-acces-rappel-code { margin: var(--espace-5) 0 0; text-align: center; font-size: 13px; color: var(--couleur-texte-discret); }
+.eva-acces-rappel-code strong { color: var(--couleur-encre); font-weight: 600; letter-spacing: 0.08em; }
+.eva-acces-secours { margin-top: var(--espace-6); padding-top: var(--espace-5); border-top: 1px solid var(--couleur-bordure); text-align: center; }
+.eva-acces-secours p { margin: 0 0 var(--espace-3); font-size: 13.5px; color: var(--couleur-texte-discret); }
+.eva-acces-renvoi { display: flex; justify-content: center; margin-top: var(--espace-3); }
+.eva-acces-squelette { display: flex; flex-direction: column; gap: var(--espace-4); }
+
+/* =========================================================================
+   4. FIL DES ETAPES (parcours parent)
+   ========================================================================= */
+.eva-acces-etapes { display: flex; margin: 0 0 var(--espace-6); padding: 0; list-style: none; }
+.eva-acces-etapes__item { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; text-align: center; }
+.eva-acces-etapes__item:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 14px;
+  left: calc(50% + 22px);
+  right: calc(-50% + 22px);
+  height: 2px;
+  border-radius: 1px;
+  background: var(--couleur-bordure-forte);
+}
+.eva-acces-etapes__item.est-fait:not(:last-child)::after { background: var(--couleur-emeraude); }
+.eva-acces-etapes__puce {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 2px solid var(--couleur-bordure-champ);
+  border-radius: 50%;
+  background: var(--couleur-blanc);
+  color: var(--couleur-texte-discret);
+  font-family: var(--police-donnees);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.eva-acces-etapes__item.est-courant .eva-acces-etapes__puce {
+  border-color: var(--couleur-emeraude);
+  background: var(--couleur-emeraude-fond);
+  color: var(--couleur-emeraude-profond);
+  box-shadow: 0 0 0 4px var(--couleur-emeraude-fond-doux);
+}
+.eva-acces-etapes__item.est-fait .eva-acces-etapes__puce { border-color: var(--couleur-emeraude); background: var(--couleur-emeraude); color: var(--couleur-blanc); }
+.eva-acces-etapes__libelle { font-size: 12.5px; font-weight: 500; line-height: 1.3; color: var(--couleur-texte-discret); }
+.eva-acces-etapes__item.est-courant .eva-acces-etapes__libelle { color: var(--couleur-encre); font-weight: 600; }
+.eva-acces-etapes__item.est-fait .eva-acces-etapes__libelle { color: var(--couleur-gris-service-1); }
+
+/* Version en ligne (au-dessus du formulaire, qui a son propre fil d'etapes) */
+.eva-acces-etapes--compact { flex-wrap: wrap; justify-content: center; gap: var(--espace-1) var(--espace-2); margin-bottom: var(--espace-5); }
+.eva-acces-etapes--compact .eva-acces-etapes__item { flex: none; flex-direction: row; gap: var(--espace-2); }
+.eva-acces-etapes--compact .eva-acces-etapes__item:not(:last-child)::after {
+  position: static;
+  width: auto;
+  height: auto;
+  margin-left: var(--espace-1);
+  background: none;
+  color: var(--couleur-bordure-champ);
+  font-size: 18px;
+  line-height: 1;
+  content: "\203A";
+}
+.eva-acces-etapes--compact .eva-acces-etapes__puce { width: 22px; height: 22px; border-width: 1.5px; font-size: 11.5px; }
+.eva-acces-etapes--compact .eva-acces-etapes__item.est-courant .eva-acces-etapes__puce { box-shadow: 0 0 0 3px var(--couleur-emeraude-fond-doux); }
+.eva-acces-etapes--compact .eva-acces-etapes__libelle { font-size: 13px; }
+
+/* =========================================================================
+   5. ECRAN DE RESULTAT
+   ========================================================================= */
+.eva-acces-resultat {
+  --rc-fond: var(--couleur-neutre-fond);
+  --rc-texte: var(--couleur-gris-service-1);
+  --rc-bordure: var(--couleur-bordure-forte);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.eva-acces-resultat--succes { --rc-fond: var(--couleur-emeraude-fond); --rc-texte: var(--couleur-emeraude); --rc-bordure: var(--couleur-succes-bordure); }
+.eva-acces-resultat--erreur { --rc-fond: var(--couleur-erreur-fond); --rc-texte: var(--couleur-erreur); --rc-bordure: var(--couleur-erreur-bordure); }
+.eva-acces-resultat--attention { --rc-fond: var(--couleur-citron-fond); --rc-texte: var(--couleur-citron-texte); --rc-bordure: var(--couleur-citron-bordure); }
+.eva-acces-resultat__icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: var(--rc-fond);
+  color: var(--rc-texte);
+  margin-top: var(--espace-1);
+  box-shadow: 0 0 0 6px var(--couleur-blanc), 0 0 0 7px var(--rc-bordure);
+  animation: eva-acces-apparition 420ms cubic-bezier(0.2, 1.1, 0.3, 1) both;
+}
+.eva-acces-resultat .eva-acces-resultat__titre { margin-top: var(--espace-6); }
+.eva-acces-resultat__texte { max-width: 38ch; margin-top: var(--espace-3); font-size: 14.5px; line-height: 1.6; color: var(--couleur-texte-discret); }
+.eva-acces-resultat__texte p { margin: 0 0 var(--espace-2); }
+.eva-acces-resultat__texte p:last-child { margin-bottom: 0; }
+.eva-acces-resultat__actions { display: flex; flex-direction: column; gap: var(--espace-3); width: 100%; margin-top: var(--espace-6); }
+.eva-acces-code-erreur { font-size: 12.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--couleur-texte-discret); }
+@keyframes eva-acces-apparition { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: none; } }
+
+/* =========================================================================
+   6. PARCOURS PARENT
+   ========================================================================= */
+/* Codes retrouves */
+.eva-acces-codes { display: flex; flex-direction: column; gap: var(--espace-3); margin: 0; padding: 0; list-style: none; }
+.eva-acces-codes__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-4);
+  padding: var(--espace-4);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-papier);
+}
+.eva-acces-codes__info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.eva-acces-codes__etiquette { font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--couleur-texte-discret); }
+.eva-acces-codes__code { font-size: 26px; font-weight: 600; letter-spacing: 0.12em; line-height: 1.3; color: var(--couleur-encre); overflow-wrap: anywhere; }
+.eva-acces-codes__date { font-size: 13px; color: var(--couleur-texte-discret); }
+.eva-acces-codes__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--espace-3); }
+.eva-acces-codes__actions .eva-bouton { width: 100%; }
+
+/* Suivi du dossier */
+.eva-acces-progression { display: flex; margin: 0 0 var(--espace-5); padding: var(--espace-4) var(--espace-2) var(--espace-3); list-style: none; border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-standard); background: var(--couleur-papier); }
+.eva-acces-progression__item { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; text-align: center; }
+.eva-acces-progression__item:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 13px;
+  left: calc(50% + 20px);
+  right: calc(-50% + 20px);
+  height: 2px;
+  background: var(--couleur-bordure-forte);
+}
+.eva-acces-progression__item.est-atteint:not(:last-child)::after { background: var(--couleur-emeraude); }
+.eva-acces-progression__puce {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--couleur-bordure-champ);
+  border-radius: 50%;
+  background: var(--couleur-blanc);
+  color: var(--couleur-texte-discret);
+  font-family: var(--police-donnees);
+  font-size: 12px;
+  font-weight: 600;
+}
+.eva-acces-progression__item.est-atteint .eva-acces-progression__puce { border-color: var(--couleur-emeraude); background: var(--couleur-emeraude); color: var(--couleur-blanc); }
+.eva-acces-progression__item.est-courant .eva-acces-progression__puce { box-shadow: 0 0 0 4px var(--couleur-emeraude-fond); }
+.eva-acces-progression__item.est-courant:not(.est-atteint) .eva-acces-progression__puce { border-color: var(--couleur-emeraude); background: var(--couleur-emeraude-fond); color: var(--couleur-emeraude-profond); }
+.eva-acces-progression__libelle { font-size: 12.5px; font-weight: 500; line-height: 1.3; color: var(--couleur-texte-discret); }
+.eva-acces-progression__item.est-atteint .eva-acces-progression__libelle { color: var(--couleur-gris-service-1); }
+.eva-acces-progression__item.est-courant .eva-acces-progression__libelle { color: var(--couleur-encre); font-weight: 600; }
+
+.eva-acces-statut {
+  --st-fond: var(--couleur-emeraude-fond-doux);
+  --st-bordure: var(--couleur-bordure);
+  --st-texte: var(--couleur-emeraude-profond);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espace-3);
+  padding: var(--espace-4);
+  border: 1px solid var(--st-bordure);
+  border-radius: var(--rayon-standard);
+  background: var(--st-fond);
+  color: var(--couleur-encre);
+}
+.eva-acces-statut--succes { --st-fond: var(--couleur-emeraude-fond); --st-bordure: var(--couleur-succes-bordure); --st-texte: var(--couleur-succes-texte); }
+.eva-acces-statut--attention { --st-fond: var(--couleur-citron-fond); --st-bordure: var(--couleur-citron-bordure); --st-texte: var(--couleur-citron-texte); }
+.eva-acces-statut--erreur { --st-fond: var(--couleur-erreur-fond); --st-bordure: var(--couleur-erreur-bordure); --st-texte: var(--couleur-erreur-profond); }
+.eva-acces-statut__icone {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--couleur-blanc);
+  color: var(--st-texte);
+}
+.eva-acces-statut__titre { margin: 0; font-size: 15.5px; font-weight: 600; line-height: 1.35; color: var(--st-texte); }
+.eva-acces-statut__texte { margin: 2px 0 0; font-size: 14px; line-height: 1.55; }
+.eva-acces-statut__conseil { margin: var(--espace-2) 0 0; font-size: 13.5px; line-height: 1.5; color: var(--couleur-gris-service-1); }
+.eva-acces-statut__echec { margin: var(--espace-3) 0 0; font-size: 13px; color: var(--couleur-erreur-profond); }
+.eva-acces-actions-statut { display: flex; flex-direction: column; gap: var(--espace-3); margin-top: var(--espace-5); }
+
+/* Formulaire de completion */
+.eva-acces-alerte-formulaire { scroll-margin-top: var(--espace-5); }
+.eva-acces-envoi { margin-top: var(--espace-6); }
+
+/* =========================================================================
+   7. ACCUEIL : CHOIX DE L'ESPACE
+   ========================================================================= */
+.eva-acces-choix { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--espace-4); }
+.eva-acces-choix .eva-acces-choix__carte {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--espace-4);
+  padding: var(--espace-5);
+  color: inherit;
+  text-decoration: none;
+}
+.eva-acces-choix__icone {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--couleur-emeraude-fond);
+  color: var(--couleur-emeraude);
+}
+.eva-acces-choix__icone--parent { background: var(--couleur-citron); color: var(--couleur-vert-profond); }
+.eva-acces-choix__texte { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.eva-acces-choix__titre { font-size: 16px; font-weight: 600; line-height: 1.35; color: var(--couleur-encre); }
+.eva-acces-choix__description { font-size: 13.5px; line-height: 1.5; color: var(--couleur-texte-discret); }
+.eva-acces-choix__fleche { flex: none; align-self: flex-end; margin-top: auto; color: var(--couleur-emeraude); transition: transform var(--transition-rapide); }
+.eva-acces-choix__carte:hover .eva-acces-choix__fleche { transform: translateX(3px); }
+
+/* =========================================================================
+   8. MON COMPTE
+   ========================================================================= */
+.eva-acces-compte { display: flex; flex-direction: column; gap: var(--espace-5); }
+.eva-acces-compte form { min-width: 0; }
+.eva-acces-identite.eva-carte { display: flex; align-items: center; flex-wrap: wrap; gap: var(--espace-4); }
+.eva-acces-identite__texte { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.eva-acces-identite__nom { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; color: var(--couleur-encre); overflow-wrap: anywhere; }
+.eva-acces-identite__details { display: flex; flex-direction: column; gap: 6px; margin: 0 0 0 auto; padding: 0; list-style: none; font-size: 13.5px; color: var(--couleur-texte-discret); }
+.eva-acces-identite__details li { display: flex; align-items: center; gap: var(--espace-2); min-width: 0; overflow-wrap: anywhere; }
+.eva-acces-identite__details svg { flex: none; }
+.eva-acces-note-securite { display: flex; align-items: flex-start; gap: var(--espace-2); margin: var(--espace-1) 0 0; font-size: 13px; line-height: 1.5; color: var(--couleur-texte-discret); }
+.eva-acces-note-securite > svg { flex: none; margin-top: 2px; color: var(--couleur-emeraude); }
+
+/* =========================================================================
+   9. PETIT ECRAN (TACTILE)
+   ========================================================================= */
+@media (max-width: 720px) {
+  /* 16px : evite le zoom automatique d'iOS a la prise de focus (PageAuth fixe 15px) */
+  html .eva-auth .eva-champ input:not([type="checkbox"]):not([type="radio"]) { font-size: 16px; min-height: 48px; }
+  .eva-acces-compte .eva-champ input:not([type="checkbox"]):not([type="radio"]) { font-size: 16px; min-height: 46px; }
+  .eva-acces-identite__details { margin-left: 0; flex-basis: 100%; padding-top: var(--espace-3); border-top: 1px solid var(--couleur-bordure); }
+}
+
+@media (max-width: 600px) {
+  .eva-acces-choix { grid-template-columns: 1fr; }
+  .eva-acces-choix .eva-acces-choix__carte { flex-direction: row; align-items: center; padding: var(--espace-4); }
+  .eva-acces-choix__fleche { align-self: center; margin: 0 0 0 auto; }
+  .eva-acces-resultat__texte { max-width: none; }
+}
+
+@media (max-width: 560px) {
+  /* Carte large (formulaire du parent, accueil) : on rend de la largeur au contenu */
+  .eva-auth.eva-auth--large { padding: var(--espace-3) var(--espace-2) var(--espace-6); }
+  .eva-auth--large .eva-auth__carte { padding: var(--espace-5) var(--espace-4); }
+}
+
+@media (max-width: 420px) {
+  .eva-acces-code__cases { gap: 6px; }
+  .eva-acces-code__case { min-height: 54px; font-size: 22px; }
+  .eva-acces-codes__actions { grid-template-columns: 1fr; }
+  .eva-acces-codes__code { font-size: 22px; }
+}
+
+/* =========================================================================
+   10. CORRECTIFS LOCAUX DE PAGEAUTH
+   Le filigrane (::after, deborde en bas a droite) rendait .eva-auth defilable
+   malgre overflow: hidden : un focus ou un scrollIntoView decalait la carte
+   de plusieurs dizaines de pixels et rognait son haut sur telephone. `clip`
+   interdit tout defilement ; dvh suit la barre d'adresse mobile. Les navigateurs
+   qui ne connaissent pas ces valeurs gardent le comportement precedent.
+   ========================================================================= */
+main.eva-auth { overflow: clip; min-height: 100dvh; }
+/* Bouton d'action dans une alerte : plus discret que les boutons de formulaire de PageAuth (48px) */
+.eva-auth .eva-alerte .eva-bouton { min-height: 40px; font-size: 14px; }

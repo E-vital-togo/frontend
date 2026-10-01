@@ -1,14 +1,19 @@
 import { useState, type FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
-import { KeyRound } from "lucide-react";
-import Logo from "../../components/Logo";
-import { Bouton, Champ } from "../../components/ui";
+import { useParams } from "react-router-dom";
+import { CheckCircle2, KeyRound } from "lucide-react";
+import ChampMotDePasse from "../../components/auth/ChampMotDePasse";
+import EcranResultat from "../../components/auth/EcranResultat";
+import { decrireErreur, type MessageErreur } from "../../components/auth/messagesAuth";
+import { Alerte, Bouton, LienBouton, PageAuth } from "../../components/ui";
 import { appelApi, ErreurApi } from "../../lib/apiClient";
+import "../../styles/auth.css";
+
+const LONGUEUR_MINIMALE = 10;
 
 /**
  * Destination du lien envoye par email (voir apps.utilisateurs.tasks.
  * envoyer_lien_reinitialisation : "${FRONTEND_URL}/reinitialiser-mot-de-
- * passe/:uidb64/:token"). Cette route n'existait pas cote frontend - le
+ * passe/:uidb64/:token"). Cette route n'existait pas cote frontend : le
  * lien envoye par email menait a une page introuvable et personne ne
  * pouvait terminer une reinitialisation de mot de passe oublie.
  */
@@ -17,19 +22,20 @@ export default function PageReinitialiserMotDePasse() {
   const [nouveauMotDePasse, setNouveauMotDePasse] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [enCours, setEnCours] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
+  const [erreur, setErreur] = useState<MessageErreur | null>(null);
   const [reussi, setReussi] = useState(false);
+  const [lienInvalide, setLienInvalide] = useState(false);
+
+  const confirmationDifferente = confirmation.length > 0 && confirmation !== nouveauMotDePasse;
 
   async function soumettre(evenement: FormEvent<HTMLFormElement>) {
     evenement.preventDefault();
     setErreur(null);
+    setLienInvalide(false);
 
-    if (nouveauMotDePasse !== confirmation) {
-      setErreur("La confirmation ne correspond pas au nouveau mot de passe.");
-      return;
-    }
+    if (nouveauMotDePasse !== confirmation) return;
     if (!uidb64 || !token) {
-      setErreur("Lien de reinitialisation incomplet.");
+      setErreur({ variante: "erreur", titre: "Lien incomplet", message: "Ce lien de réinitialisation est incomplet. Demandez-en un nouveau depuis l'écran de connexion." });
       return;
     }
 
@@ -41,82 +47,86 @@ export default function PageReinitialiserMotDePasse() {
       });
       setReussi(true);
     } catch (e) {
-      setErreur(
-        e instanceof ErreurApi
-          ? e.message
-          : "Ce lien de reinitialisation est invalide ou a expire. Demandez-en un nouveau depuis l'ecran de connexion."
-      );
+      // Le serveur distingue un lien perime ("lien_invalide") d'un mot de passe refuse (trop courant, trop proche...).
+      const perime = e instanceof ErreurApi && e.code === "lien_invalide";
+      setLienInvalide(perime);
+      setErreur(decrireErreur(e, perime ? "Lien invalide ou expiré" : "Mot de passe refusé"));
     } finally {
       setEnCours(false);
     }
   }
 
+  if (reussi) {
+    return (
+      <PageAuth>
+        <EcranResultat
+          ton="succes"
+          icone={<CheckCircle2 size={34} />}
+          titre="Mot de passe réinitialisé"
+          actions={
+            <LienBouton to="/connexion" pleineLargeur>
+              Aller à la connexion
+            </LienBouton>
+          }
+        >
+          <p>Votre mot de passe a bien été modifié. Vous pouvez maintenant vous connecter avec le nouveau.</p>
+        </EcranResultat>
+      </PageAuth>
+    );
+  }
+
   return (
-    <div className="eva-ecran-centre">
-      <div className="eva-carte eva-ecran-centre__carte">
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
-          <Logo variante="vertical" hauteur={80} />
-        </div>
-        <h1 style={{ fontSize: 18, color: "var(--couleur-emeraude)", marginBottom: 10 }}>
-          Reinitialiser le mot de passe
-        </h1>
-
-        {reussi ? (
-          <>
-            <p style={{ fontSize: 14, marginBottom: 16 }}>
-              Votre mot de passe a ete reinitialise avec succes. Vous pouvez maintenant vous connecter.
-            </p>
-            <Link to="/connexion" className="eva-bouton eva-bouton--principal eva-bouton--moyen" style={{ width: "100%", justifyContent: "center" }}>
-              Aller a la connexion
-            </Link>
-          </>
-        ) : (
-          <form onSubmit={soumettre}>
-            <p className="eva-sous-titre" style={{ marginBottom: 14 }}>
-              Choisissez un nouveau mot de passe (au moins 10 caracteres).
-            </p>
-            {erreur && <div className="message-erreur">{erreur}</div>}
-            <Champ id="nouveau-mdp" label="Nouveau mot de passe" requis>
-              <input
-                id="nouveau-mdp"
-                type="password"
-                required
-                minLength={10}
-                autoFocus
-                value={nouveauMotDePasse}
-                onChange={(e) => setNouveauMotDePasse(e.target.value)}
-              />
-            </Champ>
-            <Champ id="confirmation-mdp" label="Confirmer le nouveau mot de passe" requis>
-              <input
-                id="confirmation-mdp"
-                type="password"
-                required
-                minLength={10}
-                value={confirmation}
-                onChange={(e) => setConfirmation(e.target.value)}
-              />
-            </Champ>
-            <Bouton
-              type="submit"
-              chargement={enCours}
-              style={{ width: "100%" }}
-              iconeGauche={!enCours && <KeyRound size={16} />}
-            >
-              Reinitialiser le mot de passe
-            </Bouton>
-          </form>
-        )}
-
-        {!reussi && (
-          <Link
-            to="/connexion"
-            style={{ display: "block", textAlign: "center", fontSize: 12.5, color: "var(--couleur-gris-service-2)", marginTop: 16 }}
+    <PageAuth
+      titre="Nouveau mot de passe"
+      description="Choisissez un mot de passe que vous n'utilisez nulle part ailleurs."
+      icone={<KeyRound size={26} />}
+      retour={{ libelle: "Retour à la connexion", vers: "/connexion" }}
+      message={
+        erreur ? (
+          <Alerte
+            variante={erreur.variante}
+            titre={erreur.titre}
+            actions={
+              lienInvalide ? (
+                <LienBouton to="/connexion" variante="secondaire" taille="petit">
+                  Demander un nouveau lien
+                </LienBouton>
+              ) : undefined
+            }
           >
-            Retour a la connexion
-          </Link>
-        )}
-      </div>
-    </div>
+            {erreur.message}
+          </Alerte>
+        ) : undefined
+      }
+    >
+      <form onSubmit={soumettre}>
+        <ChampMotDePasse
+          id="nouveau-mdp"
+          label="Nouveau mot de passe"
+          requis
+          minLength={LONGUEUR_MINIMALE}
+          autoFocus
+          autoComplete="new-password"
+          aide={`Au moins ${LONGUEUR_MINIMALE} caractères.`}
+          valeur={nouveauMotDePasse}
+          onChange={setNouveauMotDePasse}
+        />
+        <ChampMotDePasse
+          id="confirmation-mdp"
+          label="Confirmer le nouveau mot de passe"
+          requis
+          minLength={LONGUEUR_MINIMALE}
+          autoComplete="new-password"
+          erreur={confirmationDifferente ? "Les deux mots de passe ne sont pas identiques." : undefined}
+          valeur={confirmation}
+          onChange={setConfirmation}
+        />
+        <div className="eva-auth__actions">
+          <Bouton type="submit" pleineLargeur chargement={enCours} iconeGauche={<KeyRound size={17} />}>
+            Réinitialiser le mot de passe
+          </Bouton>
+        </div>
+      </form>
+    </PageAuth>
   );
 }

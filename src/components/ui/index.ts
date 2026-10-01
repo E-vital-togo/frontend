@@ -2,12 +2,15 @@ export { default as Bouton, LienBouton, AncreBouton, classesBouton } from "./Bou
 export type { VarianteBouton, TailleBouton } from "./Bouton";
 export { default as Champ } from "./Champ";
 export { default as ChampTelephone } from "./ChampTelephone";
-export { default as Carte } from "./Carte";
+export { default as Carte, CarteLien } from "./Carte";
+export type { VarianteCarte } from "./Carte";
 export { default as Badge } from "./Badge";
 export type { VarianteBadge } from "./Badge";
 export { default as Tableau } from "./Tableau";
 export { default as EtatVide } from "./EtatVide";
+export type { VarianteEtatVide } from "./EtatVide";
 export { default as CarteStat } from "./CarteStat";
+export type { VarianteCarteStat } from "./CarteStat";
 export { default as Modale } from "./Modale";
 export { FournisseurConfirmation, useConfirmation } from "./ConfirmationProvider";
 export { FournisseurToast, useToast } from "./ToastProvider";
@@ -20,3 +23,31 @@ export type { ElementFrise } from "./Frise";
 export { default as EnteteDePage } from "./EnteteDePage";
 export { default as GraphiqueECharts } from "./GraphiqueECharts";
 export type { PoigneeGraphique } from "./GraphiqueECharts";
+
+// Composants de la fondation du systeme de design (voir docs/design-system-react.md)
+export { default as Icone } from "./Icone";
+export type { TailleIcone } from "./Icone";
+export { default as Squelette } from "./Squelette";
+export type { VarianteSquelette } from "./Squelette";
+export { default as ListeResponsive } from "./ListeResponsive";
+export type { ColonneListe, EtatTri, SensTri } from "./ListeResponsive";
+export { default as PilulesFiltre } from "./PilulesFiltre";
+export type { PiluleFiltre } from "./PilulesFiltre";
+export { default as BarreRecherche } from "./BarreRecherche";
+export { default as BarreOutils } from "./BarreOutils";
+export { default as Alerte } from "./Alerte";
+export type { VarianteAlerte } from "./Alerte";
+export { default as BarreEnregistrement } from "./BarreEnregistrement";
+export { default as FilAriane } from "./FilAriane";
+export type { ElementFilAriane } from "./FilAriane";
+export { default as Interrupteur } from "./Interrupteur";
+export { default as Avatar, initiales } from "./Avatar";
+export { default as MenuDeroulant, ItemMenu, SeparateurMenu, EnteteMenu } from "./MenuDeroulant";
+export { default as PageAuth } from "./PageAuth";
+export { useMediaQuery } from "./useMediaQuery";
+
+// Selecteur maison (liste deroulante avec recherche) et saisie avec suggestions
+export { default as Selecteur, optionsDepuis, optionsDepuisEnfants } from "./Selecteur";
+export type { OptionSelecteur, ProprietesSelecteur, ProprietesSelecteurSimple, ProprietesSelecteurMultiple } from "./Selecteur";
+export { default as ChampSuggestions } from "./ChampSuggestions";
+export type { ProprietesChampSuggestions } from "./ChampSuggestions";

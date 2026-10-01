@@ -1,23 +1,24 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Download } from "lucide-react";
+import { Download, ExternalLink, FileWarning } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
 import DemandeCorrectionActe from "../../components/DemandeCorrectionActe";
-import { AncreBouton, Champ, ChargementPage, EnteteDePage } from "../../components/ui";
+import { AncreBouton, Alerte, Bouton, Carte, Champ, EnteteDePage, Selecteur, Squelette } from "../../components/ui";
 import { useAuth } from "../../context/AuthContext";
-import { appelApi } from "../../lib/apiClient";
+import { appelApi, ErreurApi } from "../../lib/apiClient";
 import { LIENS_AGENT } from "./navigation";
 import { LIENS_ADMIN_CEC } from "../admin_cec/navigation";
+import "../../styles/agent.css";
 
 // Le volet N°4 (INSEED) n'existe plus sur le formulaire national depuis que
-// l'INSEED accede directement aux donnees via ses requetes agregees (voir
-// apps.actes.services_pdf cote backend) : jamais propose ici.
+// l'INSEED accède directement aux données via ses requêtes agrégées (voir
+// apps.actes.services_pdf côté backend) : jamais proposé ici.
 const VOLETS = [
   { valeur: "", libelle: "Tous les volets (1, 2, 3, 5)" },
   { valeur: "1", libelle: "Volet N°1 (Souche)" },
-  { valeur: "2", libelle: "Volet N°2 (Ministere de l'Administration Territoriale)" },
+  { valeur: "2", libelle: "Volet N°2 (Ministère de l'Administration Territoriale)" },
   { valeur: "3", libelle: "Volet N°3 (Greffe du Tribunal)" },
-  { valeur: "5", libelle: "Volet N°5 (Declarant)" }
+  { valeur: "5", libelle: "Volet N°5 (Déclarant)" }
 ];
 
 export default function ActePdf() {
@@ -25,10 +26,12 @@ export default function ActePdf() {
   const { utilisateur } = useAuth();
   const estAgent = utilisateur?.role === "agent_cec";
   const liens = estAgent ? LIENS_AGENT : LIENS_ADMIN_CEC;
+  const basePath = estAgent ? "/agent" : "/admin-cec";
 
   const [urlPdf, setUrlPdf] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [voletSelectionne, setVoletSelectionne] = useState("");
+  const [relance, setRelance] = useState(0);
 
   useEffect(() => {
     if (!idDossier) return;
@@ -42,47 +45,88 @@ export default function ActePdf() {
         urlObjet = URL.createObjectURL(blob);
         setUrlPdf(urlObjet);
       })
-      .catch((e: unknown) => setErreur(e instanceof Error ? e.message : "Erreur"));
+      .catch((e: unknown) => setErreur(e instanceof ErreurApi || e instanceof Error ? e.message : "Erreur inattendue."));
 
     return () => {
       if (urlObjet) URL.revokeObjectURL(urlObjet);
     };
-  }, [idDossier, voletSelectionne]);
+  }, [idDossier, voletSelectionne, relance]);
+
+  const libelleVolet = VOLETS.find((v) => v.valeur === voletSelectionne)?.libelle ?? VOLETS[0].libelle;
+  const nomFichier = voletSelectionne ? `acte-${idDossier}-volet${voletSelectionne}.pdf` : `acte-${idDossier}.pdf`;
+  const enGeneration = !urlPdf && !erreur;
 
   return (
     <MiseEnPage liens={liens}>
       <EnteteDePage
         titre="Acte"
+        sousTitre="Aperçu du document officiel, à télécharger ou à imprimer volet par volet."
+        filAriane={[
+          { libelle: "Dossiers", vers: `${basePath}/dossiers` },
+          { libelle: "Dossier", vers: `${basePath}/dossiers/${idDossier}` },
+          { libelle: "Acte" }
+        ]}
         actions={estAgent && idDossier && <DemandeCorrectionActe idDossier={idDossier} libelle="Demander une correction" />}
       />
-      <div className="eva-carte" style={{ marginBottom: 20, maxWidth: 320 }}>
-        <Champ id="volet" label="Volet a imprimer">
-          <select id="volet" value={voletSelectionne} onChange={(e) => setVoletSelectionne(e.target.value)}>
+
+      <Carte className="eva-ag-barre-acte">
+        <Champ id="volet" label="Volet à imprimer" className="eva-ag-barre-acte__choix">
+          <Selecteur id="volet" valeur={voletSelectionne} onChange={setVoletSelectionne}>
             {VOLETS.map((v) => (
               <option key={v.valeur} value={v.valeur}>
                 {v.libelle}
               </option>
             ))}
-          </select>
+          </Selecteur>
         </Champ>
-      </div>
-      {erreur && <div className="message-erreur">{erreur}</div>}
-      {urlPdf ? (
-        <div className="eva-carte" style={{ padding: 0, overflow: "hidden" }}>
-          <iframe title="Acte" src={urlPdf} style={{ width: "100%", height: "80vh", border: "none", display: "block" }} />
-          <div style={{ padding: 14 }}>
-            <AncreBouton
-              href={urlPdf}
-              download={voletSelectionne ? `acte-${idDossier}-volet${voletSelectionne}.pdf` : `acte-${idDossier}.pdf`}
-              iconeGauche={<Download size={16} />}
-            >
-              Telecharger / Imprimer
-            </AncreBouton>
-          </div>
+        <div className="eva-groupe-boutons eva-ag-barre-acte__actions">
+          <AncreBouton
+            href={urlPdf ?? undefined}
+            download={nomFichier}
+            desactive={!urlPdf}
+            iconeGauche={<Download size={16} />}
+          >
+            Télécharger / Imprimer
+          </AncreBouton>
+          <AncreBouton
+            href={urlPdf ?? undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            variante="secondaire"
+            desactive={!urlPdf}
+            iconeGauche={<ExternalLink size={16} />}
+          >
+            Ouvrir dans un onglet
+          </AncreBouton>
         </div>
-      ) : (
-        !erreur && <ChargementPage texte="Generation du document..." />
-      )}
+      </Carte>
+
+      <div className="eva-ag-apercu" aria-busy={enGeneration}>
+        {erreur ? (
+          <Alerte
+            variante="erreur"
+            titre="Le document n'a pas pu être généré"
+            icone={<FileWarning size={18} aria-hidden="true" />}
+            actions={
+              <Bouton variante="secondaire" taille="petit" onClick={() => setRelance((n) => n + 1)}>
+                Réessayer
+              </Bouton>
+            }
+          >
+            {erreur}
+          </Alerte>
+        ) : urlPdf ? (
+          <>
+            <iframe className="eva-ag-apercu__cadre" title={`Aperçu de l'acte : ${libelleVolet}`} src={urlPdf} />
+            <p className="eva-ag-apercu__aide">Si l'aperçu ne s'affiche pas sur votre appareil, utilisez « Télécharger / Imprimer ».</p>
+          </>
+        ) : (
+          <div role="status" aria-live="polite">
+            <Squelette variante="bloc" hauteur={560} libelle="Génération du document en cours" />
+            <p className="eva-ag-apercu__aide">Génération du document en cours...</p>
+          </div>
+        )}
+      </div>
     </MiseEnPage>
   );
 }

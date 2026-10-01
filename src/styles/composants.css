@@ -1,0 +1,625 @@
+/*
+  E-VITAL - Composants reutilisables ajoutes au systeme de design (React).
+  Charge APRES theme.css (voir main.tsx). Utilise uniquement les jetons de
+  theme.css. Documentation complete : docs/design-system-react.md
+
+  Table des matieres
+   1. Squelette (chargement)
+   2. Liste responsive (ListeResponsive)
+   3. Recherche, pilules de filtre, barre d'outils
+   4. Alerte
+   5. Barre d'enregistrement
+   6. Fil d'Ariane
+   7. Interrupteur
+   8. Avatar
+   9. Page d'authentification (PageAuth)
+*/
+
+/* =========================================================================
+   1. SQUELETTE
+   ========================================================================= */
+.eva-squelette--titre { height: 24px; width: 40%; }
+.eva-squelette--texte { width: 100%; }
+.eva-squelette--bloc { height: 120px; border-radius: var(--rayon-standard); }
+.eva-squelette--rond { width: 40px; height: 40px; border-radius: 50%; flex: none; }
+.eva-squelette--bouton { width: 96px; height: var(--hauteur-controle); border-radius: var(--rayon-champ); }
+
+.eva-squelette-groupe { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.eva-squelette-groupe > .eva-squelette--texte:last-child:not(:only-child) { width: 62%; }
+
+.eva-squelette-stats { display: grid; gap: var(--espace-4); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.eva-squelette-stat { display: flex; flex-direction: column; gap: 10px; padding: var(--espace-5); }
+.eva-squelette-stat .eva-squelette:first-child { height: 30px; width: 46%; }
+.eva-squelette-stat .eva-squelette:last-child { height: 12px; width: 70%; }
+
+.eva-squelette-carte { display: flex; flex-direction: column; gap: var(--espace-3); }
+.eva-squelette-carte__entete { display: flex; align-items: center; gap: var(--espace-3); }
+.eva-squelette-carte__entete > .eva-squelette-groupe { flex: 1; }
+
+.eva-squelette-tableau { overflow: hidden; }
+.eva-squelette-tableau__ligne { display: grid; gap: var(--espace-5); align-items: center; padding: 14px var(--espace-4); border-bottom: 1px solid var(--couleur-bordure); }
+.eva-squelette-tableau__ligne:last-child { border-bottom: 0; }
+.eva-squelette-tableau__ligne:first-child { background: var(--couleur-papier); padding-top: 12px; padding-bottom: 12px; }
+.eva-squelette-tableau__ligne:first-child .eva-squelette { height: 11px; width: 60%; }
+
+/* =========================================================================
+   2. LISTE RESPONSIVE
+   Desktop : tableau a en-tete collant. < 720px : une fiche par ligne,
+   sans defilement horizontal, avec les actions visibles.
+   ========================================================================= */
+.eva-liste { position: relative; min-width: 0; }
+.eva-liste__cadre {
+  position: relative;
+  overflow: auto;
+  max-width: 100%;
+  max-height: var(--liste-hauteur-max, none);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-blanc);
+  box-shadow: var(--ombre-carte);
+}
+.eva-liste--sans-cadre .eva-liste__cadre { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+
+.eva-liste__table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+.eva-liste__table th, .eva-liste__table td {
+  padding: 12px 16px;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--couleur-bordure);
+}
+.eva-liste--dense .eva-liste__table th, .eva-liste--dense .eva-liste__table td { padding: 8px 12px; font-size: 13px; }
+.eva-liste__table thead th.eva-liste__cellule--numerique { font-family: inherit; }
+.eva-liste__table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--couleur-papier);
+  color: var(--couleur-texte-discret);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  border-bottom-color: var(--couleur-bordure-forte);
+  box-shadow: 0 1px 0 var(--couleur-bordure-forte);
+}
+.eva-liste__table tbody tr:last-child td { border-bottom: 0; }
+.eva-liste__table tbody tr { transition: background var(--transition-rapide); }
+.eva-liste__table tbody tr:hover { background: var(--couleur-emeraude-fond-doux); }
+.eva-liste--sans-survol .eva-liste__table tbody tr:hover { background: transparent; }
+
+/* Alignements et types de cellule */
+.eva-liste__cellule--centre { text-align: center !important; }
+.eva-liste__cellule--droite { text-align: right !important; }
+.eva-liste__cellule--numerique { font-family: var(--police-donnees); font-variant-numeric: tabular-nums; text-align: right !important; }
+.eva-liste__cellule--principale { font-weight: 600; color: var(--couleur-encre); }
+.eva-liste__cellule--nowrap { white-space: nowrap; }
+.eva-liste__cellule--actions { width: 1%; white-space: nowrap; text-align: right !important; }
+.eva-liste__cellule--actions .eva-groupe-boutons { justify-content: flex-end; flex-wrap: nowrap; }
+
+/* Tri */
+.eva-liste__tri {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: -6px -8px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--rayon-petit);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  transition: color var(--transition-rapide), background var(--transition-rapide);
+}
+.eva-liste__tri:hover { color: var(--couleur-encre); background: var(--couleur-emeraude-fond); }
+.eva-liste__tri svg { flex: none; opacity: 0.55; }
+th[aria-sort="ascending"] .eva-liste__tri, th[aria-sort="descending"] .eva-liste__tri { color: var(--couleur-emeraude-profond); }
+th[aria-sort="ascending"] .eva-liste__tri svg, th[aria-sort="descending"] .eva-liste__tri svg { opacity: 1; }
+.eva-liste__cellule--droite .eva-liste__tri, .eva-liste__cellule--numerique .eva-liste__tri { flex-direction: row-reverse; }
+
+/* Ligne cliquable */
+.eva-liste__ligne.est-cliquable { cursor: pointer; }
+.eva-liste__ligne.est-cliquable:focus-visible { outline-offset: -2px; background: var(--couleur-emeraude-fond-doux); }
+.eva-liste__ligne.est-active { background: var(--couleur-emeraude-fond); }
+
+/* Chargement, erreur, vide */
+.eva-liste__squelette-cellule .eva-squelette { height: 12px; width: 70%; }
+.eva-liste__squelette-cellule--large .eva-squelette { width: 90%; }
+.eva-liste__squelette-cellule--courte .eva-squelette { width: 40%; }
+.eva-liste__etat { display: block; }
+.eva-liste--charge-suite { opacity: 0.6; transition: opacity var(--transition-normale); pointer-events: none; }
+
+/* Selecteur de tri affiche uniquement sur mobile */
+.eva-liste__tri-mobile { display: none; }
+
+/* Fiches : en dessous de 720px */
+@media (max-width: 720px) {
+  .eva-liste__cadre { overflow: visible; max-height: none; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  .eva-liste__table, .eva-liste__table tbody { display: block; }
+  /* L'en-tete reste lu par les lecteurs d'ecran */
+  .eva-liste__table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+  .eva-liste__table tbody tr {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 0 0 var(--espace-3);
+    padding: var(--espace-3) var(--espace-4);
+    border: 1px solid var(--couleur-bordure);
+    border-radius: var(--rayon-standard);
+    background: var(--couleur-blanc);
+    box-shadow: var(--ombre-carte);
+  }
+  .eva-liste__table tbody tr:last-child { margin-bottom: 0; }
+  .eva-liste__table tbody tr:hover { background: var(--couleur-blanc); }
+  .eva-liste__table tbody tr.est-cliquable:active { background: var(--couleur-emeraude-fond-doux); }
+  .eva-liste__table td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--espace-4);
+    padding: 6px 0;
+    border: 0;
+    text-align: right !important;
+    font-size: 13.5px;
+    overflow-wrap: anywhere;
+  }
+  .eva-liste__table td::before {
+    content: attr(data-label);
+    flex: 0 0 38%;
+    max-width: 38%;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--couleur-texte-discret);
+  }
+  .eva-liste__table td > * { min-width: 0; }
+  .eva-liste__table td.eva-liste__cellule--principale {
+    display: block;
+    order: -1;
+    margin-bottom: 4px;
+    padding: 0 0 var(--espace-2);
+    border-bottom: 1px solid var(--couleur-bordure);
+    text-align: left !important;
+    font-size: 15px;
+    line-height: 1.35;
+  }
+  .eva-liste__table td.eva-liste__cellule--principale::before { display: none; }
+  .eva-liste__table td.eva-liste__cellule--sans-libelle::before { display: none; }
+  .eva-liste__table td.eva-liste__cellule--sans-libelle { justify-content: flex-start; text-align: left !important; }
+  .eva-liste__table td.eva-liste__cellule--actions {
+    order: 99;
+    width: auto;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: var(--espace-2);
+    margin-top: var(--espace-2);
+    padding: var(--espace-3) 0 0;
+    border-top: 1px solid var(--couleur-bordure);
+  }
+  .eva-liste__table td.eva-liste__cellule--actions::before { display: none; }
+  .eva-liste__table td.eva-liste__cellule--actions .eva-groupe-boutons { flex-wrap: wrap; }
+  .eva-liste__table td.eva-liste__cellule--masquee-mobile { display: none; }
+  .eva-liste__table td.eva-liste__cellule--numerique { font-size: 13.5px; }
+  /* Teintes d'urgence : liseré a gauche de la fiche */
+  .eva-liste__table tbody tr[class*="eva-ligne-urgence--"] > :first-child { box-shadow: none; }
+  .eva-liste__table tbody tr.eva-ligne-urgence--verte { border-left: 4px solid var(--couleur-emeraude-actif); }
+  .eva-liste__table tbody tr.eva-ligne-urgence--orange { border-left: 4px solid var(--couleur-citron-profond); }
+  .eva-liste__table tbody tr.eva-ligne-urgence--rouge { border-left: 4px solid var(--couleur-erreur); }
+  .eva-liste__table tbody tr.eva-ligne-urgence--verte,
+  .eva-liste__table tbody tr.eva-ligne-urgence--orange,
+  .eva-liste__table tbody tr.eva-ligne-urgence--rouge { background: var(--couleur-blanc); }
+  /* Squelette en fiche */
+  .eva-liste__squelette-cellule .eva-squelette { width: 50%; margin-left: auto; }
+  .eva-liste__table td.eva-liste__cellule--principale .eva-squelette { width: 65%; margin: 0; }
+  .eva-liste__etat { border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-standard); background: var(--couleur-blanc); }
+  /* Tri */
+  .eva-liste__tri-mobile { display: flex; align-items: center; gap: var(--espace-2); margin-bottom: var(--espace-3); font-size: 13px; color: var(--couleur-texte-discret); }
+  .eva-liste__tri-mobile .eva-sel { flex: 1; min-width: 0; }
+  .eva-squelette-tableau__ligne { grid-template-columns: 1fr 1fr !important; }
+}
+
+/* =========================================================================
+   3. RECHERCHE, PILULES DE FILTRE, BARRE D'OUTILS
+   ========================================================================= */
+.eva-recherche { position: relative; display: flex; align-items: center; flex: 1 1 auto; width: 280px; min-width: 0; max-width: 460px; }
+.eva-recherche__icone {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  color: var(--couleur-texte-discret);
+  pointer-events: none;
+}
+.eva-recherche__champ {
+  display: block;
+  width: 100%;
+  min-height: var(--hauteur-controle);
+  padding: 9px 40px 9px 38px;
+  border: 1px solid var(--couleur-bordure-champ);
+  border-radius: var(--rayon-champ);
+  background: var(--couleur-blanc);
+  color: var(--couleur-encre);
+  font-family: inherit;
+  font-size: 14px;
+  transition: border-color var(--transition-rapide), box-shadow var(--transition-rapide);
+  -webkit-appearance: none;
+  appearance: none;
+}
+.eva-recherche__champ::placeholder { color: #7A8881; opacity: 1; }
+.eva-recherche__champ::-webkit-search-cancel-button { display: none; }
+.eva-recherche__champ:hover { border-color: var(--couleur-gris-service-2-marque); }
+.eva-recherche__champ:focus { outline: none; border-color: var(--couleur-emeraude); box-shadow: var(--ombre-anneau-focus); }
+.eva-recherche__effacer {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--rayon-petit);
+  background: transparent;
+  color: var(--couleur-texte-discret);
+  cursor: pointer;
+}
+.eva-recherche__effacer:hover { background: var(--couleur-fond-desactive); color: var(--couleur-encre); }
+.eva-recherche__attente { position: absolute; right: 12px; top: 50%; margin-top: -8px; color: var(--couleur-emeraude); }
+.eva-recherche__attente .eva-spinner { width: 16px; height: 16px; border-width: 2px; }
+.eva-recherche--pleine { max-width: none; }
+
+.eva-filtres { display: flex; align-items: center; gap: var(--espace-2); flex-wrap: wrap; min-width: 0; }
+.eva-filtres--defilement {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.eva-filtres--defilement::-webkit-scrollbar { display: none; }
+.eva-filtres--defilement .eva-pilule { flex: none; }
+.eva-pilule__compteur {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--rayon-plein);
+  background: var(--couleur-neutre-fond);
+  color: var(--couleur-gris-service-1);
+  font-family: var(--police-donnees);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.eva-pilule--active .eva-pilule__compteur, .eva-pilule[aria-pressed="true"] .eva-pilule__compteur {
+  background: rgba(255, 255, 255, 0.22);
+  color: var(--couleur-blanc);
+}
+.eva-pilule--alerte .eva-pilule__compteur { background: var(--couleur-erreur); color: var(--couleur-blanc); }
+.eva-pilule:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.eva-barre-outils {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3) var(--espace-4);
+  flex-wrap: wrap;
+  margin: 0 0 var(--espace-4);
+}
+.eva-barre-outils__groupe { display: flex; align-items: center; gap: var(--espace-3); flex-wrap: wrap; min-width: 0; }
+.eva-barre-outils__groupe:first-child { flex: 1 1 auto; }
+.eva-barre-outils__groupe:last-child:not(:first-child) { flex: none; justify-content: flex-end; }
+.eva-barre-outils__groupe--filtres { flex: 1 1 100%; }
+.eva-barre-outils--carte {
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-blanc);
+  box-shadow: var(--ombre-carte);
+}
+
+/* =========================================================================
+   4. ALERTE
+   ========================================================================= */
+.eva-alerte {
+  --alerte-fond: var(--couleur-neutre-fond);
+  --alerte-bordure: var(--couleur-bordure-forte);
+  --alerte-texte: var(--couleur-gris-service-1);
+  --alerte-icone: var(--couleur-gris-service-1);
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--alerte-bordure);
+  border-radius: var(--rayon-standard);
+  background: var(--alerte-fond);
+  color: var(--alerte-texte);
+  font-size: 13.5px;
+  line-height: 1.5;
+  animation: eva-apparition-haut 200ms ease;
+}
+.eva-alerte > svg { flex: none; margin-top: 2px; color: var(--alerte-icone); }
+.eva-alerte__contenu { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.eva-alerte__contenu > :last-child { margin-bottom: 0; }
+.eva-alerte__titre { display: block; margin-bottom: 1px; font-weight: 600; }
+.eva-alerte__texte { margin: 0; }
+.eva-alerte__actions { display: flex; flex-wrap: wrap; gap: var(--espace-2); margin-top: var(--espace-2); }
+.eva-alerte__fermer {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: -3px -5px -3px 0;
+  border: 0;
+  border-radius: var(--rayon-petit);
+  background: transparent;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+}
+.eva-alerte__fermer:hover { opacity: 1; background: rgba(20, 35, 28, 0.08); }
+.eva-alerte--succes { --alerte-fond: var(--couleur-emeraude-fond); --alerte-bordure: var(--couleur-succes-bordure); --alerte-texte: var(--couleur-succes-texte); --alerte-icone: var(--couleur-emeraude); }
+.eva-alerte--erreur { --alerte-fond: var(--couleur-erreur-fond); --alerte-bordure: var(--couleur-erreur-bordure); --alerte-texte: var(--couleur-erreur-profond); --alerte-icone: var(--couleur-erreur); }
+.eva-alerte--avertissement { --alerte-fond: var(--couleur-citron-fond); --alerte-bordure: var(--couleur-citron-bordure); --alerte-texte: var(--couleur-citron-texte); --alerte-icone: #7A7000; }
+.eva-alerte--info { --alerte-fond: var(--couleur-neutre-fond); --alerte-bordure: var(--couleur-bordure-forte); --alerte-texte: var(--couleur-gris-service-1); --alerte-icone: var(--couleur-gris-service-1); }
+.eva-alerte--compacte { padding: 8px 12px; font-size: 13px; }
+
+/* =========================================================================
+   5. BARRE D'ENREGISTREMENT
+   ========================================================================= */
+.eva-barre-enregistrement {
+  position: sticky;
+  bottom: var(--espace-4);
+  z-index: var(--z-collant);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3) var(--espace-4);
+  flex-wrap: wrap;
+  margin-top: var(--espace-6);
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--couleur-bordure-forte);
+  border-radius: var(--rayon-grand);
+  background: rgba(255, 255, 255, 0.96);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--ombre-flottante);
+  transition: border-color var(--transition-normale), box-shadow var(--transition-normale);
+}
+.eva-barre-enregistrement.est-modifiee { border-color: var(--couleur-citron-profond); }
+.eva-barre-enregistrement__etat { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 13.5px; font-weight: 500; color: var(--couleur-texte-discret); }
+.eva-barre-enregistrement__etat::before {
+  content: "";
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--couleur-emeraude-actif);
+  box-shadow: 0 0 0 3px rgba(22, 179, 125, 0.2);
+  transition: background var(--transition-normale), box-shadow var(--transition-normale);
+}
+.eva-barre-enregistrement.est-modifiee .eva-barre-enregistrement__etat { color: var(--couleur-encre); font-weight: 600; }
+.eva-barre-enregistrement.est-modifiee .eva-barre-enregistrement__etat::before {
+  background: var(--couleur-citron-profond);
+  box-shadow: 0 0 0 3px rgba(168, 187, 30, 0.3);
+}
+.eva-barre-enregistrement.est-en-erreur { border-color: var(--couleur-erreur); }
+.eva-barre-enregistrement.est-en-erreur .eva-barre-enregistrement__etat { color: var(--couleur-erreur-profond); }
+.eva-barre-enregistrement.est-en-erreur .eva-barre-enregistrement__etat::before { background: var(--couleur-erreur); box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.16); }
+.eva-barre-enregistrement__actions { display: flex; align-items: center; gap: var(--espace-2); flex-wrap: wrap; margin-left: auto; }
+
+@media (max-width: 720px) {
+  .eva-barre-enregistrement { bottom: var(--espace-2); }
+  .eva-barre-enregistrement__actions { width: 100%; }
+  .eva-barre-enregistrement__actions > .eva-bouton { flex: 1 1 auto; }
+}
+
+/* =========================================================================
+   6. FIL D'ARIANE
+   ========================================================================= */
+.eva-fil-ariane { margin: 0 0 var(--espace-3); font-size: 12.5px; color: var(--couleur-texte-discret); }
+.eva-fil-ariane ol { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 8px; margin: 0; padding: 0; list-style: none; }
+.eva-fil-ariane li { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.eva-fil-ariane li + li::before { content: "\203A"; color: var(--couleur-bordure-champ); }
+.eva-fil-ariane a { color: var(--couleur-texte-discret); text-decoration: none; border-radius: var(--rayon-petit); }
+.eva-fil-ariane a:hover { color: var(--couleur-emeraude); text-decoration: underline; text-underline-offset: 3px; }
+.eva-fil-ariane [aria-current="page"] { color: var(--couleur-encre); font-weight: 500; overflow-wrap: anywhere; }
+
+/* =========================================================================
+   7. INTERRUPTEUR (nom de classe distinct de .eva-interrupteur des formulaires de dossier)
+   ========================================================================= */
+.eva-bascule { display: inline-flex; align-items: flex-start; gap: 12px; min-height: var(--hauteur-controle); cursor: pointer; font-size: 14px; color: var(--couleur-encre); }
+.eva-bascule--desactive { cursor: not-allowed; }
+.eva-bascule--desactive .eva-bascule__texte { color: var(--couleur-texte-discret); }
+.eva-bascule__piste { position: relative; display: inline-flex; flex: none; align-items: center; height: var(--hauteur-controle); }
+.eva-bascule input {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 42px;
+  height: 24px;
+  margin: 0;
+  border-radius: var(--rayon-plein);
+  background: var(--couleur-bordure-champ);
+  cursor: pointer;
+  transition: background var(--transition-rapide);
+}
+.eva-bascule input::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--couleur-blanc);
+  box-shadow: 0 1px 3px rgba(20, 35, 28, 0.3);
+  transition: transform var(--transition-rapide);
+}
+.eva-bascule input:checked { background: var(--couleur-emeraude); }
+.eva-bascule input:checked::after { transform: translateX(18px); }
+.eva-bascule input:disabled { opacity: 0.5; cursor: not-allowed; }
+.eva-bascule__corps { display: flex; flex-direction: column; justify-content: center; min-height: var(--hauteur-controle); line-height: 1.35; }
+.eva-bascule__texte { font-weight: 500; }
+.eva-bascule__aide { font-size: 12.5px; color: var(--couleur-texte-discret); }
+
+/* =========================================================================
+   8. AVATAR
+   ========================================================================= */
+.eva-avatar--petit { width: 24px; height: 24px; font-size: 10px; }
+.eva-avatar--grand { width: 56px; height: 56px; font-size: 19px; }
+.eva-avatar--emeraude { background: var(--couleur-emeraude); color: var(--couleur-blanc); }
+.eva-avatar--doux { background: var(--couleur-emeraude-fond); color: var(--couleur-emeraude-profond); }
+.eva-avatar--neutre { background: var(--couleur-neutre-fond); color: var(--couleur-gris-service-1); }
+
+/* =========================================================================
+   8 bis. GRAPHIQUE (GraphiqueECharts) : conteneur et bouton de legende
+   ========================================================================= */
+.eva-graphique { position: relative; width: 100%; min-width: 0; }
+.eva-graphique__zone { width: 100%; height: 100%; }
+.eva-graphique__legende {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  z-index: 2;
+  min-height: 24px;
+  padding: 0 9px;
+  border: 1px solid var(--couleur-bordure-forte);
+  border-radius: var(--rayon-plein);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--couleur-gris-service-1);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity var(--transition-rapide), border-color var(--transition-rapide), color var(--transition-rapide);
+}
+.eva-graphique__legende:hover { opacity: 1; border-color: var(--couleur-emeraude); color: var(--couleur-emeraude-profond); }
+
+/* =========================================================================
+   9. PAGE D'AUTHENTIFICATION (PageAuth)
+   Calquee sur backend/templates/base_auth.html (classes ev-auth).
+   ========================================================================= */
+.eva-auth {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--espace-6) var(--espace-4);
+  overflow: hidden;
+  background:
+    radial-gradient(900px 560px at 8% -10%, rgba(11, 122, 87, 0.13), transparent 62%),
+    radial-gradient(760px 520px at 100% 108%, rgba(200, 217, 47, 0.22), transparent 60%),
+    var(--couleur-papier);
+}
+.eva-auth::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(11, 122, 87, 0.17) 1.2px, transparent 1.3px);
+  background-size: 26px 26px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 62% at 50% 46%, transparent 38%, #000 100%);
+  mask-image: radial-gradient(ellipse 70% 62% at 50% 46%, transparent 38%, #000 100%);
+}
+.eva-auth::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  right: -120px;
+  bottom: -150px;
+  width: 560px;
+  height: 560px;
+  opacity: 0.045;
+  background: url("../assets/brand/evital-symbole-emeraude.svg") center / contain no-repeat;
+  transform: rotate(-8deg);
+}
+.eva-auth--haut { justify-content: flex-start; padding-top: var(--espace-8); padding-bottom: var(--espace-8); }
+.eva-auth__carte {
+  width: 100%;
+  max-width: 432px;
+  padding: var(--espace-8) var(--espace-7) var(--espace-7);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 20px;
+  background: var(--couleur-blanc);
+  box-shadow: 0 1px 2px rgba(20, 35, 28, 0.04), 0 24px 60px -20px rgba(11, 74, 59, 0.28);
+  animation: eva-apparition-modale 320ms ease both;
+}
+.eva-auth--large .eva-auth__carte { max-width: 680px; }
+.eva-auth__logo { display: flex; justify-content: center; margin: 0 0 var(--espace-6); }
+.eva-auth__logo--vertical img { height: 96px; }
+.eva-auth__entete { margin-bottom: var(--espace-6); text-align: center; }
+.eva-auth__icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: var(--espace-3);
+  border-radius: 16px;
+  background: var(--couleur-emeraude-fond);
+  color: var(--couleur-emeraude);
+}
+.eva-auth__titre { margin: 0; font-size: 24px; line-height: 1.25; font-weight: 600; letter-spacing: -0.02em; color: var(--couleur-encre); }
+.eva-auth__texte { margin: var(--espace-2) auto 0; max-width: 40ch; font-size: 14px; line-height: 1.55; color: var(--couleur-texte-discret); }
+.eva-auth__texte strong { color: var(--couleur-gris-service-1); font-weight: 600; }
+.eva-auth .eva-alerte { margin-bottom: var(--espace-5); }
+.eva-auth__actions { margin-top: var(--espace-6); }
+.eva-auth__pied { margin-top: var(--espace-5); text-align: center; font-size: 13px; color: var(--couleur-texte-discret); }
+.eva-auth__pied a, .eva-auth__pied button.eva-auth__lien {
+  color: var(--couleur-emeraude);
+  font-weight: 500;
+  text-underline-offset: 3px;
+}
+.eva-auth__pied a:hover, .eva-auth__pied button.eva-auth__lien:hover { color: var(--couleur-emeraude-profond); }
+.eva-auth__lien {
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--rayon-petit);
+  background: none;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.eva-auth__signature { margin: var(--espace-6) 0 0; font-family: var(--police-donnees); font-size: 11.5px; letter-spacing: 0.04em; color: var(--couleur-texte-discret); text-align: center; }
+.eva-auth__retour { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 var(--espace-4); padding: 6px 8px 6px 4px; border: 0; border-radius: var(--rayon-petit); background: none; color: var(--couleur-texte-discret); font: inherit; font-size: 13px; text-decoration: none; cursor: pointer; }
+.eva-auth__retour:hover { color: var(--couleur-emeraude); }
+.eva-auth .eva-champ input:not([type="checkbox"]):not([type="radio"]) { min-height: 46px; font-size: 15px; }
+.eva-auth .eva-bouton { min-height: 48px; font-size: 15px; }
+
+@media (max-width: 720px) {
+  .eva-auth { justify-content: flex-start; padding-top: var(--espace-8); }
+  .eva-auth__carte { padding: var(--espace-7) var(--espace-5) var(--espace-6); border-radius: var(--rayon-grand); }
+}

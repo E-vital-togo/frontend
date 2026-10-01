@@ -1,32 +1,52 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
-import { CheckCircle2 } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useParams } from "react-router-dom";
+import { CheckCircle2, LinkIcon, RefreshCw, WifiOff } from "lucide-react";
+import EcranResultat from "../../components/auth/EcranResultat";
+import EtapesParcours from "../../components/auth/EtapesParcours";
+import { decrireErreur, estErreurReseau, type MessageErreur } from "../../components/auth/messagesAuth";
 import FormulaireDossier from "../../components/FormulaireDossier";
-import Logo from "../../components/Logo";
-import { Bouton } from "../../components/ui";
+import { Alerte, Bouton, LienBouton, PageAuth, Squelette } from "../../components/ui";
 import { appelApiPublic, ErreurApiPublique } from "../../lib/apiPublic";
+import { useConnectivite } from "../../lib/connectivite";
 import { champsManquants, planFormulaire, valeurEffective } from "../../lib/formulaire";
 import type { ChampFormulaireEffectif, MiseEnPage, ReponseFormulaireEffectif } from "../../types/domaine";
+import "../../styles/auth.css";
 
 export default function PageCompletionParent() {
   const { code } = useParams<{ code: string }>();
+  const enLigne = useConnectivite();
   const [champs, setChamps] = useState<ChampFormulaireEffectif[] | null>(null);
   const [miseEnPage, setMiseEnPage] = useState<MiseEnPage | null>(null);
   const [erreursChamps, setErreursChamps] = useState<Record<string, string>>({});
   const [valeurs, setValeurs] = useState<Record<string, unknown>>({});
-  const [erreur, setErreur] = useState<string | null>(null);
+  const [erreur, setErreur] = useState<MessageErreur | null>(null);
+  const [erreurChargement, setErreurChargement] = useState<MessageErreur | null>(null);
+  const [tentative, setTentative] = useState(0);
   const [envoye, setEnvoye] = useState(false);
   const [enCours, setEnCours] = useState(false);
+  const alerteErreur = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!code) return;
+    setErreurChargement(null);
     appelApiPublic<ReponseFormulaireEffectif>(`/completion/${code}`)
       .then((donnees) => {
         setChamps(donnees.champs);
         setMiseEnPage(donnees.mise_en_page ?? null);
       })
-      .catch(() => setErreur("Ce lien n'est plus valide, ou le code est incorrect."));
-  }, [code]);
+      .catch((e: unknown) => {
+        setErreurChargement(
+          estErreurReseau(e)
+            ? decrireErreur(e, "Connexion impossible")
+            : { variante: "erreur", titre: "Lien ou code invalide", message: "Ce lien n'est plus valide, ou le code est incorrect." }
+        );
+      });
+  }, [code, tentative]);
+
+  // Une erreur d'envoi apparait en haut du formulaire : on y ramene l'ecran, sinon elle passe inapercue sur telephone.
+  useEffect(() => {
+    if (erreur) alerteErreur.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [erreur]);
 
   async function soumettre(evenement: FormEvent<HTMLFormElement>) {
     evenement.preventDefault();
@@ -34,7 +54,11 @@ export default function PageCompletionParent() {
     const manquants = champsManquants(champs, (c) => valeurEffective(c, valeurs));
     if (manquants.length > 0) {
       setErreursChamps(Object.fromEntries(manquants.map((c) => [c.data_element_code, "Ce champ est obligatoire."])));
-      setErreur(`Champs obligatoires manquants : ${manquants.map((c) => c.label).join(", ")}.`);
+      setErreur({
+        variante: "erreur",
+        titre: "Il manque des informations",
+        message: `Champs obligatoires manquants : ${manquants.map((c) => c.label).join(", ")}.`
+      });
       return;
     }
     setEnCours(true);
@@ -49,7 +73,15 @@ export default function PageCompletionParent() {
       setEnvoye(true);
     } catch (e) {
       console.error(e);
-      setErreur(e instanceof ErreurApiPublique ? e.message : "Une erreur est survenue lors de l'envoi. Reessayez, ou rendez-vous a la mairie avec votre code.");
+      setErreur(
+        e instanceof ErreurApiPublique
+          ? decrireErreur(e, "Envoi impossible")
+          : {
+              variante: "erreur",
+              titre: "Envoi impossible",
+              message: "Une erreur est survenue lors de l'envoi. Réessayez, ou rendez-vous à la mairie avec votre code."
+            }
+      );
     } finally {
       setEnCours(false);
     }
@@ -65,65 +97,128 @@ export default function PageCompletionParent() {
     });
   }
 
-  const enEtapes = !!champs && planFormulaire(champs, miseEnPage).mode === "etapes";
+  // Ecran de fin : dossier transmis
+  if (envoye) {
+    return (
+      <PageAuth>
+        <EtapesParcours actuelle={2} envoye />
+        <EcranResultat
+          ton="succes"
+          icone={<CheckCircle2 size={38} />}
+          titre="Merci, votre dossier est transmis"
+          actions={
+            code ? (
+              <LienBouton to={`/completion/statut/${code}`} pleineLargeur>
+                Suivre l'avancement de mon dossier
+              </LienBouton>
+            ) : undefined
+          }
+        >
+          <p>Vos informations ont bien été transmises à la mairie. Vous serez recontacté si un complément est nécessaire.</p>
+          {code && (
+            <p className="eva-acces-rappel-code">
+              Conservez votre code : <strong className="texte-mono">{code}</strong>
+            </p>
+          )}
+        </EcranResultat>
+      </PageAuth>
+    );
+  }
+
+  // Ecran d'erreur : lien ou code invalide, ou reseau absent au chargement
+  if (erreurChargement && !champs) {
+    const reseau = erreurChargement.variante === "avertissement";
+    return (
+      <PageAuth>
+        <EcranResultat
+          ton={reseau ? "attention" : "erreur"}
+          icone={reseau ? <WifiOff size={34} /> : <LinkIcon size={34} />}
+          titre={erreurChargement.titre}
+          actions={
+            reseau ? (
+              <Bouton type="button" pleineLargeur iconeGauche={<RefreshCw size={16} />} onClick={() => setTentative((n) => n + 1)}>
+                Réessayer
+              </Bouton>
+            ) : (
+              <>
+                <LienBouton to="/retrouver-mon-code" pleineLargeur>
+                  J'ai perdu mon code
+                </LienBouton>
+                <LienBouton to="/completion" variante="secondaire" pleineLargeur>
+                  Saisir un autre code
+                </LienBouton>
+              </>
+            )
+          }
+        >
+          <p>{erreurChargement.message}</p>
+          {!reseau && <p>Vérifiez le code reçu par SMS. Si vous l'avez égaré, vous pouvez le retrouver avec votre numéro de téléphone.</p>}
+        </EcranResultat>
+      </PageAuth>
+    );
+  }
+
+  // Chargement : squelettes a la forme du formulaire
+  if (!champs) {
+    return (
+      <PageAuth large alignementHaut titre="Complément de déclaration" description="Nous préparons votre formulaire...">
+        <EtapesParcours actuelle={1} compact />
+        <div className="eva-acces-squelette" role="status" aria-busy="true">
+          <span className="eva-sr-only">Chargement du formulaire</span>
+          <Squelette variante="titre" largeur="45%" libelle="" />
+          <Squelette variante="bloc" hauteur={48} libelle="" />
+          <Squelette variante="bloc" hauteur={48} libelle="" />
+          <Squelette variante="bloc" hauteur={48} libelle="" />
+          <Squelette variante="bouton" largeur="100%" libelle="" />
+        </div>
+      </PageAuth>
+    );
+  }
+
+  const enEtapes = planFormulaire(champs, miseEnPage).mode === "etapes";
   const boutonEnvoyer = (
-    <Bouton type="submit" chargement={enCours} style={enEtapes ? undefined : { width: "100%" }}>
+    <Bouton type="submit" chargement={enCours} pleineLargeur={!enEtapes}>
       Envoyer
     </Bouton>
   );
 
   return (
-    <div className="eva-ecran-centre eva-ecran-centre--form">
-      <div className="eva-carte eva-carte--form" style={{ width: "100%", maxWidth: 640 }}>
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
-          <Logo variante="vertical" hauteur={90} />
-        </div>
-
-        {envoye ? (
-          <div style={{ textAlign: "center" }}>
-            <CheckCircle2 size={36} color="var(--couleur-emeraude)" style={{ marginBottom: 10 }} />
-            <p>
-              Merci, vos informations ont bien ete transmises a la mairie. Vous serez recontacte si un complement est
-              necessaire.
-            </p>
-            {code && (
-              <Link to={`/completion/statut/${code}`} style={{ fontSize: 13, color: "var(--couleur-emeraude)" }}>
-                Suivre l'avancement de mon dossier
-              </Link>
-            )}
+    <PageAuth
+      large
+      alignementHaut
+      titre="Complément de déclaration"
+      description="Remplissez uniquement les informations demandées ci-dessous, puis validez."
+      message={
+        !enLigne ? (
+          <Alerte variante="avertissement" titre="Vous êtes hors ligne" icone={<WifiOff size={18} aria-hidden="true" />}>
+            Vous pouvez continuer à remplir le formulaire, mais il ne pourra être envoyé qu'une fois la connexion rétablie.
+          </Alerte>
+        ) : undefined
+      }
+    >
+      <EtapesParcours actuelle={1} compact />
+      {/* noValidate : les etapes non affichees restent montees, un controle natif
+          invalide mais masque bloquerait l'envoi sans message. Le controle des
+          champs obligatoires est fait dans soumettre(), le serveur fait foi. */}
+      <form onSubmit={soumettre} noValidate>
+        {erreur && (
+          <div ref={alerteErreur} className="eva-acces-alerte-formulaire">
+            <Alerte variante={erreur.variante} titre={erreur.titre}>
+              {erreur.message}
+            </Alerte>
           </div>
-        ) : erreur && !champs ? (
-          <div style={{ textAlign: "center" }}>
-            <p className="message-erreur">{erreur}</p>
-            <Link to="/retrouver-mon-code" style={{ fontSize: 13, color: "var(--couleur-emeraude)" }}>
-              J'ai perdu mon code
-            </Link>
-          </div>
-        ) : !champs ? (
-          <p style={{ textAlign: "center" }}>Chargement du formulaire...</p>
-        ) : (
-          // noValidate : les etapes non affichees restent montees, un controle natif
-          // invalide mais masque bloquerait l'envoi sans message. Le controle des
-          // champs obligatoires est fait dans soumettre(), le serveur fait foi.
-          <form onSubmit={soumettre} noValidate>
-            <h1 style={{ fontSize: 18, color: "var(--couleur-emeraude)", marginBottom: 4 }}>Complement de declaration</h1>
-            <p className="eva-sous-titre" style={{ marginBottom: 16 }}>
-              Remplissez uniquement les informations demandees ci-dessous, puis validez.
-            </p>
-            {erreur && <div className="message-erreur">{erreur}</div>}
-            <FormulaireDossier
-              champs={champs}
-              miseEnPage={miseEnPage}
-              valeurs={valeurs}
-              onChange={modifierValeur}
-              erreurs={erreursChamps}
-              cleMemorisation={code ? `completion:${code}` : undefined}
-              actionFinale={boutonEnvoyer}
-            />
-            {!enEtapes && <div style={{ marginTop: 24 }}>{boutonEnvoyer}</div>}
-          </form>
         )}
-      </div>
-    </div>
+        <FormulaireDossier
+          champs={champs}
+          miseEnPage={miseEnPage}
+          valeurs={valeurs}
+          onChange={modifierValeur}
+          erreurs={erreursChamps}
+          cleMemorisation={code ? `completion:${code}` : undefined}
+          actionFinale={boutonEnvoyer}
+        />
+        {!enEtapes && <div className="eva-acces-envoi">{boutonEnvoyer}</div>}
+      </form>
+    </PageAuth>
   );
 }

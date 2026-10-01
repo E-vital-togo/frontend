@@ -1,14 +1,29 @@
-import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Download, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowRight, FileSpreadsheet, FileText, FolderSearch } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
 import BadgeStatut from "../../components/BadgeStatut";
-import { Bouton, Champ, ChargementPage, EnteteDePage, EtatVide, Pagination, Tableau } from "../../components/ui";
-import { LienBouton } from "../../components/ui/Bouton";
+import {
+  Badge,
+  BarreOutils,
+  BarreRecherche,
+  Bouton,
+  EnteteDePage,
+  LienBouton,
+  ListeResponsive,
+  Pagination,
+  PilulesFiltre,
+  Selecteur,
+  useToast,
+  type ColonneListe,
+  type PiluleFiltre,
+  type VarianteBadge
+} from "../../components/ui";
 import { appelApi } from "../../lib/apiClient";
 import { telechargerBlob } from "../../lib/telechargerBlob";
-import { couleurUrgence, echeanceActive, joursRestants } from "../../lib/urgence";
+import { echeanceActive, joursRestants } from "../../lib/urgence";
 import { LIENS_ADMIN_CEC } from "./navigation";
+import { compterAvecUnite, formaterDate, libelleEvenement, messageErreur } from "./outils";
 import {
   listeDepuis,
   type Dossier,
@@ -18,20 +33,29 @@ import {
   type StatutDossier,
   type TypeEvenement
 } from "../../types/domaine";
+import "../../styles/admin-cec-pilotage.css";
 
-const STATUTS: Array<{ valeur: StatutDossier | ""; libelle: string }> = [
-  { valeur: "", libelle: "Tous les statuts" },
-  { valeur: "recu", libelle: "Recu" },
-  { valeur: "notifie", libelle: "Notifie" },
-  { valeur: "en_attente_complement", libelle: "En attente de complement" },
-  { valeur: "complete", libelle: "Complete" },
-  { valeur: "acte_emis", libelle: "Acte emis" },
+const LIBELLES_STATUT: Array<{ valeur: StatutDossier | ""; libelle: string }> = [
+  { valeur: "", libelle: "Tous" },
+  { valeur: "recu", libelle: "Reçus" },
+  { valeur: "notifie", libelle: "Notifiés" },
+  { valeur: "en_attente_complement", libelle: "En attente de complément" },
+  { valeur: "complete", libelle: "Complets" },
+  { valeur: "acte_emis", libelle: "Actes émis" },
   { valeur: "sans_suite", libelle: "Sans suite" }
 ];
 
 const TAILLE_PAGE = 25;
 
+function varianteEcheance(jours: number): VarianteBadge {
+  if (jours <= 3) return "danger";
+  if (jours <= 10) return "attente";
+  return "succes";
+}
+
 export default function DossiersAdminCec() {
+  const navigate = useNavigate();
+  const toast = useToast();
   const [parametresUrl] = useSearchParams();
   const evenementUrl = parametresUrl.get("event_type");
   const [dossiers, setDossiers] = useState<ReponsePaginee<Dossier> | null>(null);
@@ -43,13 +67,14 @@ export default function DossiersAdminCec() {
   const [masquerActesEmis, setMasquerActesEmis] = useState(false);
   const [page, setPage] = useState(1);
   const [chargement, setChargement] = useState(true);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [rechargement, setRechargement] = useState(0);
   const [exportEnCours, setExportEnCours] = useState<"xlsx" | "pdf" | null>(null);
 
   useEffect(() => {
-    // Meme raison que ListeDossiers.tsx : un clic sur "Naissance"/"Deces"
-    // dans le sidebar ne fait changer que la query string sur cette meme
-    // page, ce que le useState d'origine (initialise une seule fois) ne
-    // suit pas tout seul.
+    // Un clic sur "Naissance"/"Décès" dans la barre latérale ne fait changer
+    // que la query string sur cette même page, ce que le useState d'origine
+    // (initialisé une seule fois) ne suit pas tout seul.
     setEvenementFiltre((evenementUrl as TypeEvenement | null) || "");
     setPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -72,15 +97,27 @@ export default function DossiersAdminCec() {
   }
 
   useEffect(() => {
+    let obsolete = false;
     const parametres = construireParametres();
     parametres.set("page", String(page));
 
     setChargement(true);
+    setErreur(null);
     appelApi<ReponsePaginee<Dossier>>(`/dossiers/?${parametres.toString()}`)
-      .then(setDossiers)
-      .finally(() => setChargement(false));
+      .then((donnees) => {
+        if (!obsolete) setDossiers(donnees);
+      })
+      .catch((e) => {
+        if (!obsolete) setErreur(messageErreur(e, "Impossible de charger les dossiers."));
+      })
+      .finally(() => {
+        if (!obsolete) setChargement(false);
+      });
+    return () => {
+      obsolete = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statutFiltre, evenementFiltre, mairieFiltre, recherche, masquerActesEmis, page]);
+  }, [statutFiltre, evenementFiltre, mairieFiltre, recherche, masquerActesEmis, page, rechargement]);
 
   async function exporter(format: "xlsx" | "pdf") {
     setExportEnCours(format);
@@ -89,173 +126,220 @@ export default function DossiersAdminCec() {
       parametres.set("format", format);
       const blob = await appelApi<Blob>(`/dossiers/export/?${parametres.toString()}`);
       telechargerBlob(blob, `dossiers.${format}`);
+      toast.succes(`Export ${format === "xlsx" ? "Excel" : "PDF"} téléchargé.`);
+    } catch (e) {
+      toast.erreur(messageErreur(e, "L'export a échoué. Réessayez."));
     } finally {
       setExportEnCours(null);
     }
   }
 
   const resultats = dossiers?.results ?? [];
+  const total = dossiers?.count ?? 0;
   const affichageMairie = mairies.length > 1;
+  const filtreActif = !!(statutFiltre || evenementFiltre || mairieFiltre || recherche || masquerActesEmis);
+
+  // Le serveur ne renvoie que le total du filtre courant : le compteur
+  // n'est donc affiché que sur la pilule active.
+  const pilules: PiluleFiltre<StatutDossier | "">[] = useMemo(
+    () =>
+      LIBELLES_STATUT.map((p) => ({
+        ...p,
+        compteur: p.valeur === statutFiltre && dossiers ? dossiers.count : undefined
+      })),
+    [statutFiltre, dossiers]
+  );
+
+  function reinitialiserFiltres() {
+    setStatutFiltre("");
+    setEvenementFiltre("");
+    setMairieFiltre("");
+    setRecherche("");
+    setMasquerActesEmis(false);
+    setPage(1);
+  }
+
+  const colonnes: ColonneListe<Dossier>[] = [
+    {
+      id: "identifiant",
+      libelle: "Dossier",
+      principale: true,
+      rendu: (d) => (
+        <span className="eva-ac-identite__texte">
+          <span className="texte-mono">{d.id.slice(0, 8)}</span>
+          {d.nom && <span className="eva-ac-identite__detail">{d.nom}</span>}
+        </span>
+      )
+    },
+    { id: "evenement", libelle: "Événement", rendu: (d) => libelleEvenement(d.event_type) },
+    ...(affichageMairie ? [{ id: "mairie", libelle: "Mairie", rendu: (d: Dossier) => d.mairie_nom || "-" }] : []),
+    { id: "statut", libelle: "Statut", rendu: (d) => <BadgeStatut statut={d.statut} /> },
+    { id: "date", libelle: "Date de l'événement", alignement: "droite", rendu: (d) => <span className="texte-mono">{formaterDate(d.date_evenement)}</span> },
+    {
+      id: "echeance",
+      libelle: "Échéance",
+      rendu: (d) => {
+        if (!echeanceActive(d.statut)) return <span className="eva-texte-discret">-</span>;
+        const jours = joursRestants(d.date_limite);
+        return (
+          <Badge variante={varianteEcheance(jours)} mono>
+            {jours <= 0 ? "Échue" : `${jours} j`}
+          </Badge>
+        );
+      }
+    },
+    {
+      id: "actions",
+      libelle: "Actions",
+      actions: true,
+      masquerLibelle: true,
+      rendu: (d) => (
+        <LienBouton to={`/admin-cec/dossiers/${d.id}`} variante="secondaire" taille="petit" iconeDroite={<ArrowRight size={14} />}>
+          Ouvrir
+        </LienBouton>
+      )
+    }
+  ];
 
   return (
     <MiseEnPage liens={LIENS_ADMIN_CEC}>
-      <EnteteDePage
-        titre="Dossiers de la zone"
-        sousTitre="Tous les dossiers de votre perimetre territorial"
+      <EnteteDePage titre="Dossiers de la zone" sousTitre="Tous les dossiers de votre périmètre territorial" />
+
+      <BarreOutils
+        carte
+        recherche={
+          <BarreRecherche
+            valeur={recherche}
+            onChanger={(v) => {
+              setPage(1);
+              setRecherche(v);
+            }}
+            delai={300}
+            placeholder="Rechercher un nom, un identifiant..."
+            ariaLabel="Rechercher un dossier"
+          />
+        }
+        filtres={
+          <>
+            <Selecteur
+              compact
+              ariaLabel="Filtrer par événement"
+              valeur={evenementFiltre}
+              onChange={(v) => {
+                setPage(1);
+                setEvenementFiltre(v as TypeEvenement | "");
+              }}
+            >
+              <option value="">Tous les événements</option>
+              <option value="naissance">Naissances</option>
+              <option value="deces">Décès</option>
+            </Selecteur>
+            {affichageMairie && (
+              <Selecteur
+                compact
+                ariaLabel="Filtrer par mairie"
+                valeur={mairieFiltre}
+                onChange={(v) => {
+                  setPage(1);
+                  setMairieFiltre(v);
+                }}
+              >
+                <option value="">Toutes les mairies</option>
+                {mairies.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.nom}
+                  </option>
+                ))}
+              </Selecteur>
+            )}
+            <label className="eva-ac-case">
+              <input
+                type="checkbox"
+                checked={masquerActesEmis}
+                onChange={(e) => {
+                  setPage(1);
+                  setMasquerActesEmis(e.target.checked);
+                }}
+              />
+              Masquer les actes émis
+            </label>
+          </>
+        }
         actions={
           <>
-            <Bouton variante="secondaire" taille="petit" onClick={() => exporter("xlsx")} chargement={exportEnCours === "xlsx"} disabled={exportEnCours !== null} iconeGauche={exportEnCours !== "xlsx" && <Download size={14} />}>
+            <Bouton
+              variante="secondaire"
+              taille="petit"
+              onClick={() => exporter("xlsx")}
+              chargement={exportEnCours === "xlsx"}
+              disabled={exportEnCours !== null}
+              iconeGauche={<FileSpreadsheet size={15} />}
+            >
               Excel
             </Bouton>
-            <Bouton variante="secondaire" taille="petit" onClick={() => exporter("pdf")} chargement={exportEnCours === "pdf"} disabled={exportEnCours !== null} iconeGauche={exportEnCours !== "pdf" && <Download size={14} />}>
+            <Bouton
+              variante="secondaire"
+              taille="petit"
+              onClick={() => exporter("pdf")}
+              chargement={exportEnCours === "pdf"}
+              disabled={exportEnCours !== null}
+              iconeGauche={<FileText size={15} />}
+            >
               PDF
             </Bouton>
           </>
         }
       />
 
-      <div className="eva-carte" style={{ marginBottom: 20, display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-end" }}>
-        <div style={{ flex: "1 1 220px" }}>
-          <Champ id="recherche" label="Rechercher">
-            <input
-              id="recherche"
-              value={recherche}
-              onChange={(e) => {
-                setPage(1);
-                setRecherche(e.target.value);
-              }}
-              placeholder="Nom, identifiant..."
-            />
-          </Champ>
-        </div>
-        <div style={{ flex: "0 1 200px" }}>
-          <Champ id="filtre-statut" label="Statut">
-            <select
-              id="filtre-statut"
-              value={statutFiltre}
-              onChange={(e) => {
-                setPage(1);
-                setStatutFiltre(e.target.value as StatutDossier | "");
-              }}
-            >
-              {STATUTS.map((s) => (
-                <option key={s.valeur} value={s.valeur}>
-                  {s.libelle}
-                </option>
-              ))}
-            </select>
-          </Champ>
-        </div>
-        <div style={{ flex: "0 1 160px" }}>
-          <Champ id="filtre-evenement" label="Evenement">
-            <select
-              id="filtre-evenement"
-              value={evenementFiltre}
-              onChange={(e) => {
-                setPage(1);
-                setEvenementFiltre(e.target.value as TypeEvenement | "");
-              }}
-            >
-              <option value="">Tous</option>
-              <option value="naissance">Naissance</option>
-              <option value="deces">Deces</option>
-            </select>
-          </Champ>
-        </div>
-        {affichageMairie && (
-          <div style={{ flex: "0 1 200px" }}>
-            <Champ id="filtre-mairie" label="Mairie">
-              <select
-                id="filtre-mairie"
-                value={mairieFiltre}
-                onChange={(e) => {
-                  setPage(1);
-                  setMairieFiltre(e.target.value);
-                }}
-              >
-                <option value="">Toutes</option>
-                {mairies.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.nom}
-                  </option>
-                ))}
-              </select>
-            </Champ>
-          </div>
+      <div className="eva-ac-pilules">
+        <PilulesFiltre
+          ariaLabel="Filtrer par statut"
+          defilement
+          valeur={statutFiltre}
+          onChanger={(v) => {
+            setPage(1);
+            setStatutFiltre(v);
+          }}
+          pilules={pilules}
+        />
+        {dossiers && !erreur && (
+          <span className="eva-compteur" role="status" aria-live="polite">
+            {compterAvecUnite(total, "dossier")}
+          </span>
         )}
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13.5, paddingBottom: 14, cursor: "pointer" }}>
-          <input
-            type="checkbox"
-            checked={masquerActesEmis}
-            onChange={(e) => {
-              setPage(1);
-              setMasquerActesEmis(e.target.checked);
-            }}
-          />
-          Masquer les actes emis
-        </label>
       </div>
 
-      {chargement ? (
-        <ChargementPage />
-      ) : resultats.length === 0 ? (
-        <EtatVide icone={<Search size={28} />} titre="Aucun dossier ne correspond a ces criteres" />
-      ) : (
-        <>
-          <Tableau>
-            <thead>
-              <tr>
-                <th>Identifiant</th>
-                <th>Evenement</th>
-                <th>Mairie</th>
-                <th>Statut</th>
-                <th>Date de l'evenement</th>
-                <th>Echeance</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {resultats.map((dossier) => {
-                const jours = joursRestants(dossier.date_limite);
-                return (
-                  <tr key={dossier.id}>
-                    <td className="texte-mono">{dossier.id.slice(0, 8)}</td>
-                    <td>{dossier.event_type === "naissance" ? "Naissance" : "Deces"}</td>
-                    <td>{dossier.mairie_nom || "-"}</td>
-                    <td>
-                      <BadgeStatut statut={dossier.statut} />
-                    </td>
-                    <td className="texte-mono">{dossier.date_evenement || "-"}</td>
-                    <td>
-                      {echeanceActive(dossier.statut) ? (
-                        <strong className="texte-mono" style={{ color: couleurUrgence(jours) }}>
-                          {jours <= 0 ? "Echue" : `${jours} j`}
-                        </strong>
-                      ) : (
-                        <span style={{ color: "var(--couleur-gris-service-2)" }}>-</span>
-                      )}
-                    </td>
-                    <td>
-                      <LienBouton to={`/admin-cec/dossiers/${dossier.id}`} variante="fantome" taille="petit">
-                        Ouvrir
-                      </LienBouton>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </Tableau>
-          {dossiers && (
-            <Pagination
-              page={page}
-              taillepage={TAILLE_PAGE}
-              total={dossiers.count}
-              aSuivant={!!dossiers.next}
-              aPrecedent={!!dossiers.previous}
-              onChanger={setPage}
-            />
-          )}
-        </>
+      <ListeResponsive<Dossier>
+        legende="Dossiers de la zone"
+        lignes={resultats}
+        cle={(d) => d.id}
+        colonnes={colonnes}
+        chargement={chargement}
+        erreur={erreur}
+        onReessayer={() => setRechargement((n) => n + 1)}
+        onLigneClic={(d) => navigate(`/admin-cec/dossiers/${d.id}`)}
+        hauteurMax="none"
+        vide={{
+          icone: <FolderSearch size={26} />,
+          titre: "Aucun dossier ne correspond à ces critères",
+          description: filtreActif ? "Modifiez votre recherche ou retirez des filtres." : "Aucun dossier n'a encore été enregistré dans votre zone.",
+          action: filtreActif ? (
+            <Bouton variante="secondaire" onClick={reinitialiserFiltres}>
+              Réinitialiser les filtres
+            </Bouton>
+          ) : undefined
+        }}
+      />
+
+      {dossiers && !erreur && (
+        <Pagination
+          page={page}
+          taillepage={TAILLE_PAGE}
+          total={dossiers.count}
+          aSuivant={!!dossiers.next}
+          aPrecedent={!!dossiers.previous}
+          onChanger={setPage}
+        />
       )}
     </MiseEnPage>
   );

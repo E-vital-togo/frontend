@@ -1,23 +1,28 @@
 import type { StatutDossier } from "../types/domaine";
+import Badge, { type VarianteBadge } from "./ui/Badge";
 
 const LIBELLES: Record<StatutDossier, string> = {
-  recu: "Recu",
-  notifie: "Notifie",
-  en_attente_complement: "En attente de complement",
-  complete: "Complete",
-  acte_emis: "Acte emis",
+  recu: "Reçu",
+  notifie: "Notifié",
+  en_attente_complement: "En attente de complément",
+  complete: "Complet",
+  acte_emis: "Acte émis",
   sans_suite: "Sans suite"
 };
 
-const CLASSES: Record<StatutDossier, string> = {
-  recu: "badge",
-  notifie: "badge",
-  en_attente_complement: "badge badge--attente",
-  complete: "badge badge--attente",
-  acte_emis: "badge badge--actif",
-  sans_suite: "badge badge--alerte"
+const VARIANTES: Record<StatutDossier, VarianteBadge> = {
+  recu: "neutre",
+  notifie: "info",
+  en_attente_complement: "attente",
+  complete: "attente",
+  acte_emis: "succes",
+  sans_suite: "danger"
 };
 
 export default function BadgeStatut({ statut }: { statut: StatutDossier }) {
-  return <span className={CLASSES[statut] ?? "badge"}>{LIBELLES[statut] ?? statut}</span>;
+  return (
+    <Badge variante={VARIANTES[statut] ?? "neutre"} point>
+      {LIBELLES[statut] ?? statut}
+    </Badge>
+  );
 }

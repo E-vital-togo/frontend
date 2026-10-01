@@ -1,10 +1,13 @@
-import { useState } from "react";
-import { FileEdit } from "lucide-react";
-import { Bouton, ChargementPage, Modale } from "./ui";
+import { useId, useMemo, useState } from "react";
+import { FileEdit, SearchX } from "lucide-react";
+import { Alerte, BarreRecherche, Bouton, Champ, EtatVide, Modale, Selecteur, Squelette } from "./ui";
 import type { VarianteBouton, TailleBouton } from "./ui/Bouton";
 import { useToast } from "./ui/ToastProvider";
+import ComparaisonValeurs from "./dossier/ComparaisonValeurs";
+import { formaterValeurPourChamp } from "./dossier/utilitaires";
 import { appelApi, ErreurApi } from "../lib/apiClient";
 import type { ChampFormulaireEffectif } from "../types/domaine";
+import "../styles/dossier.css";
 
 interface ReponseFormulaireEffectif {
   champs: ChampFormulaireEffectif[];
@@ -12,7 +15,7 @@ interface ReponseFormulaireEffectif {
 
 interface ProprietesDemandeCorrectionActe {
   idDossier: string;
-  /** Evite un fetch redondant quand l'ecran appelant a deja charge les champs (ex: DetailDossier). */
+  /** Évite un fetch redondant quand l'écran appelant a déjà chargé les champs (ex : DetailDossier). */
   champsPreCharges?: ChampFormulaireEffectif[];
   variante?: VarianteBouton;
   taille?: TailleBouton;
@@ -20,11 +23,16 @@ interface ProprietesDemandeCorrectionActe {
   onEnvoyee?: () => void;
 }
 
+/** Comparaison insensible à la casse et aux accents (recherche d'un champ dans la liste). */
+function normaliser(texte: string): string {
+  return texte.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
 /**
- * Bouton + modale de demande de correction d'un acte deja emis. Partage
- * entre ActePdf.tsx (ou elle vivait seule a l'origine) et DetailDossier.tsx
- * (ou elle doit etre accessible directement, sans passer par l'ecran PDF) :
- * une seule logique d'envoi, jamais deux versions a maintenir en parallele.
+ * Bouton + fenêtre de demande de correction d'un acte déjà émis. Partagé
+ * entre ActePdf.tsx (où elle vivait seule à l'origine) et DetailDossier.tsx
+ * (où elle doit être accessible directement, sans passer par l'écran PDF) :
+ * une seule logique d'envoi, jamais deux versions à maintenir en parallèle.
  */
 export default function DemandeCorrectionActe({
   idDossier,
@@ -35,10 +43,12 @@ export default function DemandeCorrectionActe({
   onEnvoyee
 }: ProprietesDemandeCorrectionActe) {
   const toast = useToast();
+  const prefixe = useId().replace(/:/g, "");
   const [modaleOuverte, setModaleOuverte] = useState(false);
   const [champs, setChamps] = useState<ChampFormulaireEffectif[] | null>(champsPreCharges ?? null);
   const [selection, setSelection] = useState<Record<string, boolean>>({});
   const [nouvellesValeurs, setNouvellesValeurs] = useState<Record<string, string>>({});
+  const [recherche, setRecherche] = useState("");
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
   const [erreurDemande, setErreurDemande] = useState<string | null>(null);
 
@@ -54,6 +64,11 @@ export default function DemandeCorrectionActe({
 
   function basculerSelection(code: string) {
     setSelection((precedent) => ({ ...precedent, [code]: !precedent[code] }));
+  }
+
+  function fermer() {
+    setModaleOuverte(false);
+    setRecherche("");
   }
 
   async function envoyerDemande() {
@@ -73,7 +88,7 @@ export default function DemandeCorrectionActe({
     }
 
     if (Object.keys(champsModifies).length === 0) {
-      setErreurDemande("Selectionnez au moins un champ a corriger et indiquez sa nouvelle valeur.");
+      setErreurDemande("Sélectionnez au moins un champ à corriger et indiquez sa nouvelle valeur.");
       return;
     }
 
@@ -83,8 +98,8 @@ export default function DemandeCorrectionActe({
         methode: "POST",
         corps: { champs_modifies: champsModifies }
       });
-      toast.succes("Demande de modification envoyee : elle sera examinee par un administrateur.");
-      setModaleOuverte(false);
+      toast.succes("Demande de modification envoyée : elle sera examinée par un administrateur.");
+      fermer();
       setSelection({});
       setNouvellesValeurs({});
       onEnvoyee?.();
@@ -95,67 +110,144 @@ export default function DemandeCorrectionActe({
     }
   }
 
+  const champsAffiches = useMemo(() => {
+    if (!champs) return [];
+    const terme = normaliser(recherche.trim());
+    return terme ? champs.filter((c) => normaliser(c.label).includes(terme)) : champs;
+  }, [champs, recherche]);
+
+  // Champs cochés ET renseignés : c'est exactement ce qui sera envoyé.
+  const recapitulatif = useMemo(() => {
+    if (!champs) return [];
+    return champs
+      .filter((c) => selection[c.data_element_code] && (nouvellesValeurs[c.data_element_code] || "").trim() !== "")
+      .map((c) => ({
+        cle: c.data_element_code,
+        libelle: c.label,
+        avant: formaterValeurPourChamp(c, c.valeur_actuelle),
+        apres: formaterValeurPourChamp(c, (nouvellesValeurs[c.data_element_code] || "").trim())
+      }));
+  }, [champs, selection, nouvellesValeurs]);
+
+  const nbSelectionnes = champs ? champs.filter((c) => selection[c.data_element_code]).length : 0;
+
+  function controleSaisie(champ: ChampFormulaireEffectif, id: string) {
+    const code = champ.data_element_code;
+    const valeur = nouvellesValeurs[code] || "";
+    const changer = (v: string) => setNouvellesValeurs((precedent) => ({ ...precedent, [code]: v }));
+    if (champ.type_champ === "select" && champ.options.length > 0) {
+      return (
+        <Selecteur id={id} valeur={valeur} onChange={changer} options={champ.options} placeholder="Choisir une valeur" effacable />
+      );
+    }
+    const type = champ.type_champ === "date" ? "date" : champ.type_champ === "nombre_entier" || champ.type_champ === "nombre_decimal" ? "number" : "text";
+    return (
+      <input
+        id={id}
+        type={type}
+        step={champ.type_champ === "nombre_decimal" ? "any" : undefined}
+        value={valeur}
+        onChange={(e) => changer(e.target.value)}
+      />
+    );
+  }
+
   return (
     <>
-      <Bouton variante={variante} taille={taille} onClick={ouvrir} iconeGauche={<FileEdit size={14} />}>
+      <Bouton variante={variante} taille={taille} onClick={ouvrir} iconeGauche={<FileEdit size={taille === "petit" ? 14 : 16} />}>
         {libelle}
       </Bouton>
 
       {modaleOuverte && (
         <Modale
-          titre="Demander une correction de l'acte"
-          large
-          onFermer={() => setModaleOuverte(false)}
+          titre="Demander une modification de l'acte"
+          description="L'acte est déjà émis : toute correction est examinée par un administrateur avant la réémission."
+          taille="large"
+          fermerAuClicFond={false}
+          onFermer={fermer}
           actions={
             <>
-              <Bouton variante="secondaire" onClick={() => setModaleOuverte(false)} disabled={envoiEnCours}>
+              <Bouton variante="secondaire" onClick={fermer} disabled={envoiEnCours}>
                 Annuler
               </Bouton>
-              <Bouton variante="accent" onClick={envoyerDemande} chargement={envoiEnCours}>
+              <Bouton onClick={envoyerDemande} chargement={envoiEnCours}>
                 Envoyer la demande
               </Bouton>
             </>
           }
         >
-          <p style={{ fontSize: 13.5, marginBottom: 14 }}>
-            L'acte etant deja emis, toute correction passe par la validation d'un administrateur. Cochez le ou les
-            champs errones et indiquez leur bonne valeur.
-          </p>
-          {erreurDemande && <div className="message-erreur">{erreurDemande}</div>}
+          {erreurDemande && (
+            <Alerte variante="erreur" onFermer={() => setErreurDemande(null)} className="eva-dd-modale-alerte">
+              {erreurDemande}
+            </Alerte>
+          )}
+
           {champs === null ? (
-            <ChargementPage texte="Chargement des champs..." />
+            <Squelette variante="texte" lignes={6} libelle="Chargement des champs" />
           ) : champs.length === 0 ? (
-            <p style={{ color: "var(--couleur-gris-service-2)" }}>Aucun champ disponible pour ce dossier.</p>
+            <EtatVide compact variante="neutre" icone={<SearchX size={24} />} titre="Aucun champ disponible" description="Le formulaire de ce dossier n'a pas pu être chargé." />
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: "50vh", overflowY: "auto" }}>
-              {champs.map((champ) => (
-                <label
-                  key={champ.data_element_code}
-                  style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 10px", border: "1px solid var(--couleur-bordure)", borderRadius: 8 }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={!!selection[champ.data_element_code]}
-                    onChange={() => basculerSelection(champ.data_element_code)}
-                    style={{ marginTop: 3 }}
+            <div className="eva-dd-correction">
+              <p className="eva-dd-correction__intro">Cochez les champs erronés, puis indiquez la valeur correcte pour chacun.</p>
+
+              {champs.length > 8 && (
+                <div className="eva-dd-correction__recherche">
+                  <BarreRecherche
+                    valeur={recherche}
+                    onChanger={setRecherche}
+                    placeholder="Rechercher un champ"
+                    ariaLabel="Rechercher un champ à corriger"
+                    pleineLargeur
                   />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{champ.label}</div>
-                    <div style={{ fontSize: 12, color: "var(--couleur-gris-service-2)", marginBottom: 6 }}>
-                      Valeur actuelle : {String(champ.valeur_actuelle ?? "(vide)")}
-                    </div>
-                    {selection[champ.data_element_code] && (
-                      <input
-                        placeholder="Nouvelle valeur"
-                        value={nouvellesValeurs[champ.data_element_code] || ""}
-                        onChange={(e) =>
-                          setNouvellesValeurs((precedent) => ({ ...precedent, [champ.data_element_code]: e.target.value }))
-                        }
-                      />
-                    )}
-                  </div>
-                </label>
-              ))}
+                </div>
+              )}
+
+              <p className="eva-dd-correction__compteur" role="status" aria-live="polite">
+                {nbSelectionnes === 0
+                  ? "Aucun champ sélectionné"
+                  : `${nbSelectionnes} champ${nbSelectionnes > 1 ? "s" : ""} sélectionné${nbSelectionnes > 1 ? "s" : ""}`}
+              </p>
+
+              <ul className="eva-dd-correction__liste">
+                {champsAffiches.map((champ) => {
+                  const code = champ.data_element_code;
+                  const coche = !!selection[code];
+                  const idCase = `${prefixe}-case-${code}`;
+                  const idSaisie = `${prefixe}-saisie-${code}`;
+                  return (
+                    <li key={code} className={coche ? "eva-dd-choix eva-dd-choix--actif" : "eva-dd-choix"}>
+                      <div className="eva-dd-choix__ligne">
+                        <input id={idCase} type="checkbox" checked={coche} onChange={() => basculerSelection(code)} />
+                        <label htmlFor={idCase} className="eva-dd-choix__libelle">
+                          <span className="eva-dd-choix__nom">{champ.label}</span>
+                          <span className="eva-dd-choix__actuelle">
+                            Valeur actuelle : <span className="eva-dd-valeur">{formaterValeurPourChamp(champ, champ.valeur_actuelle)}</span>
+                          </span>
+                        </label>
+                      </div>
+                      {coche && (
+                        <div className="eva-dd-choix__saisie">
+                          <Champ id={idSaisie} label="Nouvelle valeur">
+                            {controleSaisie(champ, idSaisie)}
+                          </Champ>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              {champsAffiches.length === 0 && <p className="eva-dd-correction__aucun">Aucun champ ne correspond à « {recherche} ».</p>}
+
+              {recapitulatif.length > 0 && (
+                <section className="eva-dd-correction__recap" aria-label="Récapitulatif de la demande">
+                  <h3>Récapitulatif de la demande</h3>
+                  <ComparaisonValeurs
+                    lignes={recapitulatif}
+                    libelleApres="Valeur demandée"
+                    ariaLabel="Valeurs avant et après correction"
+                  />
+                </section>
+              )}
             </div>
           )}
         </Modale>

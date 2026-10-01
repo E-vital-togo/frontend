@@ -1,28 +1,71 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { AlertTriangle, Clock, FilePlus, FolderOpen, QrCode } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { AlertTriangle, CalendarClock, CheckCircle2, Clock, FilePlus, FolderOpen, QrCode, RefreshCw, WifiOff } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
 import BadgeStatut from "../../components/BadgeStatut";
-import { CarteStat, ChargementPage, EnteteDePage, EtatVide, Tableau } from "../../components/ui";
+import EcheanceDossier from "../../components/statistiques/EcheanceDossier";
+import RaccourciAction from "../../components/statistiques/RaccourciAction";
+import { Alerte, Badge, Carte, CarteStat, EnteteDePage, ListeResponsive, Squelette, type ColonneListe } from "../../components/ui";
 import { LienBouton } from "../../components/ui/Bouton";
 import { appelApi } from "../../lib/apiClient";
 import { useConnectivite } from "../../lib/connectivite";
 import { instantaneEnCache, mettreEnCacheDossier, mettreEnCacheInstantane } from "../../lib/db";
 import { precacherFormulaires } from "../../lib/formulairesHorsLigne";
 import { useCompteurs } from "../../lib/useCompteurs";
-import { classeUrgence, couleurUrgence, joursRestants } from "../../lib/urgence";
+import { classeUrgence, joursRestants } from "../../lib/urgence";
 import { LIENS_AGENT } from "./navigation";
 import { listeDepuis, type Dossier, type ListeOuPaginee } from "../../types/domaine";
 
+import "../../styles/statistiques.css";
+
 const CLE_CACHE_ECHEANCES = "tableau_bord_agent::dossiers_echeance_proche";
 
+const COLONNES: ColonneListe<Dossier>[] = [
+  {
+    id: "evenement",
+    libelle: "Événement",
+    principale: true,
+    rendu: (d) => (
+      <span className="eva-st-evenement">
+        <Badge variante="neutre">{d.event_type === "naissance" ? "Naissance" : "Décès"}</Badge>
+        {d.nom && <span className="eva-st-evenement__nom">{d.nom}</span>}
+      </span>
+    )
+  },
+  { id: "statut", libelle: "Statut", rendu: (d) => <BadgeStatut statut={d.statut} /> },
+  {
+    id: "echeance",
+    libelle: "Échéance",
+    nowrap: true,
+    rendu: (d) => <EcheanceDossier dateLimite={d.date_limite} />
+  },
+  {
+    id: "actions",
+    libelle: "Actions",
+    actions: true,
+    masquerLibelle: true,
+    rendu: (d) => (
+      <LienBouton to={`/agent/dossiers/${d.id}`} variante="secondaire" taille="petit">
+        Ouvrir
+      </LienBouton>
+    )
+  }
+];
+
 export default function TableauDeBordAgent() {
+  const navigate = useNavigate();
   const enLigne = useConnectivite();
   const compteurs = useCompteurs();
   const [dossiersProches, setDossiersProches] = useState<Dossier[]>([]);
   const [chargement, setChargement] = useState(true);
   const [horsLigne, setHorsLigne] = useState(false);
   const [dateInstantane, setDateInstantane] = useState<string | null>(null);
+
+  const dossiersTries = useMemo(
+    () => dossiersProches.slice().sort((a, b) => joursRestants(a.date_limite) - joursRestants(b.date_limite)),
+    [dossiersProches]
+  );
+  const enRetard = useMemo(() => dossiersProches.filter((d) => joursRestants(d.date_limite) < 0).length, [dossiersProches]);
 
   useEffect(() => {
     let annule = false;
@@ -73,79 +116,97 @@ export default function TableauDeBordAgent() {
 
   return (
     <MiseEnPage liens={LIENS_AGENT}>
-      <EnteteDePage titre="Tableau de bord" sousTitre="Vue d'ensemble de vos dossiers en cours" />
+      <EnteteDePage
+        titre="Tableau de bord"
+        sousTitre="Vue d'ensemble de vos dossiers en cours"
+        actions={
+          <LienBouton to="/agent/dossiers/nouveau" iconeGauche={<FilePlus size={16} />}>
+            Nouveau dossier
+          </LienBouton>
+        }
+      />
 
-      <div className="grille-cartes" style={{ marginBottom: 28 }}>
-        <CarteStat icone={<Clock size={22} />} valeur={compteurs.echeances} libelle="Echeances proches" alerte={compteurs.echeances > 0} />
-        <CarteStat icone={<AlertTriangle size={22} />} valeur={compteurs.conflits} libelle="Conflits de sync" alerte={compteurs.conflits > 0} />
-        <Link to="/agent/dossiers/nouveau" className="eva-carte eva-carte--interactive" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
-          <FilePlus size={20} color="var(--couleur-emeraude)" />
-          <div style={{ fontSize: 14, fontWeight: 600 }}>Nouveau dossier</div>
-          <div className="eva-sous-titre">Declaration papier</div>
-        </Link>
-        <Link to="/agent/retrait" className="eva-carte eva-carte--interactive" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
-          <QrCode size={20} color="var(--couleur-emeraude)" />
-          <div style={{ fontSize: 14, fontWeight: 600 }}>Retrait</div>
-          <div className="eva-sous-titre">Scanner ou saisir un code</div>
-        </Link>
-      </div>
-
-      <h2 style={{ fontSize: 16, marginBottom: 12 }}>Dossiers proches de l'echeance</h2>
       {horsLigne && !chargement && (
-        <div className="eva-carte" style={{ background: "var(--couleur-citron-fond)", borderColor: "var(--couleur-citron-profond)", marginBottom: 16, fontSize: 13.5 }}>
-          Hors-ligne : liste mise en cache
-          {dateInstantane ? ` au ${new Date(dateInstantane).toLocaleString("fr-FR")}` : ""}. Sera actualisee des le retour du reseau.
+        <Alerte variante="avertissement" titre="Vous êtes hors ligne" icone={<WifiOff size={18} aria-hidden="true" />} className="eva-st-alerte-page">
+          Liste mise en cache
+          {dateInstantane ? ` le ${new Date(dateInstantane).toLocaleString("fr-FR")}` : ""}. Elle sera actualisée dès le retour du réseau.
+        </Alerte>
+      )}
+
+      <section className="eva-st-bloc" aria-label="Chiffres clés">
+        {chargement ? (
+          <Squelette variante="stats" lignes={3} libelle="Chargement des chiffres clés" />
+        ) : (
+          <div className="eva-grille-stats">
+            <CarteStat
+              icone={<Clock size={20} />}
+              valeur={compteurs.echeances}
+              libelle="Échéances proches"
+              alerte={compteurs.echeances > 0}
+              detail={compteurs.echeances > 0 ? "Dossiers à traiter en priorité" : "Aucune échéance à surveiller"}
+              vers="/agent/dossiers"
+            />
+            <CarteStat
+              icone={<CalendarClock size={20} />}
+              valeur={enRetard}
+              libelle="Dossiers en retard"
+              variante={enRetard > 0 ? "alerte" : "defaut"}
+              detail={enRetard > 0 ? "Date limite dépassée" : "Aucun retard"}
+              vers="/agent/dossiers"
+            />
+            <CarteStat
+              icone={<AlertTriangle size={20} />}
+              valeur={compteurs.conflits}
+              libelle="Conflits de synchronisation"
+              variante={compteurs.conflits > 0 ? "attention" : "defaut"}
+              detail={compteurs.conflits > 0 ? "À résoudre avant la prochaine synchronisation" : "Tout est synchronisé"}
+              vers="/agent/conflits"
+            />
+          </div>
+        )}
+      </section>
+
+      <section className="eva-st-bloc" aria-labelledby="titre-actions-rapides">
+        <div className="eva-section__entete">
+          <h2 className="eva-section__titre" id="titre-actions-rapides">
+            Actions rapides
+          </h2>
         </div>
-      )}
-      {chargement ? (
-        <ChargementPage />
-      ) : dossiersProches.length === 0 ? (
-        <EtatVide
-          icone={<FolderOpen size={26} />}
-          titre="Aucun dossier proche de l'echeance"
-          description={horsLigne ? "Aucune liste mise en cache localement pour l'instant." : "Tout est a jour pour le moment."}
+        <div className="eva-st-raccourcis">
+          <RaccourciAction vers="/agent/dossiers/nouveau" icone={<FilePlus size={20} />} titre="Nouveau dossier" description="Saisir une déclaration papier" />
+          <RaccourciAction vers="/agent/retrait" icone={<QrCode size={20} />} titre="Retrait d'un acte" description="Scanner ou saisir un code" />
+          <RaccourciAction vers="/agent/dossiers" icone={<FolderOpen size={20} />} titre="Tous les dossiers" description="Rechercher et filtrer" />
+          <RaccourciAction vers="/agent/synchronisation" icone={<RefreshCw size={20} />} titre="Synchronisation" description="Envoyer les actions en attente" />
+        </div>
+      </section>
+
+      <Carte
+        sansMarge
+        titre="Dossiers proches de l'échéance"
+        description="Triés par urgence : les plus en retard ou les plus proches de la date limite en premier."
+        actions={
+          <LienBouton to="/agent/dossiers" variante="secondaire" taille="petit">
+            Voir tous les dossiers
+          </LienBouton>
+        }
+      >
+        <ListeResponsive<Dossier>
+          legende="Dossiers proches de l'échéance"
+          sansCadre
+          hauteurMax="none"
+          lignes={dossiersTries}
+          cle={(d) => d.id}
+          chargement={chargement}
+          colonnes={COLONNES}
+          classeLigne={(d) => classeUrgence(joursRestants(d.date_limite))}
+          onLigneClic={(d) => navigate(`/agent/dossiers/${d.id}`)}
+          vide={{
+            titre: "Aucun dossier proche de l'échéance",
+            description: horsLigne ? "Aucune liste n'est mise en cache sur cet appareil pour l'instant." : "Tout est à jour pour le moment.",
+            icone: horsLigne ? <WifiOff size={26} /> : <CheckCircle2 size={26} />
+          }}
         />
-      ) : (
-        <Tableau>
-          <thead>
-            <tr>
-              <th>Evenement</th>
-              <th>Statut</th>
-              <th>Jours restants</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {dossiersProches
-              .slice()
-              .sort((a, b) => joursRestants(a.date_limite) - joursRestants(b.date_limite))
-              .map((dossier) => {
-                const jours = joursRestants(dossier.date_limite);
-                return (
-                  <tr key={dossier.id} className={classeUrgence(jours)}>
-                    <td>{dossier.event_type === "naissance" ? "Naissance" : "Deces"}</td>
-                    <td>
-                      <BadgeStatut statut={dossier.statut} />
-                    </td>
-                    <td>
-                      <strong style={{ color: couleurUrgence(jours) }}>
-                        {jours <= 0 ? "Echue" : `${jours} jour${jours > 1 ? "s" : ""}`}
-                      </strong>{" "}
-                      <span className="texte-mono" style={{ fontSize: 11.5, color: "var(--couleur-gris-service-2)" }}>
-                        ({dossier.date_limite})
-                      </span>
-                    </td>
-                    <td>
-                      <LienBouton to={`/agent/dossiers/${dossier.id}`} variante="fantome" taille="petit">
-                        Ouvrir
-                      </LienBouton>
-                    </td>
-                  </tr>
-                );
-              })}
-          </tbody>
-        </Tableau>
-      )}
+      </Carte>
     </MiseEnPage>
   );
 }

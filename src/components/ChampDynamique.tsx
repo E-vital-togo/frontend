@@ -1,7 +1,8 @@
 import { useRef, type ReactElement } from "react";
 import { AlertCircle } from "lucide-react";
 import ChampTelephone from "./ui/ChampTelephone";
-import SelectMultiple from "./ui/SelectMultiple";
+import Selecteur from "./ui/Selecteur";
+import ChampSuggestions from "./ui/ChampSuggestions";
 import { useToast } from "./ui/ToastProvider";
 import { colonnesChamp, estCoche, versTexte } from "../lib/formulaire";
 import type { ChampFormulaireEffectif } from "../types/domaine";
@@ -129,39 +130,40 @@ export default function ChampDynamique({ champ, valeur, onChange, verrouille = f
       break;
 
     case "select":
+      // Liste deroulante maison (recherche integree au-dela de 7 choix). Emet le code du choix, ou null une fois effacee
+      // (comme l'ancienne option vide "Choisir...").
       controle = (
-        <select
+        <Selecteur
           id={code}
-          className={`eva-ctl eva-ctl--select${versTexte(valeur) === "" ? " eva-ctl--vide" : ""}`}
-          value={versTexte(valeur)}
+          valeur={versTexte(valeur)}
+          options={options}
+          placeholder={placeholder ?? "Choisir..."}
           disabled={readonly}
-          {...accessibilite}
-          onChange={(e) => changer(e.target.value || null)}
-        >
-          <option value="">{placeholder ?? "Choisir..."}</option>
-          {options.map((option) => (
-            <option key={option.valeur} value={option.valeur}>
-              {option.libelle}
-            </option>
-          ))}
-        </select>
+          verrouille={verrouille && !readonly}
+          invalide={!!erreur}
+          effacable
+          etiquettePar={idEtiquette}
+          decritPar={accessibilite["aria-describedby"]}
+          onChange={(choix) => changer(choix || null)}
+        />
       );
       break;
 
     case "select_multiple": {
       const valeursChoisies = Array.isArray(valeur) ? valeur.map(String) : [];
-      // Chips cochables (filtre si liste longue) a la place du <select
-      // multiple> natif ; meme valeur emise : tableau de codes, dans l'ordre des options.
+      // Meme valeur emise que l'ancien <select multiple> : tableau de codes, dans l'ordre des options.
       controle = (
-        <SelectMultiple
+        <Selecteur
           id={code}
+          multiple
           options={options}
           valeur={valeursChoisies}
+          placeholder={placeholder ?? "Choisir..."}
           disabled={readonly}
           verrouille={verrouille && !readonly}
+          invalide={!!erreur}
           etiquettePar={idEtiquette}
           decritPar={accessibilite["aria-describedby"]}
-          invalide={!!erreur}
           max={contraintes.max_selections}
           min={contraintes.min_selections}
           onChange={changer}
@@ -171,32 +173,24 @@ export default function ChampDynamique({ champ, valeur, onChange, verrouille = f
     }
 
     case "datalist":
-      // Saisie libre : contrairement a "select", `options` n'est qu'une
-      // liste de suggestions (voir apps.catalogue.validation._valider_texte
-      // applique a ce type - aucune contrainte contre `options`). Le
-      // <datalist> propose donc `libelle` comme valeur inseree, pas le code
-      // interne `valeur` utilise par select/select_multiple.
+      // Saisie libre : contrairement a "select", `options` n'est qu'une liste de suggestions (voir
+      // apps.catalogue.validation._valider_texte applique a ce type - aucune contrainte contre `options`).
+      // Le champ propose donc `libelle` comme texte insere, pas le code interne `valeur` utilise par
+      // select/select_multiple ; la valeur emise est toujours le texte saisi.
       controle = (
-        <>
-          <input
-            id={code}
-            type="text"
-            className="eva-ctl"
-            list={`${code}-liste`}
-            maxLength={contraintes.longueur_max}
-            placeholder={placeholder}
-            autoComplete="off"
-            value={versTexte(valeur)}
-            disabled={readonly}
-            {...accessibilite}
-            onChange={(e) => changer(e.target.value)}
-          />
-          <datalist id={`${code}-liste`}>
-            {options.map((option) => (
-              <option key={option.valeur} value={option.libelle} />
-            ))}
-          </datalist>
-        </>
+        <ChampSuggestions
+          id={code}
+          valeur={versTexte(valeur)}
+          options={options}
+          maxLength={contraintes.longueur_max}
+          placeholder={placeholder}
+          disabled={readonly}
+          verrouille={verrouille && !readonly}
+          invalide={!!erreur}
+          etiquettePar={idEtiquette}
+          decritPar={accessibilite["aria-describedby"]}
+          onChange={changer}
+        />
       );
       break;
 

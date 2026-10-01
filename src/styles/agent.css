@@ -1,0 +1,270 @@
+/* =========================================================================
+   Espace de travail de l'agent du centre d'état civil
+   (ListeDossiers, PageRetrait, Synchronisation, ConflitsSynchronisation,
+   CreationDossier, EmissionActe, ActePdf).
+   Préfixe : eva-ag-. Uniquement des variables de jeton.
+   ========================================================================= */
+
+/* Alerte posée au-dessus d'une liste ou d'un formulaire */
+.eva-ag-alerte-liste { margin-bottom: var(--espace-4); }
+
+/* ---- Liste des dossiers ---- */
+.eva-ag-panneau {
+  margin-bottom: var(--espace-4);
+  padding: var(--espace-4) var(--espace-5);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-blanc);
+  box-shadow: var(--ombre-carte);
+}
+.eva-ag-panneau .eva-barre-outils { margin-bottom: var(--espace-4); }
+.eva-ag-filtres {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-3);
+  padding-top: var(--espace-4);
+  border-top: 1px solid var(--couleur-bordure);
+}
+.eva-ag-filtre { display: flex; align-items: center; gap: var(--espace-3); min-width: 0; }
+.eva-ag-filtre__libelle {
+  flex: none;
+  width: 72px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--couleur-texte-discret);
+}
+.eva-ag-filtre > .eva-filtres { flex: 1 1 auto; }
+.eva-ag-filtre--options { gap: var(--espace-2) var(--espace-6); flex-wrap: wrap; padding-left: 84px; }
+
+.eva-ag-messages { display: flex; flex-direction: column; gap: var(--espace-3); }
+.eva-ag-messages:not(:empty) { margin-bottom: var(--espace-4); }
+.eva-ag-messages .eva-alerte { margin: 0; }
+
+.eva-ag-lien-dossier { color: var(--couleur-emeraude-profond); font-weight: 600; text-decoration: none; }
+.eva-ag-lien-dossier:hover { text-decoration: underline; }
+.eva-ag-evenement { display: inline-flex; align-items: center; gap: 6px; color: var(--couleur-gris-service-1); }
+.eva-ag-evenement svg { color: var(--couleur-gris-service-2-marque); flex: none; }
+.eva-ag-statuts { display: inline-flex; align-items: center; flex-wrap: wrap; gap: var(--espace-1) var(--espace-2); }
+.eva-ag-echeance { display: inline-flex; flex-direction: column; gap: 1px; line-height: 1.3; }
+.eva-ag-echeance__valeur { font-weight: 600; font-variant-numeric: tabular-nums; }
+.eva-ag-echeance__valeur--rouge { color: var(--couleur-erreur); }
+.eva-ag-echeance__valeur--orange { color: var(--couleur-citron-texte); }
+.eva-ag-echeance__valeur--verte { color: var(--couleur-succes-texte); }
+.eva-ag-echeance__date { font-family: var(--police-donnees); font-size: 11.5px; color: var(--couleur-texte-discret); }
+
+/* ---- Parcours de retrait ---- */
+.eva-ag-parcours { display: flex; flex-direction: column; gap: var(--espace-6); max-width: 760px; }
+.eva-ag-parcours__etape { display: flex; flex-direction: column; gap: var(--espace-3); min-width: 0; }
+.eva-ag-etape {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--couleur-encre);
+}
+.eva-ag-etape__pastille {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--rayon-plein);
+  background: var(--couleur-emeraude-fond);
+  color: var(--couleur-emeraude-profond);
+  font-family: var(--police-donnees);
+  font-size: 13px;
+  font-weight: 600;
+}
+.eva-ag-etape__pastille--fait { background: var(--couleur-emeraude); color: var(--couleur-blanc); }
+.eva-ag-parcours__etape .eva-onglets--pilules { max-width: 100%; overflow-x: auto; }
+
+.eva-ag-formulaire { max-width: 520px; }
+.eva-ag-formulaire .eva-alerte { margin-bottom: var(--espace-4); }
+.eva-ag-formulaire__actions { margin-top: var(--espace-5); }
+.eva-ag-aide { display: flex; align-items: center; gap: var(--espace-2); margin: 0 0 var(--espace-4); font-size: 13.5px; color: var(--couleur-texte-discret); }
+.eva-ag-aide svg { flex: none; color: var(--couleur-emeraude); }
+
+.eva-ag-scanner { max-width: 520px; }
+.eva-ag-scanner .eva-alerte { margin-bottom: var(--espace-4); }
+.eva-ag-lecteur { position: relative; }
+.eva-ag-lecteur--masque { display: none; }
+.eva-ag-lecteur__cadre {
+  max-width: 360px;
+  min-height: 160px;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-encre);
+}
+.eva-ag-lecteur__attente {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-2);
+  margin: var(--espace-3) 0 0;
+  font-size: 13px;
+  color: var(--couleur-texte-discret);
+}
+
+.eva-ag-telephone { display: flex; flex-direction: column; gap: var(--espace-4); }
+.eva-ag-compteur-resultats { margin: 0 0 var(--espace-3); font-size: 13px; font-weight: 600; color: var(--couleur-texte-discret); }
+.eva-ag-cartes-codes { display: grid; gap: var(--espace-3); margin: 0; padding: 0; list-style: none; max-width: 520px; }
+.eva-ag-code.eva-carte { display: flex; align-items: center; gap: var(--espace-4); padding: var(--espace-3) var(--espace-4); }
+.eva-ag-code__icone {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--rayon-champ);
+  background: var(--couleur-emeraude-fond);
+  color: var(--couleur-emeraude-profond);
+}
+.eva-ag-code__corps { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.eva-ag-code__valeur { font-size: 15px; font-weight: 600; letter-spacing: 0.04em; }
+
+.eva-ag-resultat-focus { outline: none; }
+.eva-ag-resultat.eva-carte { max-width: 640px; }
+.eva-ag-resultat__entete { display: flex; align-items: center; gap: var(--espace-3); margin-bottom: var(--espace-3); }
+.eva-ag-resultat__icone {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-emeraude-fond);
+  color: var(--couleur-emeraude-profond);
+}
+.eva-ag-resultat__titre { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.eva-ag-resultat__titre .texte-mono { overflow-wrap: anywhere; }
+.eva-ag-resultat__type { font-size: 16px; font-weight: 600; color: var(--couleur-encre); }
+.eva-ag-resultat__actions { margin-top: var(--espace-5); }
+
+/* ---- Synchronisation et conflits ---- */
+.eva-ag-synthese { margin-bottom: var(--espace-5); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.eva-ag-blocs { gap: var(--espace-5); }
+.eva-ag-raison { color: var(--couleur-gris-service-1); overflow-wrap: anywhere; }
+
+.eva-ag-comparaison { display: flex; flex-direction: column; gap: var(--espace-4); }
+.eva-ag-comparaison__versions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--espace-4); }
+.eva-ag-version {
+  min-width: 0;
+  padding: var(--espace-4);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-blanc);
+}
+.eva-ag-version--hors-ligne { border-color: var(--couleur-citron-bordure); background: var(--couleur-citron-fond); }
+.eva-ag-version--en-ligne { border-color: var(--couleur-succes-bordure); background: var(--couleur-emeraude-fond); }
+.eva-ag-version__entete { display: flex; align-items: center; justify-content: space-between; gap: var(--espace-2); flex-wrap: wrap; margin-bottom: var(--espace-3); }
+.eva-ag-version__entete h3 { margin: 0; font-size: 14px; font-weight: 600; color: var(--couleur-encre); }
+.eva-ag-version p { margin: 0 0 var(--espace-2); font-size: 14px; line-height: 1.5; }
+.eva-ag-version .eva-definitions { grid-template-columns: minmax(70px, 110px) 1fr; }
+.eva-ag-version--hors-ligne .eva-definitions dt, .eva-ag-version--hors-ligne .eva-definitions dd { border-bottom-color: var(--couleur-citron-bordure); }
+.eva-ag-raison-bloc { padding: var(--espace-3) var(--espace-4); border-radius: var(--rayon-standard); background: var(--couleur-papier); border: 1px solid var(--couleur-bordure); }
+.eva-ag-raison-bloc h3 { margin: 0 0 var(--espace-1); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--couleur-texte-discret); }
+.eva-ag-raison-bloc p { margin: 0; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+
+/* ---- Création de dossier : choix en cartes ---- */
+.eva-ag-choix { min-width: 0; margin: 0; padding: 0; border: 0; }
+.eva-ag-choix__legende { padding: 0; margin-bottom: var(--espace-2); font-size: 13.5px; font-weight: 600; color: var(--couleur-encre); }
+.eva-ag-choix__grille { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--espace-3); }
+.eva-ag-choix__option { position: relative; display: flex; min-width: 0; cursor: pointer; }
+.eva-ag-choix__entree {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.eva-ag-choix__carte {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--espace-3);
+  min-width: 0;
+  padding: var(--espace-4);
+  border: 1px solid var(--couleur-bordure-champ);
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-blanc);
+  transition: border-color var(--transition-rapide), background var(--transition-rapide), box-shadow var(--transition-rapide);
+}
+.eva-ag-choix__option:hover .eva-ag-choix__carte { border-color: var(--couleur-emeraude); background: var(--couleur-emeraude-fond-doux); }
+.eva-ag-choix__entree:checked + .eva-ag-choix__carte {
+  border-color: var(--couleur-emeraude);
+  background: var(--couleur-emeraude-fond);
+  box-shadow: inset 0 0 0 1px var(--couleur-emeraude);
+}
+.eva-ag-choix__entree:focus-visible + .eva-ag-choix__carte { outline: 2px solid var(--couleur-focus); outline-offset: 2px; }
+.eva-ag-choix__icone {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--rayon-champ);
+  background: var(--couleur-fond-desactive);
+  color: var(--couleur-gris-service-1);
+}
+.eva-ag-choix__entree:checked + .eva-ag-choix__carte .eva-ag-choix__icone { background: var(--couleur-emeraude); color: var(--couleur-blanc); }
+.eva-ag-choix__texte { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.eva-ag-choix__titre { font-size: 15px; font-weight: 600; color: var(--couleur-encre); }
+.eva-ag-choix__description { font-size: 12.5px; line-height: 1.45; color: var(--couleur-texte-discret); }
+
+/* ---- Émission de l'acte ---- */
+.eva-ag-recap { display: flex; flex-direction: column; gap: var(--espace-3); position: sticky; top: calc(var(--hauteur-barre) + var(--espace-4)); }
+.eva-ag-recap__liste { grid-template-columns: minmax(80px, 110px) 1fr; }
+.eva-ag-recap .eva-alerte { margin: 0; }
+
+/* ---- Acte (PDF) ---- */
+.eva-ag-barre-acte.eva-carte { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--espace-4); flex-wrap: wrap; margin-bottom: var(--espace-4); padding: var(--espace-4) var(--espace-5); }
+.eva-ag-barre-acte__choix { flex: 1 1 320px; max-width: 480px; margin: 0; }
+.eva-ag-barre-acte__actions { flex: none; }
+.eva-ag-apercu { min-width: 0; }
+.eva-ag-apercu__cadre {
+  display: block;
+  width: 100%;
+  height: 80vh;
+  min-height: 420px;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-neutre-fond);
+  box-shadow: var(--ombre-carte);
+}
+.eva-ag-apercu__aide { margin: var(--espace-2) 0 0; font-size: 12.5px; color: var(--couleur-texte-discret); text-align: center; }
+
+/* ---- Petits écrans ---- */
+@media (max-width: 720px) {
+  .eva-ag-panneau { padding: var(--espace-3); }
+  .eva-ag-filtre { flex-direction: column; align-items: stretch; gap: var(--espace-2); }
+  .eva-ag-filtre__libelle { width: auto; }
+  .eva-ag-filtre--options { padding-left: 0; gap: 0; align-items: flex-start; }
+  .eva-ag-parcours { gap: var(--espace-5); }
+  .eva-ag-comparaison__versions { grid-template-columns: minmax(0, 1fr); }
+  .eva-ag-choix__grille { grid-template-columns: minmax(0, 1fr); }
+  .eva-ag-recap { position: static; }
+  .eva-ag-recap .eva-ag-recap__liste { grid-template-columns: minmax(70px, 100px) 1fr; }
+  .eva-ag-numeros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .eva-ag-barre-acte__choix { flex-basis: 100%; max-width: none; }
+  .eva-ag-barre-acte__actions { width: 100%; }
+  .eva-ag-barre-acte__actions > * { flex: 1 1 100%; justify-content: center; }
+  .eva-ag-apercu__cadre { height: 70vh; min-height: 320px; }
+  .eva-ag-code.eva-carte { flex-wrap: wrap; }
+  .eva-ag-resultat__entete { flex-wrap: wrap; }
+  .eva-ag-resultat__titre { flex: 1 1 160px; }
+  .eva-ag-resultat__titre .texte-mono { font-size: 11px; }
+  .eva-ag-parcours__etape .eva-onglets--pilules { display: flex; width: 100%; }
+  .eva-ag-parcours__etape .eva-onglets--pilules .eva-onglet { flex: 1 1 0; justify-content: center; padding: 0 8px; font-size: 13px; }
+  .eva-ag-parcours__etape .eva-onglets--pilules .eva-onglet svg { display: none; }
+}

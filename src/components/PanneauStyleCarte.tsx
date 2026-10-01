@@ -1,5 +1,9 @@
-import type { ReactNode } from "react";
-import { PALETTES, etapesPalette, parametresCarte, type ParametresCarte } from "../lib/carte";
+import { useId, type ReactNode } from "react";
+import { ChevronDown } from "lucide-react";
+import { Champ, Interrupteur, Selecteur } from "./ui";
+import { PALETTES, couleurDegrade, etapesPalette, parametresCarte, type ParametresCarte } from "../lib/carte";
+
+import "../styles/statistiques.css";
 
 interface ProprietesPanneauStyleCarte {
   valeur: Partial<ParametresCarte>;
@@ -9,33 +13,87 @@ interface ProprietesPanneauStyleCarte {
 }
 
 const COULEURS_PERSO_DEFAUT = ["#E6F2EC", "#4FA37F", "#064D37"];
-const styleLigne = { display: "flex", gap: 10, flexWrap: "wrap" as const, marginBottom: 8, alignItems: "flex-end" };
-const styleLabel = { fontSize: 12, fontWeight: 600 as const, display: "block", marginBottom: 3 };
 
 function Section({ titre, ouvert = false, children }: { titre: string; ouvert?: boolean; children: ReactNode }) {
   return (
-    <details open={ouvert} style={{ borderTop: "1px solid var(--couleur-bordure, #E2E7DF)", padding: "8px 0" }}>
-      <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{titre}</summary>
-      <div style={{ paddingTop: 6 }}>{children}</div>
+    <details className="eva-st-style" open={ouvert}>
+      <summary className="eva-st-style__titre">
+        {titre}
+        <ChevronDown size={16} className="eva-st-style__chevron" aria-hidden="true" />
+      </summary>
+      <div className="eva-st-style__corps">{children}</div>
     </details>
   );
 }
 
-function Couleur({ label, valeur, onChange }: { label: string; valeur: string; onChange: (v: string) => void }) {
+function ChampCouleur({ id, label, valeur, onChange }: { id: string; label: string; valeur: string; onChange: (v: string) => void }) {
   return (
-    <div style={{ flex: "1 1 120px" }}>
-      <span style={styleLabel}>{label}</span>
-      <input type="color" value={valeur} onChange={(e) => onChange(e.target.value.toUpperCase())} style={{ width: "100%", height: 30, padding: 2 }} />
+    <div className="eva-st-couleur">
+      <label htmlFor={id} className="eva-st-couleur__label">
+        {label}
+      </label>
+      <div className="eva-st-couleur__controle">
+        <input id={id} type="color" value={valeur} onChange={(e) => onChange(e.target.value.toUpperCase())} />
+        <span className="eva-st-couleur__code texte-mono">{valeur.toUpperCase()}</span>
+      </div>
     </div>
   );
 }
 
-function Case({ label, coche, onChange, aide }: { label: string; coche: boolean; onChange: (v: boolean) => void; aide?: string }) {
+function Curseur({
+  id,
+  label,
+  affichage,
+  min,
+  max,
+  pas,
+  valeur,
+  onChange
+}: {
+  id: string;
+  label: string;
+  affichage: string;
+  min: number;
+  max: number;
+  pas: number;
+  valeur: number;
+  onChange: (v: number) => void;
+}) {
   return (
-    <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 6 }} title={aide}>
-      <input type="checkbox" checked={coche} onChange={(e) => onChange(e.target.checked)} />
-      {label}
-    </label>
+    <div className="eva-st-curseur">
+      <div className="eva-st-curseur__entete">
+        <label htmlFor={id}>{label}</label>
+        <output htmlFor={id} className="eva-st-curseur__valeur texte-mono">
+          {affichage}
+        </output>
+      </div>
+      <input id={id} type="range" min={min} max={max} step={pas} value={valeur} onChange={(e) => onChange(Number(e.target.value))} />
+    </div>
+  );
+}
+
+/** Previsualisation de la palette : degrade continu, ou pastilles des classes quand le decoupage est en classes. */
+function ApercuPalette({ p }: { p: ParametresCarte }) {
+  const etapes = etapesPalette(p);
+  const nombreClasses = p.methode_classes === "manuel" ? Math.max(2, p.seuils.length + 1) : p.classes;
+  const discret = nombreClasses >= 2;
+  return (
+    <div className="eva-st-apercu-palette">
+      {discret ? (
+        <div className="eva-st-apercu-palette__classes" aria-hidden="true">
+          {Array.from({ length: nombreClasses }, (_, i) => (
+            <span key={i} className="eva-st-apercu-palette__classe" style={{ background: couleurDegrade(i / (nombreClasses - 1), etapes) }} />
+          ))}
+        </div>
+      ) : (
+        <div className="eva-st-apercu-palette__degrade" aria-hidden="true" style={{ background: `linear-gradient(90deg, ${etapes.join(",")})` }} />
+      )}
+      <div className="eva-st-apercu-palette__bornes" aria-hidden="true">
+        <span>Faible</span>
+        <span>Élevé</span>
+      </div>
+      <span className="eva-sr-only">{discret ? `${nombreClasses} classes, de la valeur la plus faible à la plus élevée` : "Dégradé continu, de la valeur la plus faible à la plus élevée"}</span>
+    </div>
   );
 }
 
@@ -55,52 +113,66 @@ export default function PanneauStyleCarte({ valeur, onChange, nomZone }: Proprie
         .map(Number)
         .filter((n) => texte.trim() !== "" && Number.isFinite(n))
     });
+  const base = useId();
+  const id = (nom: string) => `${base}-${nom}`;
+  const actuelles = p.couleurs.length === 3 ? p.couleurs : COULEURS_PERSO_DEFAUT;
+
+  function choisirPalette(code: string) {
+    maj({ palette: code, couleurs: code === "personnalisee" && p.couleurs.length !== 3 ? COULEURS_PERSO_DEFAUT : p.couleurs });
+  }
 
   return (
-    <div style={{ marginBottom: 14 }}>
+    <div className="eva-st-styles">
       <Section titre="Zone affichée" ouvert>
-        <div style={styleLigne}>
-          <div style={{ flex: "1 1 200px" }}>
-            <span style={styleLabel}>Territoire représenté</span>
-            <select value={p.portee} onChange={(e) => maj({ portee: e.target.value as ParametresCarte["portee"] })} style={{ width: "100%" }}>
+        <div className="eva-st-duo">
+          <Champ id={id("portee")} label="Territoire représenté">
+            <Selecteur id={id("portee")} valeur={p.portee} onChange={(v) => maj({ portee: v as ParametresCarte["portee"] })}>
               {nomZone !== null && <option value="zone">Ma zone{nomZone ? ` : ${nomZone}` : ""} (carte partielle)</option>}
               <option value="nationale">Pays entier{nomZone ? " (ma zone en évidence)" : ""}</option>
-            </select>
-          </div>
-          <div style={{ flex: "1 1 160px" }}>
-            <span style={styleLabel}>Représentation</span>
-            <select value={p.mode} onChange={(e) => maj({ mode: e.target.value as ParametresCarte["mode"] })} style={{ width: "100%" }}>
+            </Selecteur>
+          </Champ>
+          <Champ id={id("mode")} label="Représentation">
+            <Selecteur id={id("mode")} valeur={p.mode} onChange={(v) => maj({ mode: v as ParametresCarte["mode"] })}>
               <option value="aplat">Zones colorées</option>
               <option value="bulles">Bulles proportionnelles</option>
               <option value="aplat_bulles">Zones et bulles</option>
-            </select>
-          </div>
+            </Selecteur>
+          </Champ>
         </div>
       </Section>
 
       <Section titre="Couleurs et classes" ouvert>
-        <div style={styleLigne}>
-          <div style={{ flex: "1 1 180px" }}>
-            <span style={styleLabel}>Palette</span>
-            <select value={p.palette} onChange={(e) => maj({ palette: e.target.value, couleurs: e.target.value === "personnalisee" && p.couleurs.length !== 3 ? COULEURS_PERSO_DEFAUT : p.couleurs })} style={{ width: "100%" }}>
-              {Object.entries(PALETTES).map(([code, { label }]) => (
-                <option key={code} value={code}>
-                  {label}
-                </option>
-              ))}
-              <option value="personnalisee">Personnalisée</option>
-            </select>
+        <div className="eva-st-palettes" role="radiogroup" aria-label="Palette de couleurs">
+          {[...Object.entries(PALETTES).map(([code, { label, couleurs }]) => ({ code, label, couleurs })), { code: "personnalisee", label: "Personnalisée", couleurs: actuelles }].map(
+            (palette) => (
+              <label key={palette.code} className={`eva-st-palette${p.palette === palette.code ? " est-choisie" : ""}`}>
+                <input type="radio" name={id("palette")} className="eva-sr-only" checked={p.palette === palette.code} onChange={() => choisirPalette(palette.code)} />
+                <span className="eva-st-palette__degrade" aria-hidden="true" style={{ background: `linear-gradient(90deg, ${palette.couleurs.join(",")})` }} />
+                <span className="eva-st-palette__nom">{palette.label}</span>
+              </label>
+            )
+          )}
+        </div>
+
+        {p.palette === "personnalisee" && (
+          <div className="eva-st-trio">
+            {(["Faible", "Moyen", "Élevé"] as const).map((nom, i) => (
+              <ChampCouleur key={nom} id={id(`perso-${i}`)} label={nom} valeur={actuelles[i]} onChange={(c) => maj({ couleurs: actuelles.map((x, k) => (k === i ? c : x)) })} />
+            ))}
           </div>
-          <div style={{ flex: "0 0 120px" }}>
-            <span style={styleLabel}>Classes</span>
-            <select
-              value={p.methode_classes === "manuel" ? "manuel" : p.classes}
-              onChange={(e) => {
-                const v = e.target.value;
+        )}
+
+        <ApercuPalette p={p} />
+
+        <div className="eva-st-duo">
+          <Champ id={id("classes")} label="Classes">
+            <Selecteur
+              id={id("classes")}
+              valeur={p.methode_classes === "manuel" ? "manuel" : String(p.classes)}
+              onChange={(v) => {
                 if (v === "manuel") maj({ methode_classes: "manuel", classes: 0 });
                 else maj({ classes: Number(v), methode_classes: p.methode_classes === "manuel" ? "egal" : p.methode_classes });
               }}
-              style={{ width: "100%" }}
             >
               <option value={0}>Dégradé continu</option>
               {[3, 4, 5, 6, 7].map((n) => (
@@ -109,145 +181,107 @@ export default function PanneauStyleCarte({ valeur, onChange, nomZone }: Proprie
                 </option>
               ))}
               <option value="manuel">Seuils manuels</option>
-            </select>
-          </div>
+            </Selecteur>
+          </Champ>
+          {p.classes >= 2 && p.methode_classes !== "manuel" && (
+            <Champ id={id("methode")} label="Découpage des classes">
+              <Selecteur id={id("methode")} valeur={p.methode_classes} onChange={(v) => maj({ methode_classes: v as ParametresCarte["methode_classes"] })}>
+                <option value="egal">Intervalles égaux</option>
+                <option value="quantiles">Effectifs égaux (quantiles)</option>
+              </Selecteur>
+            </Champ>
+          )}
         </div>
-
-        <div
-          aria-hidden
-          style={{ height: 10, borderRadius: 3, marginBottom: 8, border: "1px solid var(--couleur-bordure, #E2E7DF)", background: `linear-gradient(90deg, ${etapesPalette(p).join(",")})` }}
-        />
-
-        {p.palette === "personnalisee" && (
-          <div style={styleLigne}>
-            {(["Faible", "Moyen", "Élevé"] as const).map((nom, i) => {
-              const actuelles = p.couleurs.length === 3 ? p.couleurs : COULEURS_PERSO_DEFAUT;
-              return (
-                <Couleur
-                  key={nom}
-                  label={nom}
-                  valeur={actuelles[i]}
-                  onChange={(c) => maj({ couleurs: actuelles.map((x, k) => (k === i ? c : x)) })}
-                />
-              );
-            })}
-          </div>
-        )}
-
-        {p.classes >= 2 && p.methode_classes !== "manuel" && (
-          <div style={{ marginBottom: 8 }}>
-            <span style={styleLabel}>Découpage des classes</span>
-            <select value={p.methode_classes} onChange={(e) => maj({ methode_classes: e.target.value as ParametresCarte["methode_classes"] })} style={{ width: "100%" }}>
-              <option value="egal">Intervalles égaux</option>
-              <option value="quantiles">Effectifs égaux (quantiles)</option>
-            </select>
-          </div>
-        )}
         {p.methode_classes === "manuel" && (
-          <div style={{ marginBottom: 8 }}>
-            <span style={styleLabel}>Seuils (bornes inférieures, séparées par des virgules)</span>
-            <input defaultValue={p.seuils.join(", ")} onBlur={(e) => majSeuils(e.target.value)} placeholder="Ex. 10, 50, 200" style={{ width: "100%" }} />
-          </div>
+          <Champ id={id("seuils")} label="Seuils" aide="Bornes inférieures séparées par des virgules, par exemple 10, 50, 200.">
+            <input id={id("seuils")} defaultValue={p.seuils.join(", ")} onBlur={(e) => majSeuils(e.target.value)} placeholder="Ex. 10, 50, 200" />
+          </Champ>
         )}
-        <Case label="Inverser la palette" coche={p.inverser_palette} onChange={(v) => maj({ inverser_palette: v })} />
-        <div style={{ marginBottom: 4 }}>
-          <span style={styleLabel}>Opacité des zones : {Math.round(p.opacite * 100)} %</span>
-          <input type="range" min={0.2} max={1} step={0.05} value={p.opacite} onChange={(e) => maj({ opacite: Number(e.target.value) })} style={{ width: "100%" }} />
-        </div>
+
+        <Interrupteur checked={p.inverser_palette} onChange={(v) => maj({ inverser_palette: v })} label="Inverser la palette" />
+        <Curseur id={id("opacite")} label="Opacité des zones" affichage={`${Math.round(p.opacite * 100)} %`} min={0.2} max={1} pas={0.05} valeur={p.opacite} onChange={(v) => maj({ opacite: v })} />
       </Section>
 
       <Section titre="Contours et fond">
-        <div style={styleLigne}>
-          <Couleur label="Contours" valeur={p.contour_couleur} onChange={(v) => maj({ contour_couleur: v })} />
-          <Couleur label="Survol" valeur={p.survol_couleur} onChange={(v) => maj({ survol_couleur: v })} />
-          <Couleur label="Sans donnée" valeur={p.couleur_sans_donnee} onChange={(v) => maj({ couleur_sans_donnee: v })} />
-          <Couleur label="Hors zone" valeur={p.couleur_hors_zone} onChange={(v) => maj({ couleur_hors_zone: v })} />
+        <div className="eva-st-duo">
+          <ChampCouleur id={id("contour")} label="Contours" valeur={p.contour_couleur} onChange={(v) => maj({ contour_couleur: v })} />
+          <ChampCouleur id={id("survol")} label="Survol" valeur={p.survol_couleur} onChange={(v) => maj({ survol_couleur: v })} />
+          <ChampCouleur id={id("sans-donnee")} label="Sans donnée" valeur={p.couleur_sans_donnee} onChange={(v) => maj({ couleur_sans_donnee: v })} />
+          <ChampCouleur id={id("hors-zone")} label="Hors zone" valeur={p.couleur_hors_zone} onChange={(v) => maj({ couleur_hors_zone: v })} />
         </div>
-        <div style={{ marginBottom: 8 }}>
-          <span style={styleLabel}>Épaisseur des contours : {p.contour_epaisseur}</span>
-          <input type="range" min={0} max={4} step={0.1} value={p.contour_epaisseur} onChange={(e) => maj({ contour_epaisseur: Number(e.target.value) })} style={{ width: "100%" }} />
-        </div>
-        <div style={{ marginBottom: 4 }}>
-          <span style={styleLabel}>Fond de la carte</span>
-          <select value={p.fond} onChange={(e) => maj({ fond: e.target.value as ParametresCarte["fond"] })} style={{ width: "100%" }}>
+        <Curseur id={id("epaisseur")} label="Épaisseur des contours" affichage={String(p.contour_epaisseur)} min={0} max={4} pas={0.1} valeur={p.contour_epaisseur} onChange={(v) => maj({ contour_epaisseur: v })} />
+        <Champ id={id("fond")} label="Fond de la carte">
+          <Selecteur id={id("fond")} valeur={p.fond} onChange={(v) => maj({ fond: v as ParametresCarte["fond"] })}>
             <option value="blanc">Blanc</option>
             <option value="gris">Gris clair</option>
             <option value="eau">Bleu très clair</option>
-          </select>
-        </div>
+          </Selecteur>
+        </Champ>
       </Section>
 
       <Section titre="Étiquettes">
-        <div style={styleLigne}>
-          <div style={{ flex: "1 1 180px" }}>
-            <span style={styleLabel}>Afficher</span>
-            <select value={p.etiquettes} onChange={(e) => maj({ etiquettes: e.target.value as ParametresCarte["etiquettes"] })} style={{ width: "100%" }}>
+        <div className="eva-st-duo">
+          <Champ id={id("etiquettes")} label="Afficher">
+            <Selecteur id={id("etiquettes")} valeur={p.etiquettes} onChange={(v) => maj({ etiquettes: v as ParametresCarte["etiquettes"] })}>
               <option value="aucune">Aucune</option>
               <option value="noms">Noms des territoires</option>
               <option value="valeurs">Valeurs</option>
               <option value="noms_valeurs">Noms et valeurs</option>
-            </select>
-          </div>
-          <div style={{ flex: "0 0 100px" }}>
-            <span style={styleLabel}>Taille</span>
-            <input type="number" min={7} max={18} value={p.taille_etiquettes} onChange={(e) => maj({ taille_etiquettes: Number(e.target.value) })} style={{ width: "100%" }} />
-          </div>
+            </Selecteur>
+          </Champ>
+          <Champ id={id("taille-etiquettes")} label="Taille du texte">
+            <input id={id("taille-etiquettes")} type="number" min={7} max={18} value={p.taille_etiquettes} onChange={(e) => maj({ taille_etiquettes: Number(e.target.value) })} />
+          </Champ>
         </div>
       </Section>
 
       {p.mode !== "aplat" && (
         <Section titre="Bulles" ouvert>
-          <div style={styleLigne}>
-            <Couleur label="Couleur" valeur={p.bulles_couleur} onChange={(v) => maj({ bulles_couleur: v })} />
-            <div style={{ flex: "1 1 100px" }}>
-              <span style={styleLabel}>Taille min</span>
-              <input type="number" min={2} max={30} value={p.bulles_taille_min} onChange={(e) => maj({ bulles_taille_min: Number(e.target.value) })} style={{ width: "100%" }} />
-            </div>
-            <div style={{ flex: "1 1 100px" }}>
-              <span style={styleLabel}>Taille max</span>
-              <input type="number" min={8} max={80} value={p.bulles_taille_max} onChange={(e) => maj({ bulles_taille_max: Number(e.target.value) })} style={{ width: "100%" }} />
-            </div>
+          <div className="eva-st-trio">
+            <ChampCouleur id={id("bulles-couleur")} label="Couleur" valeur={p.bulles_couleur} onChange={(v) => maj({ bulles_couleur: v })} />
+            <Champ id={id("bulles-min")} label="Taille min">
+              <input id={id("bulles-min")} type="number" min={2} max={30} value={p.bulles_taille_min} onChange={(e) => maj({ bulles_taille_min: Number(e.target.value) })} />
+            </Champ>
+            <Champ id={id("bulles-max")} label="Taille max">
+              <input id={id("bulles-max")} type="number" min={8} max={80} value={p.bulles_taille_max} onChange={(e) => maj({ bulles_taille_max: Number(e.target.value) })} />
+            </Champ>
           </div>
-          <span style={styleLabel}>Opacité : {Math.round(p.bulles_opacite * 100)} %</span>
-          <input type="range" min={0.1} max={1} step={0.05} value={p.bulles_opacite} onChange={(e) => maj({ bulles_opacite: Number(e.target.value) })} style={{ width: "100%" }} />
+          <Curseur id={id("bulles-opacite")} label="Opacité des bulles" affichage={`${Math.round(p.bulles_opacite * 100)} %`} min={0.1} max={1} pas={0.05} valeur={p.bulles_opacite} onChange={(v) => maj({ bulles_opacite: v })} />
         </Section>
       )}
 
       <Section titre="Légende et habillage">
-        <Case label="Afficher la légende" coche={p.legende} onChange={(v) => maj({ legende: v })} />
+        <Interrupteur checked={p.legende} onChange={(v) => maj({ legende: v })} label="Afficher la légende" />
         {p.legende && (
-          <div style={styleLigne}>
-            <div style={{ flex: "1 1 160px" }}>
-              <span style={styleLabel}>Position</span>
-              <select value={p.legende_position} onChange={(e) => maj({ legende_position: e.target.value as ParametresCarte["legende_position"] })} style={{ width: "100%" }}>
+          <div className="eva-st-duo">
+            <Champ id={id("legende-position")} label="Position">
+              <Selecteur id={id("legende-position")} valeur={p.legende_position} onChange={(v) => maj({ legende_position: v as ParametresCarte["legende_position"] })}>
                 <option value="bas_gauche">Bas gauche</option>
                 <option value="bas_droite">Bas droite</option>
                 <option value="haut_gauche">Haut gauche</option>
                 <option value="haut_droite">Haut droite</option>
-              </select>
-            </div>
-            <div style={{ flex: "1 1 200px" }}>
-              <span style={styleLabel}>Titre de la légende</span>
-              <input value={p.legende_titre} onChange={(e) => maj({ legende_titre: e.target.value })} placeholder="Par défaut : la mesure" maxLength={80} style={{ width: "100%" }} />
-            </div>
+              </Selecteur>
+            </Champ>
+            <Champ id={id("legende-titre")} label="Titre de la légende">
+              <input id={id("legende-titre")} value={p.legende_titre} onChange={(e) => maj({ legende_titre: e.target.value })} placeholder="Par défaut : la mesure" maxLength={80} />
+            </Champ>
           </div>
         )}
-        <div style={{ marginBottom: 8 }}>
-          <span style={styleLabel}>Titre de la carte</span>
-          <input value={p.titre} onChange={(e) => maj({ titre: e.target.value })} maxLength={120} style={{ width: "100%" }} />
+        <Champ id={id("titre")} label="Titre de la carte">
+          <input id={id("titre")} value={p.titre} onChange={(e) => maj({ titre: e.target.value })} maxLength={120} />
+        </Champ>
+        <Champ id={id("sous-titre")} label="Sous-titre">
+          <input id={id("sous-titre")} value={p.sous_titre} onChange={(e) => maj({ sous_titre: e.target.value })} maxLength={160} />
+        </Champ>
+        <Champ id={id("source")} label="Source">
+          <input id={id("source")} value={p.source} onChange={(e) => maj({ source: e.target.value })} placeholder="Ex. E-VITAL, état civil, 2026" maxLength={160} />
+        </Champ>
+        <div className="eva-st-interrupteurs">
+          <Interrupteur checked={p.echelle} onChange={(v) => maj({ echelle: v })} label="Échelle graphique" />
+          <Interrupteur checked={p.nord} onChange={(v) => maj({ nord: v })} label="Flèche du nord" />
+          <Interrupteur checked={p.coordonnees} onChange={(v) => maj({ coordonnees: v })} label="Coordonnées" aide="Quadrillage et position du curseur." />
+          <Interrupteur checked={p.zoom_libre} onChange={(v) => maj({ zoom_libre: v })} label="Zoom et déplacement à la souris" />
         </div>
-        <div style={{ marginBottom: 8 }}>
-          <span style={styleLabel}>Sous-titre</span>
-          <input value={p.sous_titre} onChange={(e) => maj({ sous_titre: e.target.value })} maxLength={160} style={{ width: "100%" }} />
-        </div>
-        <div style={{ marginBottom: 10 }}>
-          <span style={styleLabel}>Source</span>
-          <input value={p.source} onChange={(e) => maj({ source: e.target.value })} placeholder="Ex. E-VITAL, état civil, 2026" maxLength={160} style={{ width: "100%" }} />
-        </div>
-        <Case label="Échelle graphique" coche={p.echelle} onChange={(v) => maj({ echelle: v })} />
-        <Case label="Flèche du nord" coche={p.nord} onChange={(v) => maj({ nord: v })} />
-        <Case label="Coordonnées (quadrillage et position du curseur)" coche={p.coordonnees} onChange={(v) => maj({ coordonnees: v })} />
-        <Case label="Zoom et déplacement à la souris" coche={p.zoom_libre} onChange={(v) => maj({ zoom_libre: v })} />
       </Section>
     </div>
   );

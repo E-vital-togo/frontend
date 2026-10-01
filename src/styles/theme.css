@@ -1,40 +1,96 @@
 /*
-  Tokens repris tels quels du Cahier d'identite E-Vital v.1 (09.2026) pour
-  toute couleur/typo/logo. Ne jamais coder une couleur ou une police en dur
-  ailleurs dans le projet : tout passe par ces variables, pour rester
-  coherent avec le backend (voir apps/core/context_processors.py cote
-  Django) et pouvoir suivre toute evolution future de la charte en un seul
-  endroit.
+  E-VITAL - Systeme de design de l'application CEC (React).
 
-  Le reste (espacements, rayons, ombres, composants) est un systeme de
-  design maison, sobre et moderne, construit par-dessus ces tokens de
-  marque - libre d'evoluer sans jamais toucher aux couleurs/typo ci-dessus.
+  Reference de marque : Cahier d'identite E-Vital v.1 (09.2026). Les
+  couleurs, polices et valeurs d'accessibilite sont alignees sur la charte
+  des interfaces Django (backend/static/css/evital-ui.css, prefixe --ev-) :
+  memes teintes, memes espacements, memes rayons, memes ombres. La
+  correspondance des jetons est donnee dans docs/design-system-react.md.
+
+  Regles de conception
+  - Mode clair uniquement, contrastes WCAG AA (texte >= 4.5:1, bordures de
+    champs >= 3:1), focus visible partout, mouvement reduit respecte,
+    controles principaux >= 40px de haut (cibles tactiles).
+  - Ne jamais coder une couleur ou une police en dur ailleurs dans le
+    projet : tout passe par les variables ci-dessous.
+  - Les noms de variables et de classes historiques sont CONSERVES (les
+    pages existantes en dependent) ; les ajouts sont des alias ou de
+    nouvelles classes.
+  - Les composants nouveaux (squelettes, liste responsive, alertes, barre
+    d'enregistrement, page d'authentification...) sont dans composants.css.
+
+  Table des matieres
+   0. Jetons
+   1. Base (reset, typographie de base, focus, defilement, accessibilite)
+   2. Typographie et utilitaires
+   3. Boutons
+   4. Cartes
+   5. Badges, puces, points de statut
+   6. Champs de formulaire (Champ)
+   7. Grilles et statistiques (KPI)
+   8. Tableaux et lignes d'urgence
+   9. Etat vide
+  10. Chargement (spinner)
+  11. Modale
+  12. Toasts
+  13. Onglets
+  14. Pagination
+  15. Frise (historique)
+  16. Pilules de filtre
+  17. Menu deroulant
+  18. Coque applicative (en-tete, navigation, page)
+  19. Ecrans plein cadre (connexion, portail parent...)
+  20. Responsive, mouvement reduit, impression
 */
+
+/* =========================================================================
+   0. JETONS
+   ========================================================================= */
 :root {
-  /* -- Couleurs de marque (cahier d'identite, ne pas modifier) -- */
+  /* -- Couleurs de marque (cahier d'identite) -- */
   --couleur-emeraude: #0B7A57;
-  --couleur-emeraude-actif: #16B37D;
-  --couleur-citron: #C8D92F;
+  --couleur-emeraude-profond: #086346;     /* survol/appui sur emeraude (blanc dessus : 7.3:1) */
+  --couleur-emeraude-actif: #16B37D;       /* decoratif : points, anneaux, indicateurs. Jamais de texte blanc dessus (2.6:1) */
+  --couleur-emeraude-vif: var(--couleur-emeraude-actif);
+  --couleur-citron: #C8D92F;               /* jamais de texte dessus sur fond clair : fond + texte vert profond */
   --couleur-citron-profond: #A8BB1E;
   --couleur-encre: #14231C;
   --couleur-gris-service-1: #40534B;
-  --couleur-gris-service-2: #6B7A73;
+  --couleur-vert-profond: #0B4A3B;
   --couleur-papier: #FBFDF6;
   --couleur-blanc: #FFFFFF;
-  --couleur-vert-profond: #0B4A3B;
   --couleur-erreur: #B3261E;
+  --couleur-erreur-profond: #8C1D18;
 
-  --police-titrage: "Instrument Sans", -apple-system, "Segoe UI", sans-serif;
-  --police-donnees: "IBM Plex Mono", ui-monospace, "Courier New", monospace;
+  /* Gris secondaire. Valeur de texte AA (5.5:1 sur blanc, equivalent de
+     --ev-texte-discret cote Django) : tous les textes secondaires existants
+     deviennent conformes. La teinte d'origine du cahier d'identite
+     (#6B7A73, 4.4:1) reste disponible pour les elements purement decoratifs
+     (icones, traits). */
+  --couleur-gris-service-2: #5E6B65;
+  --couleur-texte-discret: var(--couleur-gris-service-2);
+  --couleur-gris-service-2-marque: #6B7A73;
 
-  /* -- Derives de marque (memes teintes, usages etendus) -- */
-  --couleur-emeraude-fond: #E7F3EE;      /* fond tres clair, chips/hover sur blanc */
+  --police-titrage: "Instrument Sans", -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --police-donnees: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* -- Derives de marque (fonds doux et bordures) -- */
+  --couleur-emeraude-fond: #E7F3EE;        /* chips, survol sur blanc */
+  --couleur-emeraude-fond-doux: #F2F8F5;   /* survol de ligne, fond tres leger */
   --couleur-emeraude-fond-vif: #DCEFE6;
-  --couleur-citron-fond: #F8FAE3;        /* fond tres clair pour alertes douces */
+  --couleur-citron-fond: #F8FAE3;          /* avertissement doux */
+  --couleur-citron-bordure: #E3EA8C;
+  --couleur-citron-texte: #5A5200;         /* texte sur fond citron clair */
   --couleur-erreur-fond: #FBEAE9;
-  --couleur-bordure: #E2E7DF;
+  --couleur-erreur-bordure: #F0C6C3;
+  --couleur-succes-bordure: #BFDDCF;
+  --couleur-succes-texte: #07503D;
+  --couleur-neutre-fond: #EEF2EE;
+  --couleur-bordure: #E2E7DF;              /* cartes, separateurs */
   --couleur-bordure-forte: #C9D2C6;
+  --couleur-bordure-champ: #8C9A93;        /* bordure de champ : >= 3:1 sur blanc */
   --couleur-fond-desactive: #F1F3EF;
+  --couleur-focus: var(--couleur-emeraude);
 
   /* -- Echelle d'espacement -- */
   --espace-1: 4px;
@@ -48,30 +104,47 @@
   --espace-9: 48px;
 
   /* -- Rayons -- */
-  --rayon-standard: 10px;
   --rayon-petit: 6px;
+  --rayon-champ: 8px;
+  --rayon-standard: 10px;
   --rayon-grand: 16px;
   --rayon-plein: 999px;
 
-  /* -- Ombres -- */
-  --ombre-carte: 0 1px 2px rgba(20, 35, 28, 0.05), 0 1px 1px rgba(20, 35, 28, 0.04);
+  /* -- Ombres (douces, teintees d'encre) -- */
+  --ombre-carte: 0 1px 2px rgba(20, 35, 28, 0.04), 0 2px 8px -2px rgba(20, 35, 28, 0.06);
+  --ombre-survol: 0 2px 4px rgba(20, 35, 28, 0.05), 0 10px 24px -8px rgba(20, 35, 28, 0.14);
   --ombre-flottante: 0 8px 24px rgba(20, 35, 28, 0.14), 0 2px 6px rgba(20, 35, 28, 0.08);
-  --ombre-anneau-focus: 0 0 0 3px rgba(11, 122, 87, 0.22);
+  --ombre-anneau-focus: 0 0 0 3px rgba(11, 122, 87, 0.24);
 
-  /* -- Transitions -- */
-  --transition-rapide: 120ms ease;
-  --transition-normale: 180ms ease;
+  /* -- Mouvement -- */
+  --transition-rapide: 140ms ease;
+  --transition-normale: 200ms ease;
 
-  /* -- Largeurs -- */
-  --largeur-contenu: 1180px;
-  --largeur-barre-laterale: 240px;
+  /* -- Gabarits -- */
+  --hauteur-barre: 60px;
+  --hauteur-controle: 40px;
+  --largeur-barre-laterale: 264px;
+  --largeur-contenu: 1240px;
+  --largeur-page: var(--largeur-contenu);
+
+  /* -- Plans (z-index) -- */
+  --z-collant: 5;
+  --z-barre: 40;
+  --z-voile: 35;
+  --z-navigation: 45;
+  --z-menu: 60;
+  --z-modale: 100;
+  --z-toasts: 200;
 }
 
-/* ============================= RESET / BASE ============================= */
-
+/* =========================================================================
+   1. BASE
+   ========================================================================= */
 *, *::before, *::after {
   box-sizing: border-box;
 }
+
+[hidden] { display: none !important; }
 
 html, body, #root {
   height: 100%;
@@ -80,9 +153,15 @@ html, body, #root {
 body {
   margin: 0;
   font-family: var(--police-titrage);
+  font-size: 14px;
+  line-height: 1.5;
   background: var(--couleur-papier);
   color: var(--couleur-encre);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 h1, h2, h3, h4 {
@@ -112,10 +191,12 @@ input, select, textarea {
   font-family: inherit;
 }
 
+/* Focus clavier : contour net partout (les champs ajoutent leur propre
+   anneau). Un composant qui a son propre indicateur de focus le declare
+   avec une regle plus specifique. */
 :focus-visible {
-  outline: none;
-  box-shadow: var(--ombre-anneau-focus);
-  border-radius: var(--rayon-petit);
+  outline: 2px solid var(--couleur-focus);
+  outline-offset: 2px;
 }
 
 ::selection {
@@ -131,258 +212,657 @@ input, select, textarea {
 *::-webkit-scrollbar { width: 8px; height: 8px; }
 *::-webkit-scrollbar-thumb { background: var(--couleur-bordure-forte); border-radius: var(--rayon-plein); }
 
-/* ============================== TYPOGRAPHIE =============================== */
+/* Masque visuellement, reste lu par les lecteurs d'ecran */
+.eva-sr-only,
+.eva-sr-seulement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
+/* Lien d'evitement en tete de page ("Aller au contenu") */
+.eva-lien-evitement {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  padding: 10px 16px;
+  border-radius: var(--rayon-champ);
+  background: var(--couleur-blanc);
+  color: var(--couleur-emeraude);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--ombre-flottante);
+  transform: translateY(-200%);
+}
+.eva-lien-evitement:focus { transform: translateY(0); }
+
+/* =========================================================================
+   2. TYPOGRAPHIE ET UTILITAIRES
+   ========================================================================= */
 .eva-titre-page {
-  font-size: 22px;
+  font-size: 26px;
+  line-height: 1.25;
   font-weight: 600;
   color: var(--couleur-encre);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
 }
 
 .eva-sous-titre {
   font-size: 14px;
-  color: var(--couleur-gris-service-2);
+  color: var(--couleur-texte-discret);
   margin-top: var(--espace-1);
 }
 
-.eva-libelle-section {
-  font-size: 12px;
+.eva-libelle-section,
+.eva-sur-titre {
+  font-size: 11.5px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--couleur-gris-service-2);
+  letter-spacing: 0.07em;
+  color: var(--couleur-texte-discret);
 }
 
-/* ================================ BOUTONS ================================= */
+.eva-texte-discret { color: var(--couleur-texte-discret); }
+.eva-texte-petit { font-size: 12.5px; }
+.eva-texte-gras { font-weight: 600; }
+.eva-texte-droite { text-align: right; }
+.eva-texte-centre { text-align: center; }
 
+/* Mise en page utilitaire (evite les styles en ligne dans les pages) */
+.eva-pile { display: flex; flex-direction: column; gap: var(--espace-4); }
+.eva-pile--serree { gap: var(--espace-2); }
+.eva-pile--large { gap: var(--espace-6); }
+.eva-rangee { display: flex; align-items: center; gap: var(--espace-3); flex-wrap: wrap; }
+.eva-rangee--entre { justify-content: space-between; }
+.eva-rangee--fin { justify-content: flex-end; }
+.eva-rangee--haut { align-items: flex-start; }
+.eva-rangee--serree { gap: var(--espace-2); }
+.eva-pousse { margin-left: auto; }
+.eva-espace-haut { margin-top: var(--espace-5); }
+.eva-espace-bas { margin-bottom: var(--espace-5); }
+.eva-sans-marge { margin: 0 !important; }
+.eva-largeur-etroite { max-width: 560px; }
+.eva-largeur-moyenne { max-width: 760px; }
+.eva-separateur { border: 0; border-top: 1px solid var(--couleur-bordure); margin: var(--espace-5) 0; }
+.eva-lien {
+  color: var(--couleur-emeraude);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(11, 122, 87, 0.35);
+}
+.eva-lien:hover { color: var(--couleur-emeraude-profond); text-decoration-color: currentColor; }
+
+/* Liste de definitions (fiches detail) : <dl class="eva-definitions"><dt/><dd/></dl> */
+.eva-definitions { margin: 0; display: grid; grid-template-columns: minmax(120px, 220px) 1fr; }
+.eva-definitions dt, .eva-definitions dd { margin: 0; padding: 11px 0; border-bottom: 1px solid var(--couleur-bordure); }
+.eva-definitions dt { color: var(--couleur-texte-discret); font-size: 13px; padding-right: var(--espace-4); }
+.eva-definitions dd { font-weight: 500; overflow-wrap: anywhere; }
+.eva-definitions dt:last-of-type, .eva-definitions dd:last-of-type { border-bottom: 0; }
+
+/* Icones : Icone (lucide-react) ou icone lucide directe, heritent de la couleur du texte */
+.eva-icone { flex: none; vertical-align: -0.2em; }
+
+/* =========================================================================
+   3. BOUTONS
+   ========================================================================= */
 .eva-bouton {
+  --btn-fond: var(--couleur-emeraude);
+  --btn-fond-survol: var(--couleur-emeraude-profond);
+  --btn-texte: var(--couleur-blanc);
+  --btn-bordure: transparent;
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--espace-2);
-  border: 1px solid transparent;
-  border-radius: var(--rayon-petit);
+  min-height: var(--hauteur-controle);
+  padding: 0 var(--espace-4);
+  border: 1px solid var(--btn-bordure);
+  border-radius: var(--rayon-champ);
+  background: var(--btn-fond);
+  color: var(--btn-texte);
   font-size: 14px;
   font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background var(--transition-rapide), border-color var(--transition-rapide), color var(--transition-rapide), opacity var(--transition-rapide);
   line-height: 1.2;
+  letter-spacing: 0.005em;
+  white-space: nowrap;
   text-decoration: none;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  box-shadow: 0 1px 1px rgba(20, 35, 28, 0.06);
+  transition: background var(--transition-rapide), border-color var(--transition-rapide), color var(--transition-rapide),
+    box-shadow var(--transition-rapide), transform 80ms ease, opacity var(--transition-rapide);
 }
+.eva-bouton:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--btn-fond-survol);
+  color: var(--btn-texte);
+}
+.eva-bouton:active:not(:disabled):not([aria-disabled="true"]) { transform: translateY(1px); box-shadow: none; }
 .eva-bouton:disabled, .eva-bouton[aria-disabled="true"] {
   opacity: 0.5;
   cursor: not-allowed;
+  box-shadow: none;
+}
+.eva-bouton[aria-disabled="true"] { pointer-events: none; }
+.eva-bouton svg { flex: none; }
+
+/* Tailles : petit 32px, moyen 40px (defaut), grand 48px */
+.eva-bouton--moyen { min-height: var(--hauteur-controle); }
+.eva-bouton--petit { min-height: 32px; padding: 0 var(--espace-3); font-size: 13px; border-radius: var(--rayon-petit); gap: 6px; }
+.eva-bouton--grand { min-height: 48px; padding: 0 var(--espace-6); font-size: 15px; }
+.eva-bouton--bloc { display: flex; width: 100%; }
+.eva-bouton--icone { width: var(--hauteur-controle); padding: 0; }
+.eva-bouton--icone.eva-bouton--petit { width: 32px; }
+.eva-bouton--icone.eva-bouton--grand { width: 48px; }
+
+/* Variantes */
+.eva-bouton--principal { /* valeurs par defaut */ }
+
+.eva-bouton--secondaire {
+  --btn-fond: var(--couleur-blanc);
+  --btn-fond-survol: var(--couleur-emeraude-fond);
+  --btn-texte: var(--couleur-emeraude-profond);
+  --btn-bordure: var(--couleur-bordure-forte);
+}
+.eva-bouton--secondaire:hover:not(:disabled):not([aria-disabled="true"]) { border-color: var(--couleur-emeraude); }
+
+.eva-bouton--accent {
+  --btn-fond: var(--couleur-citron);
+  --btn-fond-survol: var(--couleur-citron-profond);
+  --btn-texte: var(--couleur-vert-profond);
+  font-weight: 600;
 }
 
-.eva-bouton--moyen { padding: 9px 16px; }
-.eva-bouton--petit { padding: 6px 12px; font-size: 13px; }
-.eva-bouton--grand { padding: 12px 20px; font-size: 15px; }
+/* Danger : version douce (action destructive en ligne). danger-plein : action confirmee (modale). */
+.eva-bouton--danger {
+  --btn-fond: var(--couleur-blanc);
+  --btn-fond-survol: var(--couleur-erreur-fond);
+  --btn-texte: var(--couleur-erreur);
+  --btn-bordure: var(--couleur-erreur-bordure);
+}
+.eva-bouton--danger-plein {
+  --btn-fond: var(--couleur-erreur);
+  --btn-fond-survol: var(--couleur-erreur-profond);
+  --btn-texte: var(--couleur-blanc);
+}
 
-.eva-bouton--principal { background: var(--couleur-emeraude); color: var(--couleur-blanc); }
-.eva-bouton--principal:hover:not(:disabled) { background: var(--couleur-emeraude-actif); }
+.eva-bouton--fantome {
+  --btn-fond: transparent;
+  --btn-fond-survol: var(--couleur-fond-desactive);
+  --btn-texte: var(--couleur-gris-service-1);
+  box-shadow: none;
+}
+.eva-bouton--fantome:hover:not(:disabled):not([aria-disabled="true"]) { color: var(--couleur-encre); }
 
-.eva-bouton--secondaire { background: var(--couleur-blanc); color: var(--couleur-emeraude); border-color: var(--couleur-bordure-forte); }
-.eva-bouton--secondaire:hover:not(:disabled) { background: var(--couleur-emeraude-fond); border-color: var(--couleur-emeraude); }
+/* Chargement : le libelle reste lisible, un spinner remplace l'icone de gauche */
+.eva-bouton--charge { cursor: progress; }
+.eva-bouton .eva-spinner { width: 16px; height: 16px; border-width: 2px; }
 
-.eva-bouton--accent { background: var(--couleur-citron-profond); color: var(--couleur-vert-profond); font-weight: 600; }
-.eva-bouton--accent:hover:not(:disabled) { background: var(--couleur-citron); }
+.eva-groupe-boutons { display: flex; gap: var(--espace-2); flex-wrap: wrap; align-items: center; }
 
-.eva-bouton--danger { background: var(--couleur-blanc); color: var(--couleur-erreur); border-color: #F0C6C3; }
-.eva-bouton--danger:hover:not(:disabled) { background: var(--couleur-erreur-fond); }
-
-.eva-bouton--fantome { background: transparent; color: var(--couleur-gris-service-1); }
-.eva-bouton--fantome:hover:not(:disabled) { background: var(--couleur-fond-desactive); color: var(--couleur-encre); }
-
-/* Compat retro : anciennes classes encore utilisees pendant la migration page par page */
-.bouton-principal { background: var(--couleur-emeraude); color: var(--couleur-blanc); border: none; border-radius: var(--rayon-petit); padding: 10px 18px; font-size: 14px; font-weight: 500; cursor: pointer; }
-.bouton-principal:hover { background: var(--couleur-emeraude-actif); }
+/* Compat retro : anciennes classes encore utilisees par quelques ecrans */
+.bouton-principal { background: var(--couleur-emeraude); color: var(--couleur-blanc); border: none; border-radius: var(--rayon-champ); min-height: var(--hauteur-controle); padding: 0 18px; font-size: 14px; font-weight: 500; cursor: pointer; }
+.bouton-principal:hover:not(:disabled) { background: var(--couleur-emeraude-profond); }
 .bouton-principal:disabled { opacity: 0.5; cursor: not-allowed; }
-.bouton-secondaire { background: transparent; color: var(--couleur-emeraude); border: 1px solid var(--couleur-emeraude); border-radius: var(--rayon-petit); padding: 9px 17px; font-size: 14px; font-weight: 500; cursor: pointer; }
-.bouton-secondaire:hover { background: var(--couleur-emeraude-fond); }
-.bouton-accent { background: var(--couleur-citron-profond); color: var(--couleur-vert-profond); border: none; border-radius: var(--rayon-petit); padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.bouton-secondaire { background: var(--couleur-blanc); color: var(--couleur-emeraude-profond); border: 1px solid var(--couleur-bordure-forte); border-radius: var(--rayon-champ); min-height: var(--hauteur-controle); padding: 0 18px; font-size: 14px; font-weight: 500; cursor: pointer; }
+.bouton-secondaire:hover { background: var(--couleur-emeraude-fond); border-color: var(--couleur-emeraude); }
+.bouton-accent { background: var(--couleur-citron); color: var(--couleur-vert-profond); border: none; border-radius: var(--rayon-champ); min-height: var(--hauteur-controle); padding: 0 18px; font-size: 14px; font-weight: 600; cursor: pointer; }
 
-/* ================================= CARTE =================================== */
-
+/* =========================================================================
+   4. CARTES
+   ========================================================================= */
 .carte, .eva-carte {
   background: var(--couleur-blanc);
   border: 1px solid var(--couleur-bordure);
   border-radius: var(--rayon-standard);
   box-shadow: var(--ombre-carte);
-  padding: var(--espace-5);
+  padding: var(--espace-5) var(--espace-6);
 }
+.eva-carte--plate { box-shadow: none; }
+.eva-carte--sans-marge { padding: 0; overflow: hidden; }
+.eva-carte--accent { border-left: 4px solid var(--couleur-emeraude); }
+.eva-carte--attention { border-color: var(--couleur-citron-bordure); background: var(--couleur-citron-fond); }
+.eva-carte--danger { border-color: var(--couleur-erreur-bordure); }
 
-.eva-carte--interactive { transition: box-shadow var(--transition-normale), border-color var(--transition-normale); cursor: pointer; text-decoration: none; color: inherit; display: block; }
-.eva-carte--interactive:hover { box-shadow: var(--ombre-flottante); border-color: var(--couleur-emeraude); }
+.eva-carte--interactive {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: box-shadow var(--transition-rapide), border-color var(--transition-rapide), transform var(--transition-rapide);
+}
+.eva-carte--interactive:hover { box-shadow: var(--ombre-survol); border-color: var(--couleur-emeraude); transform: translateY(-1px); }
 
-/* ================================= BADGES =================================== */
+/* Sections internes (Carte avec titre/actions/pied, ou a composer a la main) */
+.eva-carte__entete {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  margin: 0 0 var(--espace-4);
+}
+.eva-carte__entete > div:first-child { flex: 1 1 0; min-width: 0; }
+.eva-carte__titre { margin: 0; font-size: 16px; line-height: 1.4; font-weight: 600; letter-spacing: -0.01em; color: var(--couleur-encre); }
+.eva-carte__description { margin: 2px 0 0; font-size: 13px; color: var(--couleur-texte-discret); }
+.eva-carte__corps > :last-child { margin-bottom: 0; }
+.eva-carte__pied {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--espace-2);
+  flex-wrap: wrap;
+  margin: var(--espace-5) calc(var(--espace-6) * -1) calc(var(--espace-5) * -1);
+  padding: var(--espace-4) var(--espace-6);
+  border-top: 1px solid var(--couleur-bordure);
+  background: var(--couleur-papier);
+  border-radius: 0 0 var(--rayon-standard) var(--rayon-standard);
+}
+.eva-carte__pied--debut { justify-content: flex-start; }
+.eva-carte--sans-marge > .eva-carte__entete { margin: 0; padding: var(--espace-5) var(--espace-6) var(--espace-4); }
+.eva-carte--sans-marge > .eva-carte__pied { margin: 0; border-radius: 0; }
 
+/* =========================================================================
+   5. BADGES, PUCES, POINTS DE STATUT
+   ========================================================================= */
 .badge, .eva-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  font-family: var(--police-donnees);
-  font-weight: 500;
-  padding: 3px 10px;
+  gap: 6px;
+  padding: 2px 10px;
   border-radius: var(--rayon-plein);
-  background: var(--couleur-gris-service-2);
-  color: var(--couleur-blanc);
+  background: var(--couleur-neutre-fond);
+  color: var(--couleur-gris-service-1);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+  letter-spacing: 0.005em;
 }
-.badge--actif, .eva-badge--succes { background: var(--couleur-emeraude-actif); }
-.badge--alerte, .eva-badge--danger { background: var(--couleur-erreur); }
-.badge--attente, .eva-badge--attente { background: var(--couleur-citron-profond); color: var(--couleur-vert-profond); }
-.eva-badge--neutre { background: var(--couleur-fond-desactive); color: var(--couleur-gris-service-1); }
-.eva-badge--info { background: var(--couleur-emeraude-fond); color: var(--couleur-emeraude); }
+/* Les anciens .badge (BadgeStatut historique) gardent leur point */
+.badge::before, .eva-badge--point::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.85;
+}
+.badge--actif, .eva-badge--succes { background: var(--couleur-emeraude-fond); color: #08604A; }
+.badge--alerte, .eva-badge--danger { background: var(--couleur-erreur-fond); color: var(--couleur-erreur-profond); }
+.badge--attente, .eva-badge--attente { background: #F3F7C9; color: var(--couleur-citron-texte); }
+.eva-badge--neutre { background: var(--couleur-neutre-fond); color: var(--couleur-gris-service-1); }
+.eva-badge--info { background: var(--couleur-emeraude-fond-vif); color: var(--couleur-vert-profond); }
+.eva-badge--plein { background: var(--couleur-emeraude); color: var(--couleur-blanc); }
+.eva-badge--mono { font-family: var(--police-donnees); font-weight: 500; font-size: 11.5px; }
+.eva-badge svg { flex: none; }
 
-/* Puce numerique de compteur (nav, cloche de notifications) */
+/* Puce numerique de compteur (navigation, cloche de notifications) */
 .eva-puce {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
   border-radius: var(--rayon-plein);
-  background: var(--couleur-citron-profond);
+  background: var(--couleur-citron);
   color: var(--couleur-vert-profond);
+  font-family: var(--police-donnees);
   font-size: 11px;
   font-weight: 700;
-  font-family: var(--police-donnees);
+  line-height: 1;
 }
 .eva-puce--alerte { background: var(--couleur-erreur); color: var(--couleur-blanc); }
 
-/* ================================= CHAMPS =================================== */
+.eva-point-statut {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--couleur-gris-service-2-marque);
+  vertical-align: 0.05em;
+}
+.eva-point-statut--ok { background: var(--couleur-emeraude-actif); box-shadow: 0 0 0 3px rgba(22, 179, 125, 0.2); }
+.eva-point-statut--ko { background: var(--couleur-erreur); box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.16); }
+.eva-point-statut--attente { background: var(--couleur-citron-profond); box-shadow: 0 0 0 3px rgba(168, 187, 30, 0.25); }
 
-.champ, .eva-champ { margin-bottom: var(--espace-4); }
-.champ label, .eva-champ label {
+/* Barre de progression : <div class="eva-progression"><span style="width:62%"/></div> */
+.eva-progression { height: 8px; border-radius: var(--rayon-plein); background: var(--couleur-fond-desactive); overflow: hidden; }
+.eva-progression > span {
   display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--couleur-emeraude), var(--couleur-emeraude-actif));
+  transition: width var(--transition-normale);
+}
+
+/* =========================================================================
+   6. CHAMPS DE FORMULAIRE (composant Champ)
+   Les formulaires de dossier utilisent leurs propres classes (formulaire.css).
+   ========================================================================= */
+.champ, .eva-champ { margin-bottom: var(--espace-4); min-width: 0; }
+.champ label, .eva-champ > label {
+  display: block;
+  margin: 0 0 6px;
   font-size: 13px;
   font-weight: 500;
+  line-height: 1.4;
   color: var(--couleur-gris-service-1);
-  margin-bottom: 6px;
 }
+.eva-champ__requis { color: var(--couleur-erreur); margin-left: 2px; }
+
+.eva-champ :where(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]):not([type="hidden"])),
+.eva-champ select,
+.eva-champ textarea,
 .champ input, .champ select, .champ textarea,
-.eva-champ input, .eva-champ select, .eva-champ textarea {
+.eva-input, .eva-select, .eva-textarea {
+  display: block;
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--couleur-bordure-forte);
-  border-radius: var(--rayon-petit);
-  font-size: 14px;
-  font-family: inherit;
-  background: var(--couleur-blanc);
+  min-height: var(--hauteur-controle);
+  padding: 9px 12px;
+  border: 1px solid var(--couleur-bordure-champ);
+  border-radius: var(--rayon-champ);
+  background-color: var(--couleur-blanc);
   color: var(--couleur-encre);
-  transition: border-color var(--transition-rapide), box-shadow var(--transition-rapide);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  transition: border-color var(--transition-rapide), box-shadow var(--transition-rapide), background-color var(--transition-rapide);
 }
+.eva-champ ::placeholder, .champ ::placeholder, .eva-input::placeholder, .eva-textarea::placeholder { color: #7A8881; opacity: 1; }
+.eva-champ input:hover, .eva-champ select:hover, .eva-champ textarea:hover,
+.eva-input:hover, .eva-select:hover, .eva-textarea:hover { border-color: var(--couleur-gris-service-2-marque); }
+.eva-champ input:focus, .eva-champ select:focus, .eva-champ textarea:focus,
 .champ input:focus, .champ select:focus, .champ textarea:focus,
-.eva-champ input:focus, .eva-champ select:focus, .eva-champ textarea:focus {
+.eva-input:focus, .eva-select:focus, .eva-textarea:focus {
+  outline: none;
   border-color: var(--couleur-emeraude);
   box-shadow: var(--ombre-anneau-focus);
 }
+.eva-champ input:disabled, .eva-champ select:disabled, .eva-champ textarea:disabled,
 .champ input:disabled, .champ select:disabled, .champ textarea:disabled,
-.eva-champ input:disabled, .eva-champ select:disabled, .eva-champ textarea:disabled {
-  background: var(--couleur-fond-desactive);
-  color: var(--couleur-gris-service-2);
+.eva-input:disabled, .eva-select:disabled, .eva-textarea:disabled,
+.eva-champ input[readonly], .eva-champ textarea[readonly] {
+  background-color: var(--couleur-fond-desactive);
+  border-color: var(--couleur-bordure-forte);
+  color: var(--couleur-texte-discret);
   cursor: not-allowed;
 }
-.eva-champ__aide { font-size: 12px; color: var(--couleur-gris-service-2); margin-top: 5px; }
-.eva-champ__erreur { font-size: 12px; color: var(--couleur-erreur); margin-top: 5px; }
-.eva-champ--erreur input, .eva-champ--erreur select, .eva-champ--erreur textarea { border-color: var(--couleur-erreur); }
+.eva-champ textarea, .eva-textarea { min-height: 96px; resize: vertical; padding: 10px 12px; }
+
+/* Select : fleche integree (le select multiple n'en a pas) */
+.eva-champ select:not([multiple]), .champ select:not([multiple]), .eva-select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 38px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2340534B' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+}
+.eva-champ select[multiple] { padding: 6px; }
+
+/* Cases a cocher et boutons radio dans un champ */
+.eva-champ input[type="checkbox"], .eva-champ input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--couleur-emeraude);
+  cursor: pointer;
+}
+.eva-champ input[type="file"] {
+  width: 100%;
+  padding: 6px;
+  font-size: 13.5px;
+  color: var(--couleur-gris-service-1);
+  border: 1px dashed var(--couleur-bordure-champ);
+  border-radius: var(--rayon-champ);
+  background: var(--couleur-papier);
+}
+.eva-champ input[type="file"]::file-selector-button {
+  margin-right: 12px;
+  padding: 7px 14px;
+  border: 1px solid var(--couleur-bordure-forte);
+  border-radius: var(--rayon-petit);
+  background: var(--couleur-blanc);
+  color: var(--couleur-emeraude-profond);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.eva-input--mono, .eva-champ--mono :is(input, textarea, select) { font-family: var(--police-donnees); font-size: 13.5px; }
+.eva-input--petit, .eva-select--petit { min-height: 32px; padding-top: 4px; padding-bottom: 4px; font-size: 13px; }
+
+.eva-champ__aide { display: block; margin-top: 5px; font-size: 12.5px; line-height: 1.45; color: var(--couleur-texte-discret); }
+.eva-champ__erreur { margin-top: 5px; font-size: 12.5px; line-height: 1.45; color: var(--couleur-erreur); font-weight: 500; }
+.eva-champ--erreur input, .eva-champ--erreur select, .eva-champ--erreur textarea, .eva-input--erreur {
+  border-color: var(--couleur-erreur) !important;
+  background-color: #FFFAF9;
+}
+.eva-champ--erreur input:focus, .eva-champ--erreur select:focus, .eva-champ--erreur textarea:focus {
+  box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.2);
+}
 /* Dossier verrouille (acte emis), distinct du gris de readonly DHIS2
    ci-dessus : ces controles restent volontairement interactifs (jamais
    disabled), voir ChampDynamique.tsx. */
 .eva-champ--verrouille input, .eva-champ--verrouille select, .eva-champ--verrouille textarea {
-  background: var(--couleur-erreur-fond);
-  border-color: #F0C6C3;
+  background-color: var(--couleur-erreur-fond);
+  border-color: var(--couleur-erreur-bordure);
   cursor: not-allowed;
 }
 
-.message-erreur {
-  color: var(--couleur-erreur);
-  background: var(--couleur-erreur-fond);
+/* Champ avec icone ou action : <div class="eva-input-groupe"> (voir BarreRecherche) */
+.eva-input-groupe { position: relative; display: flex; align-items: center; }
+.eva-input-groupe > input { flex: 1; }
+.eva-input-groupe__icone {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--couleur-texte-discret);
+  display: inline-flex;
+}
+.eva-input-groupe__icone + input { padding-left: 38px; }
+.eva-input-groupe__action {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border: 0;
   border-radius: var(--rayon-petit);
-  font-size: 13px;
-  padding: var(--espace-3) var(--espace-4);
-  margin: var(--espace-2) 0;
+  background: transparent;
+  color: var(--couleur-texte-discret);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.eva-input-groupe__action:hover { color: var(--couleur-encre); background: var(--couleur-fond-desactive); }
+.eva-input-groupe > input:has(+ .eva-input-groupe__action) { padding-right: 44px; }
+
+/* Message d'erreur en bloc (historique : <div className="message-erreur">) */
+.message-erreur {
+  display: block;
+  margin: var(--espace-2) 0 var(--espace-4);
+  padding: 11px 14px;
+  border: 1px solid var(--couleur-erreur-bordure);
+  border-radius: var(--rayon-champ);
+  background: var(--couleur-erreur-fond);
+  color: var(--couleur-erreur-profond);
+  font-size: 13.5px;
+  line-height: 1.5;
 }
 
-/* ================================= GRILLES ================================== */
-
+/* =========================================================================
+   7. GRILLES ET STATISTIQUES (KPI)
+   ========================================================================= */
 .grille-cartes {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--espace-4);
 }
+.eva-grille-stats { display: grid; gap: var(--espace-4); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.eva-grille-stats--compact { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--espace-3); }
 
-.eva-grille-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--espace-5); }
+.eva-grille { display: grid; gap: var(--espace-5); grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.eva-grille-2, .eva-grille--2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: var(--espace-5); }
+.eva-grille--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.eva-grille--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.eva-grille--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.eva-grille--2-1 { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.eva-grille--serree { gap: var(--espace-3); }
+.eva-grille--debut { align-items: start; }
 
-/* ============================ CHIFFRES CLES / KPI ============================ */
+/* Section de page : titre + contenu */
+.eva-section { margin-top: var(--espace-7); }
+.eva-section:first-child { margin-top: 0; }
+.eva-section__entete { display: flex; align-items: center; justify-content: space-between; gap: var(--espace-3); flex-wrap: wrap; margin-bottom: var(--espace-3); }
+.eva-section__titre { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; color: var(--couleur-encre); }
+.eva-section__description { margin: 2px 0 0; font-size: 13px; color: var(--couleur-texte-discret); }
+.eva-compteur { font-size: 12.5px; color: var(--couleur-texte-discret); white-space: nowrap; font-variant-numeric: tabular-nums; }
 
-.chiffre-cle, .eva-carte-stat__valeur {
-  font-family: var(--police-donnees);
-  font-size: 28px;
-  font-weight: 600;
-  color: var(--couleur-emeraude);
-  line-height: 1.1;
-}
-.libelle-cle, .eva-carte-stat__libelle {
-  font-size: 12px;
-  color: var(--couleur-gris-service-2);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-top: 4px;
-}
-
-.eva-carte-stat { display: flex; flex-direction: column; gap: var(--espace-1); position: relative; overflow: hidden; }
+/* Chiffres cles : CarteStat */
+.eva-carte-stat { position: relative; display: flex; flex-direction: column; gap: 2px; padding: var(--espace-5); color: inherit; text-decoration: none; min-width: 0; }
 .eva-carte-stat__icone {
   position: absolute;
   top: var(--espace-4);
   right: var(--espace-4);
-  color: var(--couleur-emeraude-fond-vif);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--rayon-champ);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--couleur-emeraude-fond);
+  color: var(--couleur-emeraude);
 }
+.chiffre-cle, .eva-carte-stat__valeur {
+  font-family: var(--police-donnees);
+  font-size: 30px;
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--couleur-emeraude);
+  font-variant-numeric: tabular-nums;
+}
+.libelle-cle, .eva-carte-stat__libelle {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--couleur-texte-discret);
+  padding-right: 44px;
+}
+.eva-carte-stat__unite { font-family: var(--police-titrage); font-size: 15px; font-weight: 500; letter-spacing: 0; color: var(--couleur-texte-discret); margin-left: 4px; }
+.eva-carte-stat__detail { margin-top: var(--espace-2); font-size: 12.5px; color: var(--couleur-texte-discret); }
 .eva-carte-stat--alerte .eva-carte-stat__valeur { color: var(--couleur-erreur); }
+.eva-carte-stat--alerte .eva-carte-stat__icone { background: var(--couleur-erreur-fond); color: var(--couleur-erreur); }
+.eva-carte-stat--attention .eva-carte-stat__valeur { color: var(--couleur-citron-texte); }
+.eva-carte-stat--attention .eva-carte-stat__icone { background: var(--couleur-citron-fond); color: var(--couleur-citron-texte); }
+.eva-carte-stat--muet .eva-carte-stat__valeur { color: var(--couleur-gris-service-2-marque); }
 
-/* ================================= TABLEAUX ================================== */
-
+/* =========================================================================
+   8. TABLEAUX ET LIGNES D'URGENCE
+   Tableau (simple enveloppe) ; pour une liste de donnees complete
+   (tri, mobile, chargement) voir ListeResponsive (composants.css).
+   ========================================================================= */
 .eva-tableau-conteneur {
+  position: relative;
   overflow-x: auto;
+  max-width: 100%;
   border: 1px solid var(--couleur-bordure);
   border-radius: var(--rayon-standard);
   background: var(--couleur-blanc);
+  box-shadow: var(--ombre-carte);
 }
+.eva-tableau-conteneur--collant { max-height: 68vh; overflow: auto; }
+.eva-tableau-conteneur--nu { border: 0; border-radius: 0; box-shadow: none; }
+.eva-tableau-conteneur--plat { box-shadow: none; }
 
 table.tableau-standard, table.eva-tableau {
   width: 100%;
-  border-collapse: collapse;
   min-width: 520px;
+  margin: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--couleur-blanc);
+  font-size: 13.5px;
+  line-height: 1.45;
 }
 table.tableau-standard th, table.tableau-standard td,
 table.eva-tableau th, table.eva-tableau td {
+  padding: 12px 16px;
   text-align: left;
-  padding: 12px 14px;
+  vertical-align: middle;
   border-bottom: 1px solid var(--couleur-bordure);
-  font-size: 13.5px;
   white-space: nowrap;
 }
-table.eva-tableau td.eva-tableau__cellule-large { white-space: normal; }
 table.tableau-standard th, table.eva-tableau th {
-  color: var(--couleur-gris-service-2);
-  text-transform: uppercase;
-  font-size: 11px;
-  letter-spacing: 0.05em;
-  font-weight: 600;
   background: var(--couleur-papier);
+  color: var(--couleur-texte-discret);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom-color: var(--couleur-bordure-forte);
 }
-table.eva-tableau tbody tr:hover { background: var(--couleur-emeraude-fond); }
-table.eva-tableau tbody tr:last-child td { border-bottom: none; }
+table.eva-tableau tbody tr { transition: background var(--transition-rapide); }
+table.eva-tableau tbody tr:hover { background: var(--couleur-emeraude-fond-doux); }
+table.eva-tableau tbody tr:last-child td { border-bottom: 0; }
+table.eva-tableau.eva-tableau--zebre tbody tr:nth-child(even) { background: #F8FBF6; }
+table.eva-tableau.eva-tableau--zebre tbody tr:nth-child(even):hover { background: var(--couleur-emeraude-fond-doux); }
+table.eva-tableau.eva-tableau--compact th, table.eva-tableau.eva-tableau--compact td { padding: 8px 12px; font-size: 13px; }
+table.eva-tableau.eva-tableau--sans-survol tbody tr:hover { background: transparent; }
+.eva-tableau-conteneur--collant thead th, table.eva-tableau--collant thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  box-shadow: 0 1px 0 var(--couleur-bordure-forte);
+}
+table.eva-tableau tbody tr.est-cliquable { cursor: pointer; }
+table.eva-tableau tbody tr.est-cliquable:focus-visible { outline-offset: -2px; background: var(--couleur-emeraude-fond-doux); }
 
-.eva-ligne-urgence--verte { background: var(--couleur-emeraude-fond); }
+/* Cellules */
+table.eva-tableau td.eva-tableau__cellule-large,
+table.eva-tableau td.eva-tableau__large { white-space: normal; min-width: 200px; }
+table.eva-tableau .eva-tableau__souple { white-space: normal; min-width: 120px; }
+table.eva-tableau .eva-tableau__tronque { max-width: 340px; overflow: hidden; text-overflow: ellipsis; }
+table.eva-tableau .eva-tableau__num { font-family: var(--police-donnees); font-variant-numeric: tabular-nums; text-align: right; }
+table.eva-tableau .eva-tableau__centre { text-align: center; }
+table.eva-tableau .eva-tableau__principal { font-weight: 600; color: var(--couleur-encre); }
+table.eva-tableau .eva-tableau__secondaire { color: var(--couleur-texte-discret); font-size: 12.5px; }
+table.eva-tableau .eva-tableau__actions { text-align: right; width: 1%; }
+table.eva-tableau .eva-tableau__actions .eva-groupe-boutons { justify-content: flex-end; flex-wrap: nowrap; }
+
+/* Teinte d'une ligne selon l'urgence (la classe garde le survol fonctionnel) */
+.eva-ligne-urgence--verte { background: var(--couleur-emeraude-fond-doux); }
 .eva-ligne-urgence--orange { background: var(--couleur-citron-fond); }
 .eva-ligne-urgence--rouge { background: var(--couleur-erreur-fond); }
+.eva-ligne-urgence--verte > :first-child { box-shadow: inset 3px 0 0 var(--couleur-emeraude-actif); }
+.eva-ligne-urgence--orange > :first-child { box-shadow: inset 3px 0 0 var(--couleur-citron-profond); }
+.eva-ligne-urgence--rouge > :first-child { box-shadow: inset 3px 0 0 var(--couleur-erreur); }
+.eva-ligne--attention { background: var(--couleur-citron-fond); }
+.eva-ligne--erreur { background: var(--couleur-erreur-fond); }
+.eva-ligne--succes { background: var(--couleur-emeraude-fond-doux); }
 
-/* ================================ ETAT VIDE ================================== */
-
+/* =========================================================================
+   9. ETAT VIDE
+   ========================================================================= */
 .eva-etat-vide {
   display: flex;
   flex-direction: column;
@@ -390,277 +870,865 @@ table.eva-tableau tbody tr:last-child td { border-bottom: none; }
   justify-content: center;
   text-align: center;
   gap: var(--espace-2);
-  padding: var(--espace-8) var(--espace-4);
-  color: var(--couleur-gris-service-2);
+  padding: var(--espace-9) var(--espace-5);
+  color: var(--couleur-texte-discret);
 }
-.eva-etat-vide__icone { color: var(--couleur-bordure-forte); }
-.eva-etat-vide__titre { font-size: 14px; font-weight: 600; color: var(--couleur-gris-service-1); }
+.eva-etat-vide--compact { padding: var(--espace-6) var(--espace-4); }
+.eva-etat-vide__icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: var(--espace-2);
+  border-radius: 50%;
+  background: var(--couleur-emeraude-fond);
+  color: var(--couleur-emeraude);
+}
+.eva-etat-vide--compact .eva-etat-vide__icone { width: 48px; height: 48px; }
+.eva-etat-vide--erreur .eva-etat-vide__icone { background: var(--couleur-erreur-fond); color: var(--couleur-erreur); }
+.eva-etat-vide--attention .eva-etat-vide__icone { background: var(--couleur-citron-fond); color: var(--couleur-citron-texte); }
+.eva-etat-vide--neutre .eva-etat-vide__icone { background: var(--couleur-neutre-fond); color: var(--couleur-gris-service-1); }
+.eva-etat-vide__titre { font-size: 15px; font-weight: 600; color: var(--couleur-gris-service-1); }
+.eva-etat-vide > p { max-width: 46ch; font-size: 13.5px; line-height: 1.55; }
+.eva-etat-vide__action { margin-top: var(--espace-3); display: flex; gap: var(--espace-2); flex-wrap: wrap; justify-content: center; }
 
-/* ================================== SPINNER =================================== */
-
+/* =========================================================================
+   10. CHARGEMENT
+   ========================================================================= */
 .eva-spinner {
+  display: inline-block;
+  flex: none;
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 2.5px solid rgba(255, 255, 255, 0.4);
-  border-top-color: currentColor;
+  border: 2.5px solid currentColor;
+  border-right-color: transparent;
+  vertical-align: -0.25em;
   animation: eva-rotation 0.7s linear infinite;
-  display: inline-block;
 }
-.eva-page-chargement { display: flex; align-items: center; justify-content: center; padding: var(--espace-9) 0; color: var(--couleur-gris-service-2); gap: var(--espace-2); }
-.eva-page-chargement .eva-spinner { border-color: var(--couleur-bordure-forte); border-top-color: var(--couleur-emeraude); }
+.eva-spinner--grand { width: 32px; height: 32px; border-width: 3px; }
+.eva-page-chargement {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espace-3);
+  padding: var(--espace-9) 0;
+  color: var(--couleur-texte-discret);
+}
+.eva-page-chargement .eva-spinner { color: var(--couleur-emeraude); }
 @keyframes eva-rotation { to { transform: rotate(360deg); } }
+@keyframes eva-apparition { from { opacity: 0; } to { opacity: 1; } }
+@keyframes eva-apparition-haut { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes eva-apparition-modale { from { opacity: 0; transform: translateY(8px) scale(0.985); } to { opacity: 1; transform: none; } }
 
+/* Squelette de base (les formes et le composant Squelette sont dans composants.css) */
 .eva-squelette {
-  background: linear-gradient(90deg, var(--couleur-fond-desactive) 25%, #E9ECE7 37%, var(--couleur-fond-desactive) 63%);
+  display: block;
+  height: 14px;
+  border-radius: var(--rayon-petit);
+  background: linear-gradient(90deg, var(--couleur-fond-desactive) 25%, #E6EAE4 37%, var(--couleur-fond-desactive) 63%);
   background-size: 400% 100%;
   animation: eva-scintillement 1.4s ease infinite;
-  border-radius: var(--rayon-petit);
 }
 @keyframes eva-scintillement { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
 
-/* =================================== MODALE ==================================== */
-
+/* =========================================================================
+   11. MODALE
+   Structure : fond > dialogue > (entete, corps, actions)
+   ========================================================================= */
 .eva-modale-fond {
   position: fixed;
   inset: 0;
-  background: rgba(20, 35, 28, 0.45);
+  z-index: var(--z-modale);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: var(--espace-4);
-  z-index: 100;
-  animation: eva-apparition var(--transition-normale);
+  background: rgba(20, 35, 28, 0.5);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  animation: eva-apparition 160ms ease;
 }
 .eva-modale {
-  background: var(--couleur-blanc);
-  border-radius: var(--rayon-grand);
-  box-shadow: var(--ombre-flottante);
-  padding: var(--espace-6);
+  display: flex;
+  flex-direction: column;
   width: 100%;
-  max-width: 460px;
-  max-height: 90vh;
-  overflow-y: auto;
+  max-width: 480px;
+  max-height: min(90vh, 760px);
+  border-radius: var(--rayon-grand);
+  background: var(--couleur-blanc);
+  color: var(--couleur-encre);
+  box-shadow: var(--ombre-flottante);
+  overflow: hidden;
+  animation: eva-apparition-modale 180ms ease;
 }
-.eva-modale--large { max-width: 720px; }
-.eva-modale__titre { font-size: 17px; font-weight: 600; margin-bottom: var(--espace-2); }
-.eva-modale__actions { display: flex; justify-content: flex-end; gap: var(--espace-3); margin-top: var(--espace-6); }
-@keyframes eva-apparition { from { opacity: 0; } to { opacity: 1; } }
+.eva-modale:focus { outline: none; }
+.eva-modale--petit { max-width: 420px; }
+.eva-modale--large { max-width: 760px; }
+.eva-modale__entete {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  padding: var(--espace-5) var(--espace-6) 0;
+}
+.eva-modale__titre { margin: 0; font-size: 18px; line-height: 1.35; font-weight: 600; letter-spacing: -0.01em; color: var(--couleur-encre); }
+.eva-modale__description { margin: 4px 0 0; font-size: 13.5px; color: var(--couleur-texte-discret); }
+.eva-modale__fermer {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin: -6px -10px 0 0;
+  border: 0;
+  border-radius: var(--rayon-champ);
+  background: transparent;
+  color: var(--couleur-texte-discret);
+  cursor: pointer;
+  transition: background var(--transition-rapide), color var(--transition-rapide);
+}
+.eva-modale__fermer:hover { background: var(--couleur-fond-desactive); color: var(--couleur-encre); }
+.eva-modale__corps { flex: 1 1 auto; min-height: 0; padding: var(--espace-3) var(--espace-6) var(--espace-5); overflow-y: auto; font-size: 14px; color: var(--couleur-gris-service-1); }
+.eva-modale__corps > :last-child { margin-bottom: 0; }
+.eva-modale__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--espace-2);
+  flex-wrap: wrap;
+  padding: var(--espace-4) var(--espace-6);
+  border-top: 1px solid var(--couleur-bordure);
+  background: var(--couleur-papier);
+}
+/* Actions posees par une page directement dans le corps : elles se comportent comme un pied de modale */
+.eva-modale__corps > .eva-modale__actions,
+.eva-modale__corps form > .eva-modale__actions {
+  margin: var(--espace-5) calc(var(--espace-6) * -1) calc(var(--espace-5) * -1);
+}
 
-/* =================================== TOASTS ==================================== */
+/* Contenu d'une confirmation (ConfirmationProvider) */
+.eva-confirmation { display: flex; align-items: flex-start; gap: var(--espace-3); }
+.eva-confirmation__icone {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--couleur-emeraude-fond);
+  color: var(--couleur-emeraude);
+}
+.eva-confirmation__icone--danger { background: var(--couleur-erreur-fond); color: var(--couleur-erreur); }
+.eva-confirmation__texte { margin: 0; padding-top: 2px; font-size: 14px; line-height: 1.55; color: var(--couleur-gris-service-1); }
 
+/* =========================================================================
+   12. TOASTS
+   ========================================================================= */
 .eva-toasts {
   position: fixed;
-  bottom: var(--espace-5);
   right: var(--espace-5);
+  bottom: var(--espace-5);
+  z-index: var(--z-toasts);
   display: flex;
   flex-direction: column;
   gap: var(--espace-2);
-  z-index: 200;
-  max-width: calc(100vw - 2 * var(--espace-5));
+  width: min(400px, calc(100vw - 2 * var(--espace-4)));
+  pointer-events: none;
 }
 .eva-toast {
+  --toast-accent: var(--couleur-gris-service-1);
+  position: relative;
   display: flex;
   align-items: flex-start;
-  gap: var(--espace-2);
-  background: var(--couleur-encre);
-  color: var(--couleur-blanc);
-  padding: 12px 14px;
-  border-radius: var(--rayon-petit);
+  gap: var(--espace-3);
+  padding: 12px 10px 12px 14px;
+  border: 1px solid var(--couleur-bordure);
+  border-left: 4px solid var(--toast-accent);
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-blanc);
+  color: var(--couleur-encre);
   box-shadow: var(--ombre-flottante);
   font-size: 13.5px;
-  min-width: 260px;
-  max-width: 380px;
-  animation: eva-glissement-toast var(--transition-normale);
+  line-height: 1.45;
+  pointer-events: auto;
+  overflow: hidden;
+  animation: eva-glissement-toast 220ms ease;
 }
-.eva-toast--succes { background: var(--couleur-vert-profond); }
-.eva-toast--erreur { background: #5C1B17; }
-.eva-toast--info { background: var(--couleur-gris-service-1); }
-.eva-toast__fermer { background: none; border: none; color: rgba(255,255,255,0.7); cursor: pointer; padding: 0; margin-left: auto; }
-.eva-toast__fermer:hover { color: var(--couleur-blanc); }
-@keyframes eva-glissement-toast { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.eva-toast > svg { flex: none; margin-top: 1px; color: var(--toast-accent); }
+.eva-toast__corps { flex: 1; min-width: 0; }
+.eva-toast__titre { display: block; font-weight: 600; }
+.eva-toast__message { overflow-wrap: anywhere; }
+.eva-toast--succes { --toast-accent: var(--couleur-emeraude); }
+.eva-toast--erreur { --toast-accent: var(--couleur-erreur); }
+.eva-toast--avertissement { --toast-accent: #7A7000; }
+.eva-toast--info { --toast-accent: var(--couleur-gris-service-1); }
+.eva-toast__fermer {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: -3px 0;
+  border: 0;
+  border-radius: var(--rayon-petit);
+  background: transparent;
+  color: var(--couleur-texte-discret);
+  cursor: pointer;
+}
+.eva-toast__fermer:hover { background: var(--couleur-fond-desactive); color: var(--couleur-encre); }
+.eva-toast__progression {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--toast-accent);
+  opacity: 0.35;
+  transform-origin: left;
+  animation: eva-toast-compte-a-rebours var(--toast-duree, 5000ms) linear forwards;
+}
+.eva-toast:hover .eva-toast__progression, .eva-toast:focus-within .eva-toast__progression { animation-play-state: paused; }
+@keyframes eva-glissement-toast { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes eva-toast-compte-a-rebours { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
-/* =================================== ONGLETS ==================================== */
-
-.eva-onglets { display: flex; gap: var(--espace-1); border-bottom: 1px solid var(--couleur-bordure); margin-bottom: var(--espace-5); overflow-x: auto; }
+/* =========================================================================
+   13. ONGLETS
+   ========================================================================= */
+.eva-onglets {
+  display: flex;
+  gap: var(--espace-5);
+  margin: 0 0 var(--espace-5);
+  border-bottom: 1px solid var(--couleur-bordure);
+  overflow-x: auto;
+}
 .eva-onglet {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 2px;
+  margin: 0 0 -1px;
+  border: 0;
+  border-bottom: 2px solid transparent;
   background: none;
-  border: none;
-  padding: 10px 4px;
-  margin-right: var(--espace-5);
+  color: var(--couleur-texte-discret);
   font-size: 14px;
   font-weight: 500;
-  color: var(--couleur-gris-service-2);
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
   white-space: nowrap;
+  cursor: pointer;
   transition: color var(--transition-rapide), border-color var(--transition-rapide);
 }
-.eva-onglet:hover { color: var(--couleur-encre); }
-.eva-onglet--actif { color: var(--couleur-emeraude); border-bottom-color: var(--couleur-emeraude); }
+.eva-onglet:hover:not(:disabled) { color: var(--couleur-encre); }
+.eva-onglet--actif, .eva-onglet[aria-selected="true"] {
+  color: var(--couleur-emeraude-profond);
+  border-bottom-color: var(--couleur-emeraude);
+  font-weight: 600;
+}
+.eva-onglet:disabled { opacity: 0.5; cursor: not-allowed; }
+.eva-onglet:focus-visible { outline-offset: -2px; border-radius: var(--rayon-petit); }
+.eva-onglet__compteur {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--rayon-plein);
+  background: var(--couleur-neutre-fond);
+  color: var(--couleur-gris-service-1);
+  font-family: var(--police-donnees);
+  font-size: 11px;
+  font-weight: 600;
+}
+.eva-onglet--actif .eva-onglet__compteur, .eva-onglet[aria-selected="true"] .eva-onglet__compteur {
+  background: var(--couleur-emeraude-fond);
+  color: var(--couleur-emeraude-profond);
+}
+/* Variante segmentee */
+.eva-onglets--pilules {
+  width: fit-content;
+  max-width: 100%;
+  gap: var(--espace-1);
+  padding: 4px;
+  border-bottom: 0;
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-fond-desactive);
+}
+.eva-onglets--pilules .eva-onglet { min-height: 36px; padding: 0 14px; margin: 0; border: 0; border-radius: var(--rayon-champ); }
+.eva-onglets--pilules .eva-onglet--actif, .eva-onglets--pilules .eva-onglet[aria-selected="true"] {
+  background: var(--couleur-blanc);
+  box-shadow: var(--ombre-carte);
+}
+.eva-panneau[hidden] { display: none; }
 
-/* ================================= PAGINATION =================================== */
+/* =========================================================================
+   14. PAGINATION
+   ========================================================================= */
+.eva-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3) var(--espace-4);
+  flex-wrap: wrap;
+  margin-top: var(--espace-4);
+  font-size: 13px;
+  color: var(--couleur-texte-discret);
+}
+.eva-pagination__info { font-variant-numeric: tabular-nums; }
+.eva-pagination__boutons { display: flex; align-items: center; gap: var(--espace-2); }
+.eva-pagination__pages { display: flex; align-items: center; gap: var(--espace-1); }
+.eva-pagination__page {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 var(--espace-2);
+  border: 1px solid transparent;
+  border-radius: var(--rayon-champ);
+  background: transparent;
+  color: var(--couleur-gris-service-1);
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background var(--transition-rapide), border-color var(--transition-rapide), color var(--transition-rapide);
+}
+.eva-pagination__page:hover { background: var(--couleur-emeraude-fond); color: var(--couleur-emeraude-profond); }
+.eva-pagination__page[aria-current="page"] { background: var(--couleur-emeraude); border-color: var(--couleur-emeraude); color: var(--couleur-blanc); cursor: default; }
+.eva-pagination__points { min-width: 20px; text-align: center; color: var(--couleur-texte-discret); }
+.eva-pagination__position { display: none; font-variant-numeric: tabular-nums; }
 
-.eva-pagination { display: flex; align-items: center; justify-content: space-between; gap: var(--espace-3); margin-top: var(--espace-4); flex-wrap: wrap; }
-.eva-pagination__info { font-size: 13px; color: var(--couleur-gris-service-2); }
-.eva-pagination__boutons { display: flex; gap: var(--espace-2); }
-
-/* ================================== FRISE (historique) =================================== */
-
-.eva-frise { position: relative; padding-left: 22px; }
-.eva-frise::before { content: ""; position: absolute; left: 5px; top: 4px; bottom: 4px; width: 2px; background: var(--couleur-bordure); }
+/* =========================================================================
+   15. FRISE (historique)
+   ========================================================================= */
+.eva-frise { position: relative; padding-left: 26px; }
+.eva-frise::before { content: ""; position: absolute; left: 7px; top: 6px; bottom: 6px; width: 2px; border-radius: 2px; background: var(--couleur-bordure); }
 .eva-frise__item { position: relative; padding-bottom: var(--espace-5); }
 .eva-frise__item:last-child { padding-bottom: 0; }
-.eva-frise__point { position: absolute; left: -22px; top: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--couleur-emeraude); border: 2px solid var(--couleur-blanc); box-shadow: 0 0 0 1px var(--couleur-bordure); }
-.eva-frise__date { font-size: 11.5px; font-family: var(--police-donnees); color: var(--couleur-gris-service-2); }
+.eva-frise__point {
+  position: absolute;
+  left: -26px;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--couleur-emeraude);
+  color: var(--couleur-blanc);
+  border: 3px solid var(--couleur-blanc);
+  box-shadow: 0 0 0 1px var(--couleur-bordure);
+}
+.eva-frise__point svg { width: 9px; height: 9px; }
+.eva-frise__item--attention .eva-frise__point { background: var(--couleur-citron-profond); }
+.eva-frise__item--erreur .eva-frise__point { background: var(--couleur-erreur); }
+.eva-frise__item--neutre .eva-frise__point { background: var(--couleur-gris-service-2-marque); }
+.eva-frise__date { font-size: 11.5px; font-family: var(--police-donnees); color: var(--couleur-texte-discret); }
+.eva-frise__titre { margin-top: 2px; font-size: 13.5px; font-weight: 600; color: var(--couleur-encre); }
 .eva-frise__contenu { font-size: 13.5px; margin-top: 2px; }
 
-/* ================================== PILULES DE FILTRE =================================== */
-
+/* =========================================================================
+   16. PILULES DE FILTRE (base ; composant PilulesFiltre dans composants.css)
+   ========================================================================= */
 .eva-pilule {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  border-radius: var(--rayon-plein);
+  min-height: 34px;
+  padding: 0 14px;
   border: 1px solid var(--couleur-bordure-forte);
+  border-radius: var(--rayon-plein);
   background: var(--couleur-blanc);
-  font-size: 13px;
-  cursor: pointer;
   color: var(--couleur-gris-service-1);
-  transition: all var(--transition-rapide);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--transition-rapide), border-color var(--transition-rapide), color var(--transition-rapide);
 }
-.eva-pilule--active { background: var(--couleur-emeraude); border-color: var(--couleur-emeraude); color: var(--couleur-blanc); }
+.eva-pilule:hover { background: var(--couleur-emeraude-fond); border-color: var(--couleur-emeraude); color: var(--couleur-vert-profond); }
+.eva-pilule--active, .eva-pilule[aria-pressed="true"], .eva-pilule[aria-current="true"] {
+  background: var(--couleur-emeraude);
+  border-color: var(--couleur-emeraude);
+  color: var(--couleur-blanc);
+}
+.eva-pilule--active:hover, .eva-pilule[aria-pressed="true"]:hover {
+  background: var(--couleur-emeraude-profond);
+  border-color: var(--couleur-emeraude-profond);
+  color: var(--couleur-blanc);
+}
 
-/* ============================ MISE EN PAGE (APP SHELL) ============================ */
+/* =========================================================================
+   17. MENU DEROULANT (composant MenuDeroulant, rendu dans un portail)
+   ========================================================================= */
+.eva-menu-deroulant {
+  --couleur-focus: var(--couleur-emeraude);
+  position: fixed;
+  z-index: var(--z-menu);
+  min-width: 220px;
+  max-width: min(340px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  padding: var(--espace-2);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-blanc);
+  color: var(--couleur-encre);
+  box-shadow: var(--ombre-flottante);
+  animation: eva-apparition-haut 140ms ease;
+}
+.eva-menu-deroulant:focus { outline: none; }
+.eva-menu-deroulant__entete { padding: var(--espace-2) var(--espace-3) var(--espace-3); margin-bottom: var(--espace-2); border-bottom: 1px solid var(--couleur-bordure); }
+.eva-menu-deroulant__entete strong { display: block; font-size: 14px; }
+.eva-menu-deroulant__entete span { display: block; font-size: 12px; color: var(--couleur-texte-discret); overflow-wrap: anywhere; }
+.eva-menu-deroulant__separateur { height: 1px; margin: var(--espace-2) 0; border: 0; background: var(--couleur-bordure); }
+.eva-menu-deroulant__vide { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: var(--espace-5) var(--espace-3); text-align: center; font-size: 13px; color: var(--couleur-texte-discret); }
+.eva-menu-deroulant__vide svg { color: var(--couleur-emeraude-actif); }
+.eva-menu-deroulant__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 var(--espace-3);
+  border: 0;
+  border-radius: var(--rayon-petit);
+  background: transparent;
+  color: var(--couleur-encre);
+  font-size: 13.5px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.eva-menu-deroulant__item:hover, .eva-menu-deroulant__item:focus-visible { background: var(--couleur-emeraude-fond); }
+.eva-menu-deroulant__item:focus-visible { outline-offset: -2px; }
+.eva-menu-deroulant__item > svg { flex: none; color: var(--couleur-texte-discret); }
+.eva-menu-deroulant__item-texte { flex: 1; min-width: 0; line-height: 1.35; padding: 8px 0; }
+.eva-menu-deroulant__item--danger, .eva-menu-deroulant__item--danger > svg { color: var(--couleur-erreur); }
+.eva-menu-deroulant__item--danger:hover, .eva-menu-deroulant__item--danger:focus-visible { background: var(--couleur-erreur-fond); }
+.eva-menu-deroulant__item:disabled, .eva-menu-deroulant__item[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
 
+/* =========================================================================
+   18. COQUE APPLICATIVE (MiseEnPage : en-tete, navigation, page)
+   ========================================================================= */
 .eva-app { min-height: 100vh; display: flex; flex-direction: column; background: var(--couleur-papier); }
 
+/* ---- En-tete ---- */
 .eva-entete {
-  background: var(--couleur-emeraude);
-  color: var(--couleur-blanc);
-  padding: 0 var(--espace-5);
-  height: 60px;
+  --couleur-focus: #fff;
+  position: sticky;
+  top: 0;
+  z-index: var(--z-barre);
+  flex: none;
+  height: var(--hauteur-barre);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--espace-4);
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  flex-shrink: 0;
+  padding: 0 var(--espace-5);
+  background: var(--couleur-emeraude);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0));
+  color: var(--couleur-blanc);
+  box-shadow: 0 1px 0 rgba(8, 99, 70, 0.6), 0 2px 10px -4px rgba(20, 35, 28, 0.25);
 }
-.eva-entete__gauche { display: flex; align-items: center; gap: var(--espace-4); }
-.eva-entete__droite { display: flex; align-items: center; gap: var(--espace-4); }
-.eva-bouton-hamburger { background: none; border: none; color: var(--couleur-blanc); cursor: pointer; padding: 6px; display: none; border-radius: var(--rayon-petit); }
-.eva-bouton-hamburger:hover { background: rgba(255,255,255,0.12); }
+.eva-entete__gauche, .eva-entete__droite { display: flex; align-items: center; gap: var(--espace-3); min-width: 0; }
+.eva-entete__logo { display: inline-flex; align-items: center; border-radius: var(--rayon-petit); }
 
-.eva-statut-connexion { display: inline-flex; align-items: center; gap: 6px; font-family: var(--police-donnees); font-size: 11.5px; opacity: 0.92; }
-.eva-statut-connexion__point { width: 7px; height: 7px; border-radius: 50%; background: var(--couleur-citron); }
-.eva-statut-connexion--hors-ligne .eva-statut-connexion__point { background: #F5A25D; }
+.eva-bouton-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--hauteur-controle);
+  height: var(--hauteur-controle);
+  padding: 0;
+  border: 0;
+  border-radius: var(--rayon-champ);
+  background: transparent;
+  color: var(--couleur-blanc);
+  cursor: pointer;
+  transition: background var(--transition-rapide);
+}
+.eva-bouton-hamburger:hover { background: rgba(255, 255, 255, 0.14); }
 
-.eva-menu-utilisateur { position: relative; }
+/* Indicateur de connexion / synchronisation */
+.eva-statut-connexion {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 12px 0 10px;
+  border-radius: var(--rayon-plein);
+  background: rgba(6, 70, 50, 0.42);
+  color: var(--couleur-blanc);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
+}
+a.eva-statut-connexion:hover { background: rgba(6, 70, 50, 0.6); color: var(--couleur-blanc); }
+.eva-statut-connexion__point { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--couleur-citron); box-shadow: 0 0 0 3px rgba(200, 217, 47, 0.28); }
+.eva-statut-connexion--hors-ligne { background: rgba(92, 27, 23, 0.55); }
+.eva-statut-connexion--hors-ligne .eva-statut-connexion__point { background: #F5A25D; box-shadow: 0 0 0 3px rgba(245, 162, 93, 0.3); }
+.eva-statut-connexion--synchro .eva-statut-connexion__point { display: none; }
+.eva-statut-connexion__rotation { flex: none; animation: eva-rotation 1.1s linear infinite; }
+.eva-statut-connexion__attente {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--rayon-plein);
+  background: var(--couleur-citron);
+  color: var(--couleur-vert-profond);
+  font-family: var(--police-donnees);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Declencheurs de menu de l'en-tete (notifications, utilisateur) */
+.eva-menu-utilisateur { position: relative; display: flex; }
 .eva-menu-utilisateur__declencheur {
-  display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.08); border: none; color: var(--couleur-blanc);
-  padding: 6px 10px 6px 6px; border-radius: var(--rayon-plein); cursor: pointer; font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--hauteur-controle);
+  min-width: var(--hauteur-controle);
+  padding: 0 10px 0 5px;
+  border: 0;
+  border-radius: var(--rayon-plein);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--couleur-blanc);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition-rapide);
 }
-.eva-menu-utilisateur__declencheur:hover { background: rgba(255,255,255,0.16); }
+.eva-menu-utilisateur__declencheur:hover, .eva-menu-utilisateur__declencheur[aria-expanded="true"] { background: rgba(255, 255, 255, 0.2); }
+.eva-menu-utilisateur__declencheur--icone { position: relative; justify-content: center; padding: 0; width: var(--hauteur-controle); }
+.eva-menu-utilisateur__nom { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eva-menu-utilisateur__pastille {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--couleur-emeraude);
+  border-radius: var(--rayon-plein);
+  background: var(--couleur-erreur);
+  color: var(--couleur-blanc);
+  font-family: var(--police-donnees);
+  font-size: 10px;
+  font-weight: 700;
+  box-sizing: content-box;
+  transform: translate(35%, -10%);
+  line-height: 1;
+}
 .eva-avatar {
-  width: 26px; height: 26px; border-radius: 50%; background: var(--couleur-citron); color: var(--couleur-vert-profond);
-  display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 700; flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--couleur-citron);
+  color: var(--couleur-vert-profond);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
-.eva-menu-deroulant {
-  position: absolute; top: calc(100% + 8px); right: 0; background: var(--couleur-blanc); color: var(--couleur-encre);
-  border-radius: var(--rayon-standard); box-shadow: var(--ombre-flottante); min-width: 220px; padding: var(--espace-2);
-  border: 1px solid var(--couleur-bordure); z-index: 50;
-}
-.eva-menu-deroulant__entete { padding: var(--espace-2) var(--espace-3); border-bottom: 1px solid var(--couleur-bordure); margin-bottom: var(--espace-2); }
-.eva-menu-deroulant__item {
-  display: flex; align-items: center; gap: var(--espace-2); width: 100%; text-align: left; padding: 9px 10px; border-radius: var(--rayon-petit);
-  background: none; border: none; font-size: 13.5px; cursor: pointer; color: var(--couleur-encre); text-decoration: none;
-}
-.eva-menu-deroulant__item:hover { background: var(--couleur-emeraude-fond); }
-.eva-menu-deroulant__item--danger { color: var(--couleur-erreur); }
-.eva-menu-deroulant__item--danger:hover { background: var(--couleur-erreur-fond); }
 
-.eva-corps { flex: 1; display: flex; min-height: 0; }
+/* Panneau de notifications : plus large que les menus d'actions */
+.eva-menu-deroulant--notifications { width: 320px; }
+.eva-menu-deroulant--notifications .eva-menu-deroulant__item { align-items: flex-start; }
+.eva-menu-deroulant--notifications .eva-menu-deroulant__item > svg { margin-top: 12px; }
+
+/* ---- Corps : navigation + page ---- */
+.eva-corps { flex: 1; display: flex; min-height: 0; align-items: flex-start; }
 
 .eva-barre-laterale {
+  position: sticky;
+  top: var(--hauteur-barre);
+  flex: none;
+  display: flex;
+  flex-direction: column;
   width: var(--largeur-barre-laterale);
-  flex-shrink: 0;
+  height: calc(100vh - var(--hauteur-barre));
   background: var(--couleur-blanc);
   border-right: 1px solid var(--couleur-bordure);
-  padding: var(--espace-4) var(--espace-3);
+}
+.eva-barre-laterale__defilement {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  padding: var(--espace-4) var(--espace-3) var(--espace-6);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
-.eva-lien-nav {
-  display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: var(--rayon-petit);
-  color: var(--couleur-gris-service-1); text-decoration: none; font-size: 13.5px; font-weight: 500;
-  transition: background var(--transition-rapide), color var(--transition-rapide);
+.eva-barre-laterale__pied {
+  flex: none;
+  padding: var(--espace-3) var(--espace-5);
+  border-top: 1px solid var(--couleur-bordure);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--couleur-texte-discret);
 }
-.eva-lien-nav:hover { background: var(--couleur-emeraude-fond); color: var(--couleur-encre); }
-.eva-lien-nav--actif { background: var(--couleur-emeraude); color: var(--couleur-blanc); }
-.eva-lien-nav--actif svg { color: var(--couleur-blanc); }
-.eva-lien-nav__puce { margin-left: auto; }
+.eva-barre-laterale__pied a { color: var(--couleur-emeraude-profond); font-weight: 500; }
+.eva-barre-laterale__etat { display: flex; align-items: center; gap: 8px; font-weight: 500; color: var(--couleur-gris-service-1); }
+.eva-barre-laterale__etat .eva-point-statut { margin: 0; }
 
-.eva-groupe-nav { display: flex; flex-direction: column; gap: 2px; }
-.eva-lien-nav--groupe { width: 100%; border: none; background: none; cursor: pointer; font: inherit; text-align: left; }
-.eva-lien-nav__chevron { margin-left: auto; flex-shrink: 0; }
-.eva-lien-nav--groupe .eva-puce { margin-left: 0; }
-
-.eva-groupe-nav { display: flex; flex-direction: column; gap: 2px; }
-
+.eva-lien-nav,
 .eva-lien-nav--g {
-  display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: var(--rayon-petit);
-  border:none;
-  color: var(--couleur-gris-service-1); text-decoration: none; font-size: 13.5px; font-weight: 500;
-  background: var(--couleur-blanc);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--hauteur-controle);
+  padding: 0 var(--espace-3);
+  border: 0;
+  border-radius: var(--rayon-champ);
+  background: transparent;
+  color: var(--couleur-gris-service-1);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
   transition: background var(--transition-rapide), color var(--transition-rapide);
 }
-.eva-lien-nav--g:hover { background: var(--couleur-emeraude-fond); color: var(--couleur-encre); }
-.eva-lien-nav--actif { background: var(--couleur-emeraude); color: var(--couleur-blanc); }
-.eva-lien-nav--actif svg { color: var(--couleur-blanc); }
+.eva-lien-nav > svg:first-child, .eva-lien-nav--g > svg:first-child { flex: none; color: var(--couleur-gris-service-2-marque); transition: color var(--transition-rapide); }
+.eva-lien-nav:hover, .eva-lien-nav--g:hover { background: var(--couleur-emeraude-fond-doux); color: var(--couleur-encre); }
+.eva-lien-nav:hover > svg:first-child, .eva-lien-nav--g:hover > svg:first-child { color: var(--couleur-emeraude); }
+.eva-lien-nav--actif, .eva-lien-nav--actif:hover {
+  background: var(--couleur-emeraude-fond);
+  color: var(--couleur-vert-profond);
+  font-weight: 600;
+}
+.eva-lien-nav--actif > svg:first-child, .eva-lien-nav--actif:hover > svg:first-child { color: var(--couleur-emeraude); }
+.eva-lien-nav--actif::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--espace-3) * -1);
+  top: 9px;
+  bottom: 9px;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: var(--couleur-emeraude);
+}
+/* Groupe dont un sous-lien est actif : rappel discret */
+.eva-lien-nav--parent { color: var(--couleur-encre); font-weight: 600; }
+.eva-lien-nav--parent > svg:first-child { color: var(--couleur-emeraude); }
+.eva-lien-nav__puce { margin-left: auto; }
+.eva-lien-nav__texte { flex: 1; min-width: 0; line-height: 1.3; padding: 7px 0; overflow-wrap: anywhere; }
+.eva-lien-nav__chevron { margin-left: auto; flex: none; color: var(--couleur-gris-service-2-marque); transition: transform var(--transition-normale); }
+.eva-lien-nav--groupe .eva-puce { margin-left: auto; }
+.eva-lien-nav--groupe .eva-puce + .eva-lien-nav__chevron { margin-left: 0; }
+.eva-lien-nav--groupe[aria-expanded="true"] .eva-lien-nav__chevron { transform: rotate(180deg); }
 
-
-.eva-sous-menu { display: flex; flex-direction: column; gap: 1px; margin: 2px 0 4px 15px; padding-left: 14px; border-left: 1px solid var(--couleur-bordure); }
-/* Le sous-lien reprend .eva-lien-nav (meme hover, meme etat actif emeraude
-   plein/texte blanc - voir .eva-lien-nav--actif ci-dessus) : seule sa taille
-   change, pour rester coherent avec les liens de premier niveau plutot que
-   d'inventer une variante de couleur distincte. */
-.eva-sous-lien-nav { padding: 8px 12px; font-size: 13px; }
+.eva-groupe-nav { display: flex; flex-direction: column; gap: 2px; }
+/* Sous-menu replie : animation de hauteur sans JS, contenu non focalisable quand ferme */
+.eva-sous-menu-enveloppe {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition: grid-template-rows var(--transition-normale), visibility 0s linear 200ms;
+}
+.eva-sous-menu-enveloppe--ouvert { grid-template-rows: 1fr; visibility: visible; transition-delay: 0s; }
+.eva-sous-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-height: 0;
+  margin: 0 0 0 var(--espace-5);
+  padding: 2px 0 4px var(--espace-3);
+  overflow: hidden;
+  border-left: 1px solid var(--couleur-bordure);
+}
+.eva-sous-lien-nav { min-height: 36px; padding: 0 var(--espace-3); font-size: 13px; }
 
 .eva-principal {
   flex: 1;
   min-width: 0;
-  max-width: var(--largeur-contenu);
   width: 100%;
+  max-width: var(--largeur-contenu);
   margin: 0 auto;
-  padding: var(--espace-6) var(--espace-5) var(--espace-9);
+  padding: var(--espace-7) var(--espace-7) 72px;
+}
+.eva-principal:focus { outline: none; }
+
+/* En-tete de page (EnteteDePage) */
+.eva-entete-page {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--espace-4) var(--espace-6);
+  flex-wrap: wrap;
+  margin-bottom: var(--espace-6);
+}
+.eva-entete-page__texte { min-width: 0; flex: 1 1 320px; }
+.eva-entete-page__titre { display: flex; align-items: center; flex-wrap: wrap; gap: 4px var(--espace-3); }
+.eva-entete-page .eva-sous-titre { max-width: 70ch; margin-top: var(--espace-1); }
+.eva-entete-page__actions { display: flex; align-items: center; gap: var(--espace-2); flex-wrap: wrap; }
+.eva-entete-page > div:first-child:not(.eva-entete-page__texte) { min-width: 0; flex: 1 1 320px; }
+
+/* Voile derriere le tiroir mobile */
+.eva-fond-superposition-mobile {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-voile);
+  background: rgba(20, 35, 28, 0.52);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  animation: eva-apparition 160ms ease;
 }
 
-.eva-entete-page { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--espace-4); margin-bottom: var(--espace-6); flex-wrap: wrap; }
-.eva-entete-page__actions { display: flex; gap: var(--espace-2); flex-wrap: wrap; }
+/* =========================================================================
+   19. ECRANS PLEIN CADRE (connexion, portail parent...)
+   Les pages neuves utilisent PageAuth (composants.css) ; ces classes
+   historiques recoivent le meme habillage.
+   ========================================================================= */
+.eva-ecran-centre {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--espace-6) var(--espace-4);
+  overflow: hidden;
+  background:
+    radial-gradient(900px 560px at 8% -10%, rgba(11, 122, 87, 0.13), transparent 62%),
+    radial-gradient(760px 520px at 100% 108%, rgba(200, 217, 47, 0.22), transparent 60%),
+    var(--couleur-papier);
+}
+.eva-ecran-centre::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(11, 122, 87, 0.17) 1.2px, transparent 1.3px);
+  background-size: 26px 26px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 62% at 50% 46%, transparent 38%, #000 100%);
+  mask-image: radial-gradient(ellipse 70% 62% at 50% 46%, transparent 38%, #000 100%);
+}
+.eva-ecran-centre__carte { width: 100%; max-width: 432px; }
+.eva-ecran-centre > .eva-carte {
+  padding: var(--espace-7);
+  border-radius: 20px;
+  box-shadow: 0 1px 2px rgba(20, 35, 28, 0.04), 0 24px 60px -20px rgba(11, 74, 59, 0.28);
+  animation: eva-apparition-modale 320ms ease both;
+}
 
-.eva-fond-superposition-mobile { position: fixed; inset: 0; background: rgba(20,35,28,0.4); z-index: 30; }
+/* =========================================================================
+   20. RESPONSIVE, MOUVEMENT REDUIT, IMPRESSION
+   ========================================================================= */
+@media (max-width: 1100px) {
+  .eva-grille--4, .eva-grille--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .eva-grille--2-1 { grid-template-columns: minmax(0, 1fr); }
+}
 
-@media (max-width: 880px) {
-  .eva-bouton-hamburger { display: inline-flex; align-items: center; justify-content: center; }
+@media (max-width: 900px) {
+  .eva-bouton-hamburger { display: inline-flex; }
   .eva-barre-laterale {
-    position: fixed; top: 60px; bottom: 0; left: 0; z-index: 35; transform: translateX(-100%);
-    transition: transform var(--transition-normale); box-shadow: var(--ombre-flottante); overflow-y: auto;
+    position: fixed;
+    top: var(--hauteur-barre);
+    bottom: 0;
+    left: 0;
+    z-index: var(--z-navigation);
+    height: auto;
+    width: min(86vw, 304px);
+    transform: translateX(-102%);
+    visibility: hidden;
+    transition: transform 220ms ease, visibility 0s linear 220ms;
+    box-shadow: var(--ombre-flottante);
   }
-  .eva-barre-laterale--ouverte { transform: translateX(0); }
-  .eva-principal { padding: var(--espace-4) var(--espace-3) var(--espace-8); }
+  .eva-barre-laterale--ouverte { transform: translateX(0); visibility: visible; transition-delay: 0s; }
+  .eva-principal { padding: var(--espace-5) var(--espace-4) 56px; }
   .eva-entete { padding: 0 var(--espace-3); }
-  .eva-entete__droite .eva-statut-connexion { display: none; }
+  body.eva-nav-ouverte { overflow: hidden; }
+}
+
+@media (max-width: 720px) {
+  .eva-grille--2, .eva-grille--3, .eva-grille--4 { grid-template-columns: minmax(0, 1fr); }
+  .eva-titre-page { font-size: 22px; }
+  .eva-carte, .carte { padding: var(--espace-4); }
+  .eva-carte--sans-marge { padding: 0; }
+  .eva-carte__entete { flex-wrap: wrap; }
+  .eva-carte__entete > div:first-child { flex-basis: 100%; }
+  .eva-carte__pied { margin: var(--espace-4) calc(var(--espace-4) * -1) calc(var(--espace-4) * -1); padding: var(--espace-3) var(--espace-4); }
+  .eva-definitions { grid-template-columns: 1fr; }
+  .eva-definitions dt { border-bottom: 0; padding-bottom: 0; }
+  .eva-entete-page__actions { width: 100%; }
+  .eva-menu-utilisateur__nom { display: none; }
+  .eva-menu-utilisateur__declencheur { padding-right: 5px; }
+  .eva-modale-fond { align-items: flex-end; padding: var(--espace-2); }
+  .eva-modale { max-height: 92vh; border-radius: var(--rayon-grand); }
+  .eva-modale__entete { padding: var(--espace-4) var(--espace-4) 0; }
+  .eva-modale__corps { padding: var(--espace-3) var(--espace-4) var(--espace-4); }
+  .eva-modale__actions { padding: var(--espace-3) var(--espace-4); }
+  .eva-modale__corps > .eva-modale__actions,
+  .eva-modale__corps form > .eva-modale__actions { margin: var(--espace-4) calc(var(--espace-4) * -1) calc(var(--espace-4) * -1); }
+  .eva-modale__actions > .eva-bouton { flex: 1 1 auto; }
+  .eva-toasts { right: var(--espace-4); left: var(--espace-4); bottom: var(--espace-4); width: auto; }
+  .eva-ecran-centre { align-items: flex-start; padding-top: var(--espace-8); }
+  .eva-ecran-centre > .eva-carte { padding: var(--espace-6) var(--espace-5); border-radius: var(--rayon-grand); }
+  .eva-pagination { justify-content: center; }
 }
 
 @media (max-width: 560px) {
+  .eva-statut-connexion__libelle {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+  .eva-statut-connexion { padding: 0 10px; }
   table.tableau-standard, table.eva-tableau { min-width: 460px; }
+  .eva-pagination__pages { display: none; }
+  .eva-pagination__position { display: inline; }
 }
 
-/* Ecrans plein cadre (connexion, portail parent...) */
-.eva-ecran-centre { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: var(--espace-4); background: var(--couleur-papier); }
-.eva-ecran-centre__carte { width: 100%; max-width: 400px; }
+/* Ecrans tactiles : les boutons compacts gardent une cible de 40px */
+@media (pointer: coarse) {
+  .eva-bouton--petit { min-height: 40px; }
+  .eva-bouton--icone.eva-bouton--petit { width: 40px; }
+  .eva-pilule { min-height: 40px; }
+  .eva-pagination__page { min-height: 40px; min-width: 40px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* Les indicateurs de chargement restent animes (lentement) pour signaler l'activite */
+  .eva-spinner { animation-duration: 1.4s !important; animation-iteration-count: infinite !important; }
+}
+
+@media print {
+  .eva-entete, .eva-barre-laterale, .eva-fond-superposition-mobile, .eva-lien-evitement, .eva-toasts,
+  .eva-pagination, .eva-entete-page__actions { display: none !important; }
+  body { background: #fff; }
+  .eva-principal { max-width: none; padding: 0; }
+  .carte, .eva-carte, .eva-tableau-conteneur { box-shadow: none; }
+}

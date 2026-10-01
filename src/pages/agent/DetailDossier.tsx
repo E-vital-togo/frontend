@@ -1,11 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { BellRing, CheckCircle2, Eye, FileSignature, GitCompareArrows, UserCheck } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { WifiOff } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
-import BadgeStatut from "../../components/BadgeStatut";
-import FormulaireDossier from "../../components/FormulaireDossier";
-import DemandeCorrectionActe from "../../components/DemandeCorrectionActe";
-import { Badge, Bouton, Carte, ChargementPage, EnteteDePage, Frise, Modale, Onglets } from "../../components/ui";
+import ActionsDossier from "../../components/dossier/ActionsDossier";
+import { BandeauHorsLigne, BandeauVerrou } from "../../components/dossier/BandeauxDossier";
+import EnteteDossier from "../../components/dossier/EnteteDossier";
+import PanneauDemandes from "../../components/dossier/PanneauDemandes";
+import PanneauFormulaire from "../../components/dossier/PanneauFormulaire";
+import PanneauHistorique from "../../components/dossier/PanneauHistorique";
+import PanneauNotifications from "../../components/dossier/PanneauNotifications";
+import PropositionDhis2 from "../../components/dossier/PropositionDhis2";
+import SqueletteDossier from "../../components/dossier/SqueletteDossier";
+import { champEstVide } from "../../components/dossier/utilitaires";
+import { useProtectionDepart } from "../../components/dossier/useProtectionDepart";
+import { Badge, BarreEnregistrement, Bouton, EtatVide, LienBouton, Modale, Onglets } from "../../components/ui";
 import { useConfirmation } from "../../components/ui/ConfirmationProvider";
 import { useToast } from "../../components/ui/ToastProvider";
 import { useAuth } from "../../context/AuthContext";
@@ -37,34 +45,14 @@ import {
   type SignataireMairie,
   type ValeurChamp
 } from "../../types/domaine";
+import "../../styles/dossier.css";
 
-const LIBELLES_STATUT_DEMANDE: Record<DemandeModificationActe["statut"], { texte: string; variante: "attente" | "succes" | "danger" }> = {
-  en_attente: { texte: "En attente de validation", variante: "attente" },
-  validee: { texte: "Validee : acte reemis", variante: "succes" },
-  rejetee: { texte: "Rejetee", variante: "danger" }
-};
-
-const LIBELLES_TYPE_NOTIFICATION: Record<string, string> = {
-  initiale: "Notification initiale",
-  relance: "Relance",
-  confirmation: "Confirmation"
-};
-
-const LIBELLES_STATUT_NOTIFICATION: Record<string, string> = {
-  envoye: "Envoyee",
-  echec: "Echec",
-  en_attente: "En attente"
-};
-
-function champEstVide(valeur: unknown): boolean {
-  return valeur === null || valeur === undefined || valeur === "" || (Array.isArray(valeur) && valeur.length === 0);
+function messageErreur(e: unknown, defaut = "Erreur inattendue."): string {
+  return e instanceof ErreurApi ? e.message : defaut;
 }
 
-function formaterValeur(valeur: unknown): string {
-  console.log("valeur à formater ", valeur);
-  if (valeur === null || valeur === undefined || valeur === "") return "(vide)";
-  if (typeof valeur === "object") return JSON.stringify(valeur);
-  return String(valeur);
+function pluriel(nombre: number, singulier: string, plurielTexte = `${singulier}s`): string {
+  return `${nombre} ${nombre > 1 ? plurielTexte : singulier}`;
 }
 
 export default function DetailDossier() {
@@ -80,16 +68,20 @@ export default function DetailDossier() {
   const enLigne = useConnectivite();
   const [dossier, setDossier] = useState<Dossier | null>(null);
   const [champs, setChamps] = useState<ChampFormulaireEffectif[]>([]);
-  // Etapes du formulaire ; null = liste plate (configuration lineaire, ancien serveur, ancien cache).
+  // Étapes du formulaire ; null = liste plate (configuration linéaire, ancien serveur, ancien cache).
   const [miseEnPage, setMiseEnPage] = useState<MiseEnPageFormulaire | null>(null);
   const [valeursModifiees, setValeursModifiees] = useState<Record<string, unknown>>({});
   const [enregistrement, setEnregistrement] = useState(false);
+  const [erreurEnregistrement, setErreurEnregistrement] = useState<string | null>(null);
   const [chargement, setChargement] = useState(true);
   const [horsLigne, setHorsLigne] = useState(!enLigne);
   const [onglet, setOnglet] = useState("formulaire");
   const [historique, setHistorique] = useState<ValeurChamp[] | null>(null);
+  const [erreurHistorique, setErreurHistorique] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<NotificationDossier[] | null>(null);
+  const [erreurNotifications, setErreurNotifications] = useState<string | null>(null);
   const [demandes, setDemandes] = useState<DemandeModificationActe[] | null>(null);
+  const [erreurDemandes, setErreurDemandes] = useState<string | null>(null);
   const [decisionEnCours, setDecisionEnCours] = useState(false);
   const [relanceEnCours, setRelanceEnCours] = useState(false);
   const [acte, setActe] = useState<Acte | null>(null);
@@ -97,11 +89,14 @@ export default function DetailDossier() {
   const [chargementSignataire, setChargementSignataire] = useState(false);
   const [apercuActeEnCours, setApercuActeEnCours] = useState(false);
 
+  const nbModifications = Object.keys(valeursModifiees).length;
+  useProtectionDepart(nbModifications > 0, nbModifications);
+
   // `chargement` ne sert qu'au tout premier affichage (distinguer "on
-  // attend encore" de "il n'y a rien en cache") : il n'est jamais remis a
-  // true ici, sinon chaque rechargement apres une action - validation,
+  // attend encore" de "il n'y a rien en cache") : il n'est jamais remis à
+  // true ici, sinon chaque rechargement après une action - validation,
   // acceptation d'une version DHIS2 - ferait clignoter toute la page en
-  // spinner alors qu'elle peut rester affichee.
+  // squelette alors qu'elle peut rester affichée.
   async function charger() {
     if (!idDossier) return;
 
@@ -121,7 +116,7 @@ export default function DetailDossier() {
         await mettreEnCacheMiseEnPage(idDossier, f.mise_en_page);
         return;
       } catch {
-        // bascule sur le cache si l'appel echoue malgre une connexion presente
+        // bascule sur le cache si l'appel échoue malgré une connexion présente
       }
     }
 
@@ -140,49 +135,63 @@ export default function DetailDossier() {
   }
 
   useEffect(() => {
-    // `enLigne` fait partie des dependances : au retour du reseau, l'ecran
-    // doit repasser sur les donnees du serveur au lieu de rester sur la
-    // copie en cache affichee pendant la coupure.
+    // `enLigne` fait partie des dépendances : au retour du réseau, l'écran
+    // doit repasser sur les données du serveur au lieu de rester sur la
+    // copie en cache affichée pendant la coupure.
     charger();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idDossier, enLigne]);
 
   useEffect(() => {
-    if (onglet === "historique" && idDossier && historique === null) {
+    // Au retour du réseau, les panneaux restés en erreur se rechargent.
+    if (enLigne) {
+      setErreurHistorique(null);
+      setErreurNotifications(null);
+      setErreurDemandes(null);
+    }
+  }, [enLigne]);
+
+  useEffect(() => {
+    if (onglet === "historique" && idDossier && historique === null && erreurHistorique === null) {
       appelApi<ValeurChamp[]>(`/dossiers/${idDossier}/historique/`)
         .then(setHistorique)
-        .catch(() => setHistorique([]));
+        .catch((e) => setErreurHistorique(messageErreur(e, "Impossible de charger l'historique.")));
     }
-  }, [onglet, idDossier, historique]);
+  }, [onglet, idDossier, historique, erreurHistorique]);
 
   useEffect(() => {
-    if (onglet === "notifications" && idDossier && notifications === null) {
+    if (onglet === "notifications" && idDossier && notifications === null && erreurNotifications === null) {
       appelApi<ListeOuPaginee<NotificationDossier>>(`/dossiers/${idDossier}/notifications/`)
         .then((donnees) => setNotifications(listeDepuis(donnees)))
-        .catch(() => setNotifications([]));
+        .catch((e) => setErreurNotifications(messageErreur(e, "Impossible de charger les notifications.")));
     }
-  }, [onglet, idDossier, notifications]);
+  }, [onglet, idDossier, notifications, erreurNotifications]);
 
   useEffect(() => {
-    // Suivi des demandes de modification d'acte : charge a l'ouverture de
+    // Suivi des demandes de modification d'acte : chargé à l'ouverture de
     // l'onglet, et au premier affichage du dossier pour afficher le compteur.
-    if (idDossier && demandes === null && (onglet === "demandes" || dossier)) {
+    if (idDossier && demandes === null && erreurDemandes === null && (onglet === "demandes" || dossier)) {
       appelApi<DemandeModificationActe[]>(`/dossiers/${idDossier}/acte/demandes-modification`)
         .then(setDemandes)
-        .catch(() => setDemandes([]));
+        .catch((e) => setErreurDemandes(messageErreur(e, "Impossible de charger les demandes.")));
     }
-  }, [onglet, idDossier, demandes, dossier]);
+  }, [onglet, idDossier, demandes, erreurDemandes, dossier]);
 
   useEffect(() => {
-    // Necessaire pour le bouton "Voir le signataire" (a cote de "Voir le
-    // PDF") : seul le PDF etait accessible jusqu'ici, sans donnee JSON sur
-    // l'acte lui-meme.
+    // Nécessaire pour le bouton "Voir le signataire" (à côté de "Voir le
+    // PDF") : seul le PDF était accessible jusqu'ici, sans donnée JSON sur
+    // l'acte lui-même.
     if (idDossier && dossier?.statut === "acte_emis" && acte === null) {
       appelApi<Acte>(`/dossiers/${idDossier}/acte/`)
         .then(setActe)
         .catch(() => setActe(null));
     }
   }, [idDossier, dossier, acte]);
+
+  function rafraichirDemandes() {
+    setErreurDemandes(null);
+    setDemandes(null);
+  }
 
   async function voirSignataire() {
     if (!acte?.signataire) return;
@@ -191,7 +200,7 @@ export default function DetailDossier() {
       const signataire = await appelApi<SignataireMairie>(`/signataires/${acte.signataire}/`);
       setSignataireVisible(signataire);
     } catch (e) {
-      toast.erreur(e instanceof ErreurApi ? e.message : "Impossible de charger le signataire.");
+      toast.erreur(messageErreur(e, "Impossible de charger le signataire."));
     } finally {
       setChargementSignataire(false);
     }
@@ -201,34 +210,33 @@ export default function DetailDossier() {
     if (!idDossier) return;
     const ok = await confirmer({
       titre: "Envoyer une relance maintenant ?",
-      description: "Un SMS/WhatsApp sera envoye immediatement au declarant, en plus des relances automatiques deja programmees (J-10/J-3)."
+      description:
+        "Un SMS ou un message WhatsApp sera envoyé immédiatement au déclarant, en plus des relances automatiques déjà programmées (J-10 et J-3).",
+      libelleConfirmer: "Envoyer la relance"
     });
     if (!ok) return;
     setRelanceEnCours(true);
     try {
       await appelApi(`/dossiers/${idDossier}/notifications/relance-manuelle`, { methode: "POST" });
-      toast.succes("Relance envoyee.");
+      toast.succes("Relance envoyée.");
       setNotifications(null);
+      setErreurNotifications(null);
     } catch (e) {
-      toast.erreur(e instanceof ErreurApi ? e.message : "Erreur inattendue.");
+      toast.erreur(messageErreur(e));
     } finally {
       setRelanceEnCours(false);
     }
   }
 
-  const libelleParCode = useMemo(() => {
-    const table: Record<string, string> = {};
-    for (const c of champs) table[c.data_element_code] = c.label;
-    return table;
-  }, [champs]);
-
   function modifierValeur(codeChamp: string, valeur: unknown) {
+    setErreurEnregistrement(null);
     setValeursModifiees((precedent) => ({ ...precedent, [codeChamp]: valeur }));
   }
 
   async function enregistrer() {
     if (!idDossier || !dossier) return;
     setEnregistrement(true);
+    setErreurEnregistrement(null);
     const entrees = Object.entries(valeursModifiees);
 
     try {
@@ -239,14 +247,14 @@ export default function DetailDossier() {
             corps: { data_element_code: dataElementCode, valeur }
           });
         }
-        toast.succes("Modifications enregistrees.");
+        toast.succes("Modifications enregistrées.");
       } else {
         for (const [dataElementCode, valeur] of entrees) {
-          // valeur_precedente : ignoree par le backend (qui ne lit que
+          // valeur_precedente : ignorée par le backend (qui ne lit que
           // data_element_code/valeur dans le payload), mais indispensable
           // pour pouvoir restaurer l'affichage local si l'agent annule cette
-          // action depuis l'ecran Synchronisation avant ou apres son envoi -
-          // sans ca, rien ne permet de savoir a quoi revenir.
+          // action depuis l'écran Synchronisation avant ou après son envoi -
+          // sans ça, rien ne permet de savoir à quoi revenir.
           const valeurPrecedente = champs.find((c) => c.data_element_code === dataElementCode)?.valeur_actuelle ?? null;
           await mettreEnFileAction({
             type: "ajout_valeur",
@@ -256,10 +264,10 @@ export default function DetailDossier() {
           });
         }
 
-        // Applique localement ce qui vient d'etre mis en file. Sans ca, le
-        // charger() ci-dessous relisait le cache - inchange, puisque l'action
+        // Applique localement ce qui vient d'être mis en file. Sans ça, le
+        // charger() ci-dessous relisait le cache - inchangé, puisque l'action
         // n'est justement pas encore partie au serveur - et le champ revenait
-        // a son ancienne valeur juste apres le message de confirmation.
+        // à son ancienne valeur juste après le message de confirmation.
         const champsAJour = champs.map((champ) =>
           champ.data_element_code in valeursModifiees
             ? { ...champ, valeur_actuelle: valeursModifiees[champ.data_element_code] }
@@ -269,17 +277,32 @@ export default function DetailDossier() {
         setValeursModifiees({});
         setHistorique(null);
         await mettreEnCacheInstantane(cleCacheFormulaire(idDossier), champsAJour);
-        toast.info("Hors-ligne : modifications mises en file, elles seront envoyees au retour du reseau.");
+        toast.info("Hors ligne : modifications mises en file d'attente, elles seront envoyées au retour du réseau.");
         return;
       }
       setValeursModifiees({});
       setHistorique(null);
       await charger();
     } catch (e) {
-      toast.erreur(e instanceof ErreurApi ? e.message : "Erreur inattendue.");
+      const message = messageErreur(e);
+      setErreurEnregistrement(`Échec de l'enregistrement : ${message}`);
+      toast.erreur(message);
     } finally {
       setEnregistrement(false);
     }
+  }
+
+  async function annulerModifications() {
+    const ok = await confirmer({
+      titre: "Annuler les modifications ?",
+      description: `${pluriel(nbModifications, "modification non enregistrée", "modifications non enregistrées")} ${nbModifications > 1 ? "seront abandonnées" : "sera abandonnée"}. Les valeurs reviendront à celles du dossier.`,
+      libelleConfirmer: "Abandonner les modifications",
+      libelleAnnuler: "Continuer la saisie",
+      dangereux: true
+    });
+    if (!ok) return;
+    setErreurEnregistrement(null);
+    setValeursModifiees({});
   }
 
   async function valider() {
@@ -290,18 +313,22 @@ export default function DetailDossier() {
       );
       return;
     }
+    const avertissement =
+      nbModifications > 0
+        ? ` Attention : ${pluriel(nbModifications, "modification non enregistrée", "modifications non enregistrées")} ne ${nbModifications > 1 ? "seront" : "sera"} pas prise${nbModifications > 1 ? "s" : ""} en compte.`
+        : "";
     const ok = await confirmer({
       titre: "Marquer ce dossier comme complet ?",
-      description: "L'agent pourra ensuite proceder a l'emission de l'acte. Cette etape confirme que toutes les informations necessaires ont ete verifiees.",
+      description: `L'agent pourra ensuite procéder à l'émission de l'acte. Cette étape confirme que toutes les informations nécessaires ont été vérifiées.${avertissement}`,
       libelleConfirmer: "Marquer comme complet"
     });
     if (!ok) return;
     try {
       await appelApi(`/dossiers/${idDossier}/valider/`, { methode: "POST" });
-      toast.succes("Dossier marque comme complet.");
+      toast.succes("Dossier marqué comme complet.");
       await charger();
     } catch (e) {
-      toast.erreur(e instanceof ErreurApi ? e.message : "Erreur inattendue.");
+      toast.erreur(messageErreur(e));
     }
   }
 
@@ -312,7 +339,7 @@ export default function DetailDossier() {
       const blob = await appelApi<Blob>(`/dossiers/${idDossier}/acte/apercu-pdf`);
       telechargerBlob(blob, "apercu-acte.pdf");
     } catch (e) {
-      toast.erreur(e instanceof ErreurApi ? e.message : "Erreur inattendue.");
+      toast.erreur(messageErreur(e));
     } finally {
       setApercuActeEnCours(false);
     }
@@ -323,11 +350,11 @@ export default function DetailDossier() {
     setDecisionEnCours(true);
     try {
       await appelApi(`/dossiers/${idDossier}/nouvelle-version/accepter/`, { methode: "POST" });
-      toast.succes("Nouvelle version acceptee : les valeurs ont ete mises a jour.");
+      toast.succes("Nouvelle version acceptée : les valeurs ont été mises à jour.");
       setHistorique(null);
       await charger();
     } catch (e) {
-      toast.erreur(e instanceof ErreurApi ? e.message : "Erreur inattendue.");
+      toast.erreur(messageErreur(e));
     } finally {
       setDecisionEnCours(false);
     }
@@ -336,19 +363,19 @@ export default function DetailDossier() {
   async function refuserNouvelleVersion() {
     if (!idDossier) return;
     const ok = await confirmer({
-      titre: "Refuser cette mise a jour DHIS2 ?",
-      description: "Le dossier restera inchange. Cette proposition sera classee sans suite.",
-      libelleConfirmer: "Refuser",
+      titre: "Refuser cette mise à jour DHIS2 ?",
+      description: "Le dossier restera inchangé. Cette proposition sera classée sans suite.",
+      libelleConfirmer: "Refuser la mise à jour",
       dangereux: true
     });
     if (!ok) return;
     setDecisionEnCours(true);
     try {
       await appelApi(`/dossiers/${idDossier}/nouvelle-version/refuser/`, { methode: "POST" });
-      toast.info("Mise a jour refusee.");
+      toast.info("Mise à jour refusée.");
       await charger();
     } catch (e) {
-      toast.erreur(e instanceof ErreurApi ? e.message : "Erreur inattendue.");
+      toast.erreur(messageErreur(e));
     } finally {
       setDecisionEnCours(false);
     }
@@ -357,24 +384,37 @@ export default function DetailDossier() {
   if (chargement) {
     return (
       <MiseEnPage liens={liens}>
-        <ChargementPage texte="Chargement du dossier..." />
+        <SqueletteDossier />
       </MiseEnPage>
     );
   }
 
   if (!dossier) {
-    // Hors-ligne sur un dossier jamais consulte en ligne : il n'y a rien en
-    // cache local a afficher. On le dit, plutot que de laisser tourner un
-    // "Chargement du dossier..." qui n'aboutira jamais.
+    // Hors ligne sur un dossier jamais consulté en ligne : il n'y a rien en
+    // cache local à afficher. On le dit, plutôt que de laisser tourner un
+    // chargement qui n'aboutira jamais.
     return (
       <MiseEnPage liens={liens}>
-        <Carte>
-          <p style={{ fontSize: 14, marginBottom: 6 }}>Ce dossier n'est pas disponible hors-ligne.</p>
-          <p style={{ color: "var(--couleur-gris-service-2)", fontSize: 13.5 }}>
-            Seuls les dossiers deja ouverts au moins une fois avec du reseau sont conserves sur cet appareil.
-            Reconnectez-vous pour le consulter.
-          </p>
-        </Carte>
+        <div className="eva-dd">
+          <EtatVide
+            variante={enLigne ? "erreur" : "attention"}
+            icone={<WifiOff size={26} />}
+            titre={enLigne ? "Ce dossier n'a pas pu être chargé" : "Ce dossier n'est pas disponible hors ligne"}
+            description={
+              enLigne
+                ? "Le serveur n'a pas répondu, et aucune copie de ce dossier n'est conservée sur cet appareil. Réessayez dans un instant."
+                : "Seuls les dossiers déjà ouverts au moins une fois avec du réseau sont conservés sur cet appareil. Reconnectez-vous pour le consulter."
+            }
+            action={
+              <div className="eva-groupe-boutons">
+                <LienBouton to={`${basePath}/dossiers`} variante="secondaire">
+                  Retour aux dossiers
+                </LienBouton>
+                {enLigne && <Bouton onClick={() => void charger()}>Réessayer</Bouton>}
+              </div>
+            }
+          />
+        </div>
       </MiseEnPage>
     );
   }
@@ -382,316 +422,175 @@ export default function DetailDossier() {
   const peutValider =
     dossier.statut === "recu" || dossier.statut === "notifie" || dossier.statut === "en_attente_complement";
   const champsObligatoiresManquants = champs.filter((c) => c.obligatoire && champEstVide(c.valeur_actuelle));
-  const nbModifications = Object.keys(valeursModifiees).length;
   const enEtapes = planFormulaire(champs, miseEnPage).mode === "etapes";
-  // Bouton existant de la page : place sous la grille en mode lineaire, dans le
-  // recapitulatif (dernier pas) en mode etapes.
-  const boutonEnregistrer = (
-    <Bouton onClick={enregistrer} chargement={enregistrement} disabled={Object.keys(valeursModifiees).length === 0}>
-      Enregistrer les modifications
-    </Bouton>
-  );
   const peutEmettreActe = estAgent && dossier.statut === "complete";
   const peutRelancer = dossier.statut !== "acte_emis" && dossier.statut !== "sans_suite";
   const propositionEnAttente = dossier.nouvelle_version?.statut === "en_attente" ? dossier.nouvelle_version : null;
-  //console.log("propositionEnAttente", propositionEnAttente);
+  const demandesEnAttente = demandes ? demandes.filter((d) => d.statut === "en_attente").length : 0;
+
+  // Bouton d'enregistrement du dernier pas (récapitulatif) en mode étapes ; en
+  // mode linéaire et sur les autres onglets, la barre collante fait le travail.
+  const boutonEnregistrer = (
+    <Bouton onClick={enregistrer} chargement={enregistrement} disabled={nbModifications === 0}>
+      {enLigne ? "Enregistrer les modifications" : "Enregistrer hors ligne"}
+    </Bouton>
+  );
+
+  const compteur = (nombre: number | undefined) => (nombre && nombre > 0 ? nombre : undefined);
 
   return (
     <MiseEnPage liens={liens}>
-      <EnteteDePage
-        titre={`Dossier ${dossier.event_type === "naissance" ? "naissance" : "deces"}`}
-        sousTitre={
-          <span className="texte-mono">
-            Origine {dossier.origine === "dhis2" ? "DHIS2" : "manuelle"} · Declare le {dossier.date_declaration} ·
-            Limite {dossier.date_limite}
-          </span>
-        }
-        actions={<BadgeStatut statut={dossier.statut} />}
-      />
-
-      {horsLigne && (
-        <div className="eva-carte" style={{ background: "var(--couleur-citron-fond)", borderColor: "var(--couleur-citron-profond)", marginBottom: 16, fontSize: 13.5 }}>
-          Vous consultez une version mise en cache localement. Les modifications seront envoyees au retour du reseau.
-        </div>
-      )}
-
-      {propositionEnAttente && (
-        <Carte style={{ marginBottom: 20, borderColor: "var(--couleur-citron-profond)", background: "var(--couleur-citron-fond)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <GitCompareArrows size={18} color="var(--couleur-vert-profond)" />
-            <strong style={{ fontSize: 14 }}>Une mise a jour a ete recue depuis DHIS2</strong>
-          </div>
-          <p style={{ fontSize: 13.5, marginBottom: 12 }}>
-            L'hopital a transmis des valeurs differentes de celles deja connues pour ce dossier. Rien n'a ete
-            applique : comparez et decidez ci-dessous.
-          </p>
-          <div className="eva-tableau-conteneur" style={{ marginBottom: 14 }}>
-            <table className="eva-tableau">
-              <thead>
-                <tr>
-                  <th>Champ</th>
-                  <th>Valeur actuelle</th>
-                  <th>Valeur proposee</th>
-                </tr>
-              </thead>
-              <tbody>
-                {propositionEnAttente.champs_modifies.map((diff, index) => (
-                  <tr key={index}>
-
-                    <td>{diff.label || diff.data_element_code || "-"}</td>
-                    <td>{formaterValeur(diff.valeur_actuelle)}</td>
-                    <td style={{ fontWeight: 600 }}>{formaterValeur(diff.valeur_proposee)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            <Bouton variante="accent" onClick={accepterNouvelleVersion} chargement={decisionEnCours}>
-              Accepter la mise a jour
-            </Bouton>
-            <Bouton variante="secondaire" onClick={refuserNouvelleVersion} disabled={decisionEnCours}>
-              Refuser
-            </Bouton>
-          </div>
-        </Carte>
-      )}
-
-      <Onglets
-        onglets={[
-          { id: "formulaire", libelle: "Formulaire" },
-          { id: "historique", libelle: "Historique" },
-          { id: "notifications", libelle: "Notifications" },
-          {
-            id: "demandes",
-            libelle:
-              "Demandes de modification" +
-              (demandes && demandes.some((d) => d.statut === "en_attente")
-                ? ` (${demandes.filter((d) => d.statut === "en_attente").length} en attente)`
-                : "")
+      <div className="eva-dd">
+        <EnteteDossier
+          dossier={dossier}
+          basePath={basePath}
+          acte={acte}
+          horsLigne={horsLigne}
+          actions={
+            <ActionsDossier
+              peutValider={peutValider}
+              explicationValidationBloquee={
+                champsObligatoiresManquants.length > 0
+                  ? `Champs obligatoires manquants : ${champsObligatoiresManquants.map((c) => c.label).join(", ")}.`
+                  : undefined
+              }
+              onValider={valider}
+              peutApercevoir={dossier.statut === "complete"}
+              apercuEnCours={apercuActeEnCours}
+              onApercu={telechargerApercuActe}
+              peutEmettre={peutEmettreActe}
+              onEmettre={() => navigate(`${basePath}/dossiers/${idDossier}/emission-acte`)}
+              lienActe={dossier.statut === "acte_emis" ? `${basePath}/dossiers/${idDossier}/acte-pdf` : undefined}
+              peutVoirSignataire={dossier.statut === "acte_emis" && !!acte?.signataire}
+              signataireEnCours={chargementSignataire}
+              onSignataire={voirSignataire}
+              peutRelancer={peutRelancer}
+              relanceEnCours={relanceEnCours}
+              onRelancer={relancerMaintenant}
+              masquerMobile={nbModifications > 0}
+            />
           }
-        ]}
-        actif={onglet}
-        onChanger={setOnglet}
-      />
+        />
 
-      {onglet === "formulaire" && (
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
-          {peutRelancer && (
-            <Bouton
-              variante="fantome"
-              taille="petit"
-              onClick={relancerMaintenant}
-              chargement={relanceEnCours}
-              iconeGauche={!relanceEnCours && <BellRing size={14} />}
-            >
-              Relancer maintenant
-            </Bouton>
+        {horsLigne && <BandeauHorsLigne lienSynchronisation={estAgent ? "/agent/synchronisation" : undefined} />}
+
+        {dossier.verrouille && idDossier && (
+          <BandeauVerrou
+            idDossier={idDossier}
+            peutDemander={estAgent}
+            champs={champs}
+            demandesEnAttente={demandesEnAttente}
+            onDemandeEnvoyee={rafraichirDemandes}
+            onVoirDemandes={() => setOnglet("demandes")}
+          />
+        )}
+
+        {propositionEnAttente && (
+          <PropositionDhis2
+            proposition={propositionEnAttente}
+            champs={champs}
+            decisionEnCours={decisionEnCours}
+            horsLigne={horsLigne}
+            onAccepter={accepterNouvelleVersion}
+            onRefuser={refuserNouvelleVersion}
+          />
+        )}
+
+        <Onglets
+          ariaLabel="Sections du dossier"
+          actif={onglet}
+          onChanger={setOnglet}
+          onglets={[
+            { id: "formulaire", libelle: "Formulaire" },
+            { id: "historique", libelle: "Historique", compteur: compteur(historique?.length) },
+            { id: "notifications", libelle: "Notifications", compteur: compteur(notifications?.length) },
+            { id: "demandes", libelle: "Demandes", compteur: compteur(demandes?.length) }
+          ]}
+        />
+
+        <div role="tabpanel" id={`onglet-panneau-${onglet}`} aria-labelledby={`onglet-${onglet}`}>
+          {onglet === "formulaire" && idDossier && (
+            <PanneauFormulaire
+              idDossier={idDossier}
+              champs={champs}
+              miseEnPage={miseEnPage}
+              valeurs={valeursModifiees}
+              onChange={modifierValeur}
+              verrouille={dossier.verrouille}
+              actionFinale={enEtapes ? boutonEnregistrer : undefined}
+              manquantsAvantValidation={peutValider ? champsObligatoiresManquants : []}
+              modificationsEnAttente={nbModifications > 0}
+            />
+          )}
+          {onglet === "historique" && (
+            <PanneauHistorique
+              historique={historique}
+              erreur={erreurHistorique}
+              champs={champs}
+              horsLigne={horsLigne}
+              onReessayer={() => setErreurHistorique(null)}
+            />
+          )}
+          {onglet === "notifications" && (
+            <PanneauNotifications
+              notifications={notifications}
+              erreur={erreurNotifications}
+              horsLigne={horsLigne}
+              onReessayer={() => setErreurNotifications(null)}
+              peutRelancer={peutRelancer}
+              relanceEnCours={relanceEnCours}
+              onRelancer={relancerMaintenant}
+            />
+          )}
+          {onglet === "demandes" && (
+            <PanneauDemandes
+              demandes={demandes}
+              erreur={erreurDemandes}
+              champs={champs}
+              horsLigne={horsLigne}
+              onReessayer={() => setErreurDemandes(null)}
+            />
           )}
         </div>
-      )}
 
-      {onglet === "formulaire" ? (
-        <>
-          <Carte style={{ marginBottom: 20 }}>
-            {champs.length > 0 && (
-              <FormulaireDossier
-                key={idDossier}
-                champs={champs}
-                miseEnPage={miseEnPage}
-                valeurs={valeursModifiees}
-                onChange={modifierValeur}
-                verrouille={dossier.verrouille}
-                cleMemorisation={idDossier}
-                sautLibre
-                actionFinale={boutonEnregistrer}
-              />
-            )}
-
-            {champs.length === 0 && (
-              <p style={{ color: "var(--couleur-gris-service-2)" }}>
-                Aucun champ a afficher pour ce contexte (dossier peut-etre en cache hors-ligne, sans formulaire
-                disponible).
-              </p>
-            )}
-
-            {champs.length > 0 && !enEtapes && <div style={{ marginTop: 20 }}>{boutonEnregistrer}</div>}
-            {champs.length > 0 && enEtapes && nbModifications > 0 && (
-              <p className="eva-sous-titre" style={{ marginTop: 12 }}>
-                {nbModifications} modification{nbModifications > 1 ? "s" : ""} non enregistrée{nbModifications > 1 ? "s" : ""} :
-                enregistrez depuis le récapitulatif (dernière étape).
-              </p>
-            )}
-          </Carte>
-
-          {peutValider && champsObligatoiresManquants.length > 0 && (
-            <p style={{ color: "var(--couleur-erreur)", fontSize: 13.5, marginBottom: 8 }}>
-              Champs obligatoires manquants avant de marquer ce dossier complet :{" "}
-              {champsObligatoiresManquants.map((c) => c.label).join(", ")}.
-            </p>
-          )}
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            {peutValider && (
-              <Bouton
-                variante="secondaire"
-                onClick={valider}
-                disabled={champsObligatoiresManquants.length > 0}
-                title={
-                  champsObligatoiresManquants.length > 0
-                    ? `Champs obligatoires manquants : ${champsObligatoiresManquants.map((c) => c.label).join(", ")}.`
-                    : undefined
-                }
-                iconeGauche={<CheckCircle2 size={16} />}
-              >
-                Marquer comme complete
-              </Bouton>
-            )}
-            {dossier.statut === "complete" && (
-              <Bouton
-                variante="secondaire"
-                onClick={telechargerApercuActe}
-                chargement={apercuActeEnCours}
-                iconeGauche={<Eye size={16} />}
-              >
-                Aperçu de l'acte
-              </Bouton>
-            )}
-            {peutEmettreActe && (
-              <Bouton variante="accent" onClick={() => navigate(`${basePath}/dossiers/${idDossier}/emission-acte`)} iconeGauche={<FileSignature size={16} />}>
-                Emettre l'acte
-              </Bouton>
-            )}
-            {dossier.statut === "acte_emis" && (
-              <Link to={`${basePath}/dossiers/${idDossier}/acte-pdf`} className="eva-bouton eva-bouton--secondaire eva-bouton--moyen">
-                Voir le PDF de l'acte
-              </Link>
-            )}
-            {dossier.statut === "acte_emis" && acte?.signataire && (
-              <Bouton
-                variante="fantome"
-                onClick={voirSignataire}
-                chargement={chargementSignataire}
-                iconeGauche={<UserCheck size={16} />}
-              >
-                Voir le signataire
-              </Bouton>
-            )}
-            {estAgent && dossier.verrouille && idDossier && (
-              <DemandeCorrectionActe idDossier={idDossier} champsPreCharges={champs} onEnvoyee={() => setDemandes(null)} />
-            )}
-          </div>
-        </>
-      ) : onglet === "historique" ? (
-        <Carte>
-          {historique === null ? (
-            <ChargementPage texte="Chargement de l'historique..." />
-          ) : historique.length === 0 ? (
-            <p style={{ color: "var(--couleur-gris-service-2)" }}>Aucune valeur enregistree pour ce dossier.</p>
-          ) : (
-            <Frise
-              elements={historique.map((v) => ({
-                id: v.id,
-                date: new Date(v.created_at).toLocaleString("fr-FR"),
-                contenu: (
-                  <>
-                    <strong>{libelleParCode[v.data_element_code] || v.data_element_code}</strong> ={" "}
-                    {formaterValeur(v.valeur)}{" "}
-                    <span style={{ color: "var(--couleur-gris-service-2)" }}>, {v.source === "dhis2" ? "DHIS2" : v.source === "parent" ? "le parent/declarant" : v.source === "agent_sante" ? "l'agent de sante" : "l'agent d'etat civil"}
-                    </span>
-                  </>
-                )
-              }))}
-            />
-          )}
-        </Carte>
-      ) : onglet === "demandes" ? (
-        <Carte>
-          {demandes === null ? (
-            <ChargementPage texte="Chargement des demandes..." />
-          ) : demandes.length === 0 ? (
-            <p style={{ color: "var(--couleur-gris-service-2)" }}>
-              Aucune demande de modification d'acte pour ce dossier. Une demande se fait depuis l'ecran de l'acte, une fois celui-ci emis.
-            </p>
-          ) : (
-            <Frise
-              elements={demandes.map((d) => {
-                const etat = LIBELLES_STATUT_DEMANDE[d.statut];
-                return {
-                  id: d.id,
-                  date: new Date(d.created_at).toLocaleString("fr-FR"),
-                  contenu: (
-                    <div style={{ display: "grid", gap: 6 }}>
-                      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-                        <Badge variante={etat.variante}>{etat.texte}</Badge>
-                        <span style={{ fontSize: 12, color: "var(--couleur-gris-service-2)" }}>
-                          validation {d.niveau_requis === "national" ? "nationale" : "regionale"} requise
-                          {d.demandeur_nom ? ` , demandee par ${d.demandeur_nom}` : ""}
-                        </span>
-                      </div>
-                      <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
-                        {Object.entries(d.champs_modifies).map(([code, valeurs]) => (
-                          <li key={code}>
-                            <strong>{libelleParCode[code] || code}</strong> : {formaterValeur(valeurs.ancienne_valeur)}{" "}
-                            <span style={{ color: "var(--couleur-gris-service-2)" }}>devient</span> {formaterValeur(valeurs.nouvelle_valeur)}
-                          </li>
-                        ))}
-                      </ul>
-                      {d.decided_at && (
-                        <div style={{ fontSize: 12.5, color: "var(--couleur-gris-service-1)" }}>
-                          Decision le {new Date(d.decided_at).toLocaleString("fr-FR")}
-                          {d.validateur_nom ? ` par ${d.validateur_nom}` : ""}
-                          {d.commentaire_validateur ? ` : ${d.commentaire_validateur}` : ""}
-                        </div>
-                      )}
-                    </div>
-                  )
-                };
-              })}
-            />
-          )}
-        </Carte>
-      ) : (
-        <Carte>
-          {notifications === null ? (
-            <ChargementPage texte="Chargement des notifications..." />
-          ) : notifications.length === 0 ? (
-            <p style={{ color: "var(--couleur-gris-service-2)" }}>Aucune notification envoyee pour ce dossier.</p>
-          ) : (
-            <div className="eva-tableau-conteneur">
-              <table className="eva-tableau">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Type</th>
-                    <th>Canal</th>
-                    <th>Fournisseur</th>
-                    <th>Statut</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {notifications.map((n) => (
-                    <tr key={n.id}>
-                      <td className="texte-mono">{new Date(n.created_at).toLocaleString("fr-FR")}</td>
-                      <td>{LIBELLES_TYPE_NOTIFICATION[n.type] || n.type}</td>
-                      <td>{n.canal === "sms" ? "SMS" : "WhatsApp"}</td>
-                      <td>{n.fournisseur_utilise || "-"}</td>
-                      <td>{LIBELLES_STATUT_NOTIFICATION[n.statut] || n.statut}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Carte>
-      )}
+        <BarreEnregistrement
+          modifie={nbModifications > 0}
+          masquerSiInchange
+          enregistrement={enregistrement}
+          erreur={erreurEnregistrement}
+          onEnregistrer={enregistrer}
+          onAnnuler={annulerModifications}
+          libelleAnnuler="Annuler les modifications"
+          libelleEnregistrer={enLigne ? "Enregistrer" : "Enregistrer hors ligne"}
+          messageModifie={`${pluriel(nbModifications, "modification non enregistrée", "modifications non enregistrées")}${
+            enLigne ? "" : " (hors ligne : elles seront mises en file d'attente)"
+          }`}
+          avertirAvantDepart
+        />
+      </div>
 
       {signataireVisible && (
-        <Modale titre="Signataire de l'acte" onFermer={() => setSignataireVisible(null)}>
-          <p style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>
-            {signataireVisible.nom} {signataireVisible.prenom}
-          </p>
-          <p style={{ color: "var(--couleur-gris-service-2)", marginBottom: 10 }}>{signataireVisible.fonction}</p>
-          {!signataireVisible.actif && <Badge variante="attente">Signataire desactive</Badge>}
+        <Modale titre="Signataire de l'acte" taille="petit" onFermer={() => setSignataireVisible(null)}>
+          <dl className="eva-definitions">
+            <dt>Nom</dt>
+            <dd>
+              {signataireVisible.nom} {signataireVisible.prenom}
+            </dd>
+            <dt>Fonction</dt>
+            <dd>{signataireVisible.fonction}</dd>
+            <dt>Statut</dt>
+            <dd>
+              {signataireVisible.actif ? (
+                <Badge variante="succes" point>
+                  Actif
+                </Badge>
+              ) : (
+                <Badge variante="attente" point>
+                  Signataire désactivé
+                </Badge>
+              )}
+            </dd>
+          </dl>
         </Modale>
       )}
     </MiseEnPage>

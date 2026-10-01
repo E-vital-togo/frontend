@@ -146,28 +146,15 @@ const GraphiqueECharts = forwardRef<PoigneeGraphique, ProprietesGraphiqueECharts
   }
 
   return (
-    <div style={{ position: "relative", width: "100%", height: hauteur }}>
-      <div ref={refConteneur} style={{ width: "100%", height: "100%" }} />
+    <div className="eva-graphique" style={{ height: hauteur }}>
+      <div ref={refConteneur} className="eva-graphique__zone" />
       {legendeMasquable && aUneLegende && (
         <button
           type="button"
+          className="eva-graphique__legende"
           onClick={basculerLegende}
+          aria-pressed={legendeVisible}
           title={legendeVisible ? "Masquer la légende" : "Afficher la légende"}
-          style={{
-            position: "absolute",
-            right: 4,
-            bottom: 2,
-            zIndex: 2,
-            fontSize: 10.5,
-            lineHeight: 1,
-            padding: "3px 7px",
-            border: "1px solid var(--bordure, #C9D2C6)",
-            borderRadius: 10,
-            background: "rgba(255,255,255,0.9)",
-            color: "var(--gris-1, #40534B)",
-            cursor: "pointer",
-            opacity: 0.75
-          }}
         >
           {legendeVisible ? "Légende ▾" : "Légende ▸"}
         </button>

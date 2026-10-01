@@ -1,9 +1,43 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import GridLayout, { WidthProvider, type Layout } from "react-grid-layout";
-import { FileSpreadsheet, FileText, LayoutDashboard, Plus, Trash2 } from "lucide-react";
+import {
+  AlertCircle,
+  ChevronDown,
+  Download,
+  FileSpreadsheet,
+  FileText,
+  GripVertical,
+  Info,
+  LayoutDashboard,
+  Lock,
+  MoreHorizontal,
+  Plus,
+  RefreshCw,
+  Trash2
+} from "lucide-react";
 import MiseEnPage from "../../../components/MiseEnPage";
-import { Bouton, Carte, Champ, ChargementPage, EnteteDePage, EtatVide, GraphiqueECharts, LienBouton, Modale, type PoigneeGraphique } from "../../../components/ui";
+import {
+  Alerte,
+  Badge,
+  Bouton,
+  Carte,
+  Champ,
+  EnteteDePage,
+  EtatVide,
+  GraphiqueECharts,
+  ItemMenu,
+  LienBouton,
+  MenuDeroulant,
+  Modale,
+  SeparateurMenu,
+  Selecteur,
+  Spinner,
+  Squelette,
+  useMediaQuery,
+  type PoigneeGraphique
+} from "../../../components/ui";
 import GraphiqueCarte from "../../../components/GraphiqueCarte";
+import { typeGraphique as descriptionType } from "../../../components/statistiques/typesGraphique";
 import { telechargerBlob } from "../../../lib/telechargerBlob";
 import { useConfirmation } from "../../../components/ui/ConfirmationProvider";
 import { useToast } from "../../../components/ui/ToastProvider";
@@ -16,20 +50,26 @@ import { listeDepuis } from "../../../types/domaine";
 
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
+import "../../../styles/statistiques.css";
 
 const GrilleReactive = WidthProvider(GridLayout);
 
 export default function TableauDeBordStats() {
   const toast = useToast();
   const confirmer = useConfirmation();
+  const mobile = useMediaQuery("(max-width: 720px)");
 
   const [tableauxDeBord, setTableauxDeBord] = useState<TableauDeBord[]>([]);
   const [idSelectionne, setIdSelectionne] = useState<string | null>(null);
   const [donneesWidgets, setDonneesWidgets] = useState<Record<string, PivotResultat>>({});
+  const [widgetsEnErreur, setWidgetsEnErreur] = useState<Record<string, boolean>>({});
+  const [tentativeDonnees, setTentativeDonnees] = useState(0);
   const [mesuresDisponibles, setMesuresDisponibles] = useState<MesureStat[]>([]);
   const [chargement, setChargement] = useState(true);
+  const [erreurChargement, setErreurChargement] = useState<string | null>(null);
   const [modaleCreation, setModaleCreation] = useState(false);
   const [nomNouveauTableau, setNomNouveauTableau] = useState("");
+  const [erreurNom, setErreurNom] = useState<string | undefined>(undefined);
   const [creationEnCours, setCreationEnCours] = useState(false);
 
   const { utilisateur } = useAuth();
@@ -82,6 +122,7 @@ export default function TableauDeBordStats() {
 
   async function chargerTableauxDeBord() {
     setChargement(true);
+    setErreurChargement(null);
     try {
       const [tableaux, mesures] = await Promise.all([
         appelApi<ListeOuPaginee<TableauDeBord>>("/statistiques/tableaux-de-bord/"),
@@ -92,7 +133,7 @@ export default function TableauDeBordStats() {
       setMesuresDisponibles(mesures);
       setIdSelectionne((actuel) => actuel && liste.some((t) => t.id === actuel) ? actuel : liste[0]?.id ?? null);
     } catch (e) {
-      toast.erreur(e instanceof ErreurApi ? e.message : "Erreur de chargement des tableaux de bord.");
+      setErreurChargement(e instanceof ErreurApi ? e.message : "Erreur de chargement des tableaux de bord.");
     } finally {
       setChargement(false);
     }
@@ -111,16 +152,20 @@ export default function TableauDeBordStats() {
     let annule = false;
     Promise.all(
       tableauActif.widgets.map((w) =>
-        appelApi<PivotResultat>(`/statistiques/widgets/${w.id}/donnees/`).then((donnees) => [w.id, donnees] as const)
+        appelApi<PivotResultat>(`/statistiques/widgets/${w.id}/donnees/`)
+          .then((donnees) => [w.id, donnees, false] as const)
+          .catch(() => [w.id, null, true] as const)
       )
-    ).then((paires) => {
+    ).then((resultats) => {
       if (annule) return;
-      setDonneesWidgets(Object.fromEntries(paires));
+      setDonneesWidgets(Object.fromEntries(resultats.filter(([, donnees]) => donnees).map(([id, donnees]) => [id, donnees as PivotResultat])));
+      setWidgetsEnErreur(Object.fromEntries(resultats.filter(([, , enErreur]) => enErreur).map(([id]) => [id, true])));
     });
     return () => {
       annule = true;
     };
-  }, [tableauActif]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableauActif, tentativeDonnees]);
 
   const libellesMesures = useMemo(() => Object.fromEntries(mesuresDisponibles.map((m) => [m.code, m.label])), [mesuresDisponibles]);
   const unitesMesures = useMemo(() => Object.fromEntries(mesuresDisponibles.map((m) => [m.code, m.unite])), [mesuresDisponibles]);
@@ -134,6 +179,13 @@ export default function TableauDeBordStats() {
     minW: 3,
     minH: 3
   }));
+
+  // Petit ecran : une seule colonne, dans l'ordre de lecture de la grille. La
+  // disposition enregistree n'est ni lue ni modifiee dans ce mode.
+  const widgetsEnPile = useMemo(
+    () => [...(tableauActif?.widgets ?? [])].sort((a, b) => a.position_y - b.position_y || a.position_x - b.position_x),
+    [tableauActif]
+  );
 
   async function surChangementDisposition(nouvelleDisposition: Layout[]) {
     if (!tableauActif || !estProprietaire) return;
@@ -168,13 +220,14 @@ export default function TableauDeBordStats() {
   async function supprimerWidget(widget: WidgetGraphique) {
     const confirme = await confirmer({
       titre: "Retirer ce graphique ?",
-      description: `"${widget.nom}" sera definitivement retire du tableau de bord.`,
+      description: `« ${widget.nom} » sera définitivement retiré du tableau de bord.`,
+      libelleConfirmer: "Retirer",
       dangereux: true
     });
     if (!confirme) return;
     try {
       await appelApi(`/statistiques/widgets/${widget.id}/`, { methode: "DELETE" });
-      toast.succes("Graphique retire.");
+      toast.succes("Graphique retiré.");
       chargerTableauxDeBord();
     } catch (e) {
       toast.erreur(e instanceof ErreurApi ? e.message : "Erreur lors de la suppression.");
@@ -185,13 +238,14 @@ export default function TableauDeBordStats() {
     if (!tableauActif) return;
     const confirme = await confirmer({
       titre: "Supprimer ce tableau de bord ?",
-      description: `"${tableauActif.nom}" et tous ses graphiques seront definitivement supprimes.`,
+      description: `« ${tableauActif.nom} » et tous ses graphiques seront définitivement supprimés.`,
+      libelleConfirmer: "Supprimer",
       dangereux: true
     });
     if (!confirme) return;
     try {
       await appelApi(`/statistiques/tableaux-de-bord/${tableauActif.id}/`, { methode: "DELETE" });
-      toast.succes("Tableau de bord supprime.");
+      toast.succes("Tableau de bord supprimé.");
       setIdSelectionne(null);
       chargerTableauxDeBord();
     } catch (e) {
@@ -199,195 +253,307 @@ export default function TableauDeBordStats() {
     }
   }
 
-  async function creerTableauDeBord() {
+  function ouvrirCreation() {
+    setErreurNom(undefined);
+    setModaleCreation(true);
+  }
+
+  async function creerTableauDeBord(evenement?: FormEvent) {
+    evenement?.preventDefault();
     if (!nomNouveauTableau.trim()) {
-      toast.erreur("Le nom est requis.");
+      setErreurNom("Le nom est requis.");
       return;
     }
+    setErreurNom(undefined);
     setCreationEnCours(true);
     try {
       const nouveau = await appelApi<TableauDeBord>("/statistiques/tableaux-de-bord/", {
         methode: "POST",
         corps: { nom: nomNouveauTableau, partage: "prive" }
       });
-      toast.succes("Tableau de bord cree.");
+      toast.succes("Tableau de bord créé.");
       setModaleCreation(false);
       setNomNouveauTableau("");
       await chargerTableauxDeBord();
       setIdSelectionne(nouveau.id);
     } catch (e) {
-      toast.erreur(e instanceof ErreurApi ? e.message : "Erreur lors de la creation.");
+      toast.erreur(e instanceof ErreurApi ? e.message : "Erreur lors de la création.");
     } finally {
       setCreationEnCours(false);
     }
   }
 
+  function sousTitreWidget(widget: WidgetGraphique): string {
+    const type = descriptionType(widget.type_graphique).label;
+    const [premiere, ...autres] = widget.mesures;
+    if (!premiere) return type;
+    const mesure = libellesMesures[premiere] ?? premiere;
+    return `${type} · ${mesure}${autres.length > 0 ? ` +${autres.length}` : ""}`;
+  }
+
+  function contenuWidget(widget: WidgetGraphique) {
+    const donnees = donneesWidgets[widget.id];
+    if (donnees && widget.type_graphique === "carte") {
+      return (
+        <GraphiqueCarte
+          ref={(poignee) => {
+            poignees.current[widget.id] = poignee;
+          }}
+          resultat={donnees}
+          parametres={widget.parametres_carte}
+          libellesMesures={libellesMesures}
+          unites={unitesMesures}
+          hauteur="100%"
+        />
+      );
+    }
+    if (donnees) {
+      return (
+        <GraphiqueECharts
+          ref={(poignee) => {
+            poignees.current[widget.id] = poignee;
+          }}
+          option={construireOptionECharts(donnees, widget.type_graphique, libellesMesures)}
+          hauteur="100%"
+        />
+      );
+    }
+    if (widgetsEnErreur[widget.id]) {
+      return (
+        <EtatVide
+          compact
+          variante="erreur"
+          icone={<AlertCircle size={22} />}
+          titre="Données indisponibles"
+          description="Ce graphique n'a pas pu être calculé."
+          action={
+            <Bouton variante="secondaire" taille="petit" iconeGauche={<RefreshCw size={14} />} onClick={() => setTentativeDonnees((n) => n + 1)}>
+              Réessayer
+            </Bouton>
+          }
+        />
+      );
+    }
+    return <Squelette variante="bloc" hauteur="100%" libelle={`Chargement du graphique ${widget.nom}`} />;
+  }
+
+  function carteWidget(widget: WidgetGraphique) {
+    const deplacable = estProprietaire && !mobile;
+    const exportDuWidget = exportEnCours?.startsWith(`${widget.id}-`) ?? false;
+    return (
+      <Carte className="eva-st-widget">
+        <div className="eva-st-widget__entete">
+          <div className={`eva-st-widget__identite eva-widget-poignee${deplacable ? " est-deplacable" : ""}`}>
+            {deplacable && <GripVertical size={16} className="eva-st-widget__poignee" aria-hidden="true" />}
+            <div className="eva-st-widget__textes">
+              <h2 className="eva-st-widget__titre" title={widget.nom}>
+                {widget.nom}
+              </h2>
+              <p className="eva-st-widget__sous-titre">{sousTitreWidget(widget)}</p>
+            </div>
+          </div>
+          <div className="eva-st-widget__actions">
+            {exportDuWidget && <Spinner libelle="Export en cours" />}
+            <MenuDeroulant ariaLabel={`Actions pour le graphique ${widget.nom}`} declencheur={<MoreHorizontal size={16} />}>
+              <ItemMenu icone={FileSpreadsheet} desactive={exportEnCours !== null} onClick={() => exporterWidget(widget, "xlsx")}>
+                Exporter en Excel
+              </ItemMenu>
+              <ItemMenu icone={FileText} desactive={exportEnCours !== null} onClick={() => exporterWidget(widget, "pdf")}>
+                Exporter en PDF
+              </ItemMenu>
+              {estProprietaire && (
+                <>
+                  <SeparateurMenu />
+                  <ItemMenu icone={Trash2} danger onClick={() => supprimerWidget(widget)}>
+                    Retirer du tableau de bord
+                  </ItemMenu>
+                </>
+              )}
+            </MenuDeroulant>
+          </div>
+        </div>
+        <div className="eva-st-widget__corps">{contenuWidget(widget)}</div>
+      </Carte>
+    );
+  }
+
+  const premierChargement = chargement && tableauxDeBord.length === 0 && !erreurChargement;
+  const exportTableauEnCours = exportEnCours?.startsWith("tableau-") ?? false;
+  const tableauVide = !!tableauActif && tableauActif.widgets.length === 0;
+
   return (
     <MiseEnPage liens={LIENS_ADMIN_CEC}>
       <EnteteDePage
         titre="Tableaux de bord"
-        sousTitre="Vos graphiques enregistres, disposes librement en grille."
+        sousTitre="Vos graphiques enregistrés, disposés librement en grille."
         actions={
-          <LienBouton to="/admin-cec/statistiques/constructeur" iconeGauche={<Plus size={15} />}>
+          <LienBouton to="/admin-cec/statistiques/constructeur" iconeGauche={<Plus size={16} />}>
             Nouveau graphique
           </LienBouton>
         }
       />
 
-      {chargement ? (
-        <ChargementPage />
+      {premierChargement ? (
+        <div className="eva-st-chargement">
+          <Squelette variante="carte" lignes={1} libelle="Chargement des tableaux de bord" />
+          <div className="eva-st-chargement__grille" aria-hidden="true">
+            <Squelette variante="bloc" hauteur={280} />
+            <Squelette variante="bloc" hauteur={280} />
+          </div>
+        </div>
+      ) : erreurChargement ? (
+        <Carte>
+          <EtatVide
+            variante="erreur"
+            icone={<AlertCircle size={26} />}
+            titre="Chargement impossible"
+            description={erreurChargement}
+            action={
+              <Bouton variante="secondaire" iconeGauche={<RefreshCw size={16} />} onClick={chargerTableauxDeBord}>
+                Réessayer
+              </Bouton>
+            }
+          />
+        </Carte>
       ) : tableauxDeBord.length === 0 ? (
-        <EtatVide
-          icone={<LayoutDashboard size={32} />}
-          titre="Aucun tableau de bord pour le moment"
-          description="Construisez un premier graphique, puis enregistrez-le sur un tableau de bord."
-          action={
-            <LienBouton to="/admin-cec/statistiques/constructeur" iconeGauche={<Plus size={15} />}>
-              Construire un graphique
-            </LienBouton>
-          }
-        />
+        <Carte>
+          <EtatVide
+            icone={<LayoutDashboard size={32} />}
+            titre="Aucun tableau de bord pour le moment"
+            description="Construisez un premier graphique, puis enregistrez-le sur un tableau de bord."
+            action={
+              <>
+                <LienBouton to="/admin-cec/statistiques/constructeur" iconeGauche={<Plus size={16} />}>
+                  Construire un graphique
+                </LienBouton>
+                <Bouton variante="secondaire" iconeGauche={<Plus size={16} />} onClick={ouvrirCreation}>
+                  Créer un tableau vide
+                </Bouton>
+              </>
+            }
+          />
+        </Carte>
       ) : (
         <>
-          <div className="eva-carte" style={{ display: "flex", gap: 14, marginBottom: 20, alignItems: "flex-end", flexWrap: "wrap" }}>
-            <div style={{ flex: "0 1 260px" }}>
+          <Carte variante="plate" className="eva-st-barre-tableau">
+            <div className="eva-st-barre-tableau__champ">
               <Champ id="tableau-actif" label="Tableau de bord">
-                <select id="tableau-actif" value={idSelectionne ?? ""} onChange={(e) => setIdSelectionne(e.target.value)}>
+                <Selecteur id="tableau-actif" valeur={idSelectionne ?? ""} onChange={setIdSelectionne}>
                   {tableauxDeBord.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.nom}
-                      {t.partage === "partage_role" ? " (partage)" : ""}
+                      {t.partage === "partage_role" ? " (partagé)" : ""}
                     </option>
                   ))}
-                </select>
+                </Selecteur>
               </Champ>
             </div>
-            <Bouton variante="fantome" onClick={() => setModaleCreation(true)} iconeGauche={<Plus size={15} />}>
-              Nouveau tableau de bord
-            </Bouton>
-            <Bouton
-              variante="fantome"
-              onClick={() => exporterTableau("xlsx")}
-              chargement={exportEnCours === "tableau-xlsx"}
-              disabled={!tableauActif || tableauActif.widgets.length === 0}
-              iconeGauche={<FileSpreadsheet size={15} />}
-            >
-              Excel
-            </Bouton>
-            <Bouton
-              variante="fantome"
-              onClick={() => exporterTableau("pdf")}
-              chargement={exportEnCours === "tableau-pdf"}
-              disabled={!tableauActif || tableauActif.widgets.length === 0}
-              iconeGauche={<FileText size={15} />}
-            >
-              PDF
-            </Bouton>
-            {estProprietaire && (
-              <Bouton variante="danger" onClick={supprimerTableauDeBord} iconeGauche={<Trash2 size={15} />}>
-                Supprimer ce tableau de bord
+            <div className="eva-st-barre-tableau__etat">
+              {tableauActif && (
+                <>
+                  {estProprietaire ? (
+                    <Badge variante="succes" point>
+                      Vous en êtes propriétaire
+                    </Badge>
+                  ) : (
+                    <Badge variante="info" icone={<Lock size={12} aria-hidden="true" />}>
+                      Lecture seule
+                    </Badge>
+                  )}
+                  <span className="eva-compteur">
+                    {tableauActif.widgets.length} graphique{tableauActif.widgets.length > 1 ? "s" : ""}
+                  </span>
+                </>
+              )}
+            </div>
+            <div className="eva-st-barre-tableau__actions eva-groupe-boutons">
+              <Bouton variante="secondaire" onClick={ouvrirCreation} iconeGauche={<Plus size={16} />}>
+                Nouveau tableau
               </Bouton>
-            )}
-            {!estProprietaire && tableauActif && (
-              <p style={{ fontSize: 12.5, color: "var(--couleur-gris-service-2)", paddingBottom: 10 }}>
-                Tableau de bord partage par {tableauActif.proprietaire_nom} - lecture seule, disposition non modifiable.
-              </p>
-            )}
-          </div>
+              <MenuDeroulant
+                ariaLabel="Exporter le tableau de bord"
+                classeDeclencheur="eva-bouton eva-bouton--secondaire"
+                declencheur={
+                  <>
+                    {exportTableauEnCours ? <Spinner /> : <Download size={16} aria-hidden="true" />}
+                    Exporter
+                    <ChevronDown size={15} aria-hidden="true" />
+                  </>
+                }
+              >
+                <ItemMenu icone={FileSpreadsheet} desactive={tableauVide || exportEnCours !== null} onClick={() => exporterTableau("xlsx")}>
+                  Classeur Excel
+                </ItemMenu>
+                <ItemMenu icone={FileText} desactive={tableauVide || exportEnCours !== null} onClick={() => exporterTableau("pdf")}>
+                  Document PDF
+                </ItemMenu>
+              </MenuDeroulant>
+              {estProprietaire && (
+                <MenuDeroulant ariaLabel="Plus d'actions sur ce tableau de bord" declencheur={<MoreHorizontal size={18} />}>
+                  <ItemMenu icone={Trash2} danger onClick={supprimerTableauDeBord}>
+                    Supprimer ce tableau de bord
+                  </ItemMenu>
+                </MenuDeroulant>
+              )}
+            </div>
+          </Carte>
 
-          {tableauActif && tableauActif.widgets.length === 0 ? (
-            <EtatVide
-              icone={<LayoutDashboard size={32} />}
-              titre="Ce tableau de bord est vide"
-              description="Construisez un graphique et enregistrez-le ici."
-              action={
-                <LienBouton to="/admin-cec/statistiques/constructeur" iconeGauche={<Plus size={15} />}>
-                  Construire un graphique
-                </LienBouton>
-              }
-            />
+          {tableauActif && !estProprietaire && (
+            <Alerte variante="info" titre="Tableau de bord en lecture seule" icone={<Lock size={18} aria-hidden="true" />} className="eva-st-alerte-page">
+              Ce tableau est partagé par {tableauActif.proprietaire_nom}. Vous pouvez le consulter et l'exporter, mais pas modifier sa disposition ni retirer ses graphiques.
+            </Alerte>
+          )}
+
+          {tableauActif && estProprietaire && !tableauVide && (
+            <p className="eva-st-astuce eva-st-astuce--page">
+              <Info size={15} aria-hidden="true" />
+              {mobile
+                ? "Sur petit écran, les graphiques sont empilés. Utilisez un écran plus large pour modifier la disposition."
+                : "Glissez l'en-tête d'un graphique pour le déplacer, tirez son coin inférieur droit pour le redimensionner."}
+            </p>
+          )}
+
+          {tableauVide ? (
+            <Carte>
+              <EtatVide
+                icone={<LayoutDashboard size={32} />}
+                titre="Ce tableau de bord est vide"
+                description="Construisez un graphique et enregistrez-le ici."
+                action={
+                  <LienBouton to="/admin-cec/statistiques/constructeur" iconeGauche={<Plus size={16} />}>
+                    Construire un graphique
+                  </LienBouton>
+                }
+              />
+            </Carte>
           ) : (
-            tableauActif && (
+            tableauActif &&
+            (mobile ? (
+              <div className="eva-st-pile">
+                {widgetsEnPile.map((widget) => (
+                  <div key={widget.id} className={`eva-st-pile__element${widget.type_graphique === "carte" ? " eva-st-pile__element--carte" : ""}`}>
+                    {carteWidget(widget)}
+                  </div>
+                ))}
+              </div>
+            ) : (
               <GrilleReactive
-                className="layout"
+                className={`layout eva-st-grille${estProprietaire ? " est-modifiable" : ""}`}
                 layout={layout}
                 cols={12}
                 rowHeight={48}
+                margin={[16, 16]}
+                containerPadding={[0, 0]}
                 isDraggable={estProprietaire}
                 isResizable={estProprietaire}
                 onLayoutChange={surChangementDisposition}
                 draggableHandle=".eva-widget-poignee"
               >
-                {tableauActif.widgets.map((widget) => {
-                  const donnees = donneesWidgets[widget.id];
-                  return (
-                    <div key={widget.id}>
-                      <Carte style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-                        <div className="eva-widget-poignee" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, cursor: estProprietaire ? "grab" : "default" }}>
-                          <h2 style={{ fontSize: 13.5 }}>{widget.nom}</h2>
-                          <div style={{ display: "flex", gap: 4 }}>
-                            <button
-                              type="button"
-                              onClick={() => exporterWidget(widget, "xlsx")}
-                              disabled={exportEnCours !== null}
-                              className="eva-bouton eva-bouton--petit eva-bouton--fantome"
-                              aria-label="Exporter ce graphique en Excel"
-                              title="Excel"
-                            >
-                              <FileSpreadsheet size={13} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => exporterWidget(widget, "pdf")}
-                              disabled={exportEnCours !== null}
-                              className="eva-bouton eva-bouton--petit eva-bouton--fantome"
-                              aria-label="Exporter ce graphique en PDF"
-                              title="PDF"
-                            >
-                              <FileText size={13} />
-                            </button>
-                          {estProprietaire && (
-                            <button
-                              type="button"
-                              onClick={() => supprimerWidget(widget)}
-                              className="eva-bouton eva-bouton--petit eva-bouton--fantome"
-                              aria-label="Retirer ce graphique"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          )}
-                          </div>
-                        </div>
-                        <div style={{ flex: 1, minHeight: 0 }}>
-                          {donnees && widget.type_graphique === "carte" ? (
-                            <GraphiqueCarte
-                              ref={(poignee) => {
-                                poignees.current[widget.id] = poignee;
-                              }}
-                              resultat={donnees}
-                              parametres={widget.parametres_carte}
-                              libellesMesures={libellesMesures}
-                              unites={unitesMesures}
-                              hauteur="100%"
-                            />
-                          ) : donnees ? (
-                            <GraphiqueECharts
-                              ref={(poignee) => {
-                                poignees.current[widget.id] = poignee;
-                              }}
-                              option={construireOptionECharts(donnees, widget.type_graphique, libellesMesures)}
-                              hauteur="100%"
-                            />
-                          ) : (
-                            <p style={{ fontSize: 12.5, color: "var(--couleur-gris-service-2)" }}>Chargement...</p>
-                          )}
-                        </div>
-                      </Carte>
-                    </div>
-                  );
-                })}
+                {tableauActif.widgets.map((widget) => (
+                  <div key={widget.id}>{carteWidget(widget)}</div>
+                ))}
               </GrilleReactive>
-            )
+            ))
           )}
         </>
       )}
@@ -395,21 +561,28 @@ export default function TableauDeBordStats() {
       {modaleCreation && (
         <Modale
           titre="Nouveau tableau de bord"
+          description="Un tableau de bord regroupe vos graphiques. Il est privé tant que vous ne le partagez pas."
+          taille="petit"
           onFermer={() => setModaleCreation(false)}
           actions={
             <>
               <Bouton variante="fantome" onClick={() => setModaleCreation(false)}>
                 Annuler
               </Bouton>
-              <Bouton chargement={creationEnCours} onClick={creerTableauDeBord}>
-                Creer
+              <Bouton chargement={creationEnCours} onClick={() => creerTableauDeBord()}>
+                Créer
               </Bouton>
             </>
           }
         >
-          <Champ id="nom-tableau" label="Nom" requis>
-            <input id="nom-tableau" value={nomNouveauTableau} onChange={(e) => setNomNouveauTableau(e.target.value)} placeholder="Ex. Suivi mensuel" />
-          </Champ>
+          <form onSubmit={creerTableauDeBord} noValidate>
+            <Champ id="nom-tableau" label="Nom" requis erreur={erreurNom}>
+              <input id="nom-tableau" autoFocus value={nomNouveauTableau} onChange={(e) => setNomNouveauTableau(e.target.value)} placeholder="Ex. Suivi mensuel" />
+            </Champ>
+            <button type="submit" className="eva-sr-only" tabIndex={-1}>
+              Créer
+            </button>
+          </form>
         </Modale>
       )}
     </MiseEnPage>

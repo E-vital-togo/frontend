@@ -1,0 +1,211 @@
+/*
+  Écran de détail d'un dossier (pages/agent/DetailDossier.tsx et components/dossier/*,
+  components/DemandeCorrectionActe.tsx). Préfixe : eva-dd-. Uniquement des jetons de theme.css.
+*/
+
+/* ================================ PAGE =================================== */
+
+.eva-dd { display: flex; flex-direction: column; gap: var(--espace-4); min-width: 0; }
+.eva-dd > .eva-onglets { margin: 0; }
+.eva-dd > .eva-barre-enregistrement { margin-top: var(--espace-2); }
+.eva-dd-bandeau { margin: 0; }
+.eva-dd-bandeau .eva-alerte__actions { margin-top: var(--espace-3); }
+
+.eva-dd-panneau { display: flex; flex-direction: column; gap: var(--espace-4); min-width: 0; }
+.eva-dd-panneau-corps { padding: var(--espace-4) var(--espace-6); }
+.eva-dd-liste-manquants { margin: var(--espace-2) 0 0; padding-left: var(--espace-5); }
+.eva-dd-note-alerte { margin: var(--espace-2) 0 0; font-size: 12.5px; }
+.eva-dd-liste-manquants li + li { margin-top: 2px; }
+
+/* ============================== EN-TETE ================================== */
+
+.eva-dd-entete { display: flex; flex-direction: column; gap: var(--espace-4); }
+.eva-dd-entete .eva-entete-page { margin-bottom: 0; align-items: flex-start; }
+.eva-dd-entete .eva-entete-page__titre { gap: var(--espace-2) var(--espace-3); }
+.eva-dd-entete .eva-entete-page__titre .eva-badge { font-size: 12.5px; }
+.eva-dd-entete .eva-fil-ariane { margin-bottom: var(--espace-2); }
+
+/* Fiche récapitulative */
+.eva-dd-fiche {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--espace-4) var(--espace-6);
+  margin: 0;
+  padding: var(--espace-4) var(--espace-5);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-blanc);
+  box-shadow: var(--ombre-carte);
+}
+.eva-dd-fiche__item { min-width: 0; }
+.eva-dd-fiche dt { margin: 0 0 2px; font-size: 12px; font-weight: 500; color: var(--couleur-texte-discret); }
+.eva-dd-fiche dd { margin: 0; font-size: 14px; font-weight: 500; color: var(--couleur-encre); overflow-wrap: anywhere; }
+.eva-dd-fiche__echeance { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--espace-1) var(--espace-2); }
+.eva-dd-fiche__precision { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--couleur-texte-discret); }
+
+/* Actions : groupe en tête de page sur grand écran, barre fixe au pouce sur mobile */
+.eva-dd-actions { display: flex; align-items: center; gap: var(--espace-2); flex-wrap: wrap; }
+.eva-dd-actions__principale { display: flex; }
+
+.eva-dd-titre-icone { display: inline-flex; align-items: center; gap: var(--espace-2); }
+.eva-dd-titre-icone svg { flex: none; color: var(--couleur-vert-profond); }
+
+/* ======================== COMPARAISON AVANT / APRES ====================== */
+
+.eva-dd-diff {
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-blanc);
+  overflow: hidden;
+}
+.eva-dd-diff__entete,
+.eva-dd-diff__ligne {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(0, 1.4fr) 18px minmax(0, 1.4fr);
+  gap: var(--espace-2) var(--espace-4);
+  align-items: start;
+  padding: var(--espace-3) var(--espace-4);
+}
+.eva-dd-diff__entete {
+  align-items: center;
+  padding-top: var(--espace-2);
+  padding-bottom: var(--espace-2);
+  border-bottom: 1px solid var(--couleur-bordure);
+  background: var(--couleur-papier);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--couleur-texte-discret);
+}
+.eva-dd-diff__ligne + .eva-dd-diff__ligne { border-top: 1px solid var(--couleur-bordure); }
+.eva-dd-diff__champ { font-size: 13.5px; font-weight: 600; color: var(--couleur-encre); overflow-wrap: anywhere; }
+.eva-dd-diff__valeur { display: block; min-width: 0; font-size: 13.5px; overflow-wrap: anywhere; }
+.eva-dd-diff__etiquette {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+.eva-dd-diff__valeur--avant .eva-dd-diff__texte {
+  color: var(--couleur-texte-discret);
+  text-decoration: line-through;
+  text-decoration-color: var(--couleur-bordure-champ);
+}
+.eva-dd-diff__valeur--apres .eva-dd-diff__texte {
+  display: inline-block;
+  padding: 1px var(--espace-2);
+  border-radius: var(--rayon-petit);
+  background: var(--couleur-emeraude-fond);
+  color: var(--couleur-emeraude-profond);
+  font-weight: 600;
+}
+.eva-dd-diff__fleche { margin-top: 2px; color: var(--couleur-gris-service-2-marque); }
+.eva-dd-diff--compacte { margin-top: var(--espace-2); }
+.eva-dd-diff--compacte .eva-dd-diff__entete,
+.eva-dd-diff--compacte .eva-dd-diff__ligne { padding: var(--espace-2) var(--espace-3); }
+
+/* Pied de la proposition DHIS2 */
+.eva-dd-pied-note { margin: 0 auto 0 0; font-size: 13px; color: var(--couleur-texte-discret); }
+.eva-dd-pied-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--espace-2); }
+
+/* ============================= JOURNAUX ================================== */
+
+.eva-dd-historique { display: flex; flex-direction: column; gap: var(--espace-5); }
+.eva-dd-plus { display: flex; justify-content: center; }
+.eva-dd-valeur { font-weight: 500; overflow-wrap: anywhere; }
+.eva-dd-source { display: block; margin-top: 2px; font-size: 12.5px; font-weight: 400; color: var(--couleur-texte-discret); }
+.eva-dd-frise-titre { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espace-1) var(--espace-3); }
+.eva-dd-frise-titre .eva-dd-source { display: inline; margin: 0; }
+.eva-dd-demande { min-width: 0; }
+.eva-dd-decision { margin: var(--espace-3) 0 0; font-size: 13px; color: var(--couleur-gris-service-1); }
+.eva-dd-decision__commentaire { display: block; margin-top: 2px; font-style: italic; color: var(--couleur-texte-discret); }
+
+/* ============================ SQUELETTE ================================== */
+
+.eva-dd-squelette__contenu { display: flex; flex-direction: column; gap: var(--espace-4); }
+
+/* ====================== DEMANDE DE CORRECTION (MODALE) =================== */
+
+.eva-dd-modale-alerte { margin-bottom: var(--espace-3); }
+.eva-dd-correction { display: flex; flex-direction: column; gap: var(--espace-3); }
+.eva-dd-correction__recherche .eva-recherche { flex: none; width: 100%; max-width: none; }
+.eva-dd-correction__intro { margin: 0; }
+.eva-dd-correction__compteur { margin: 0; font-size: 12.5px; font-weight: 500; color: var(--couleur-texte-discret); }
+.eva-dd-correction__aucun { margin: 0; color: var(--couleur-texte-discret); }
+.eva-dd-correction__liste { display: flex; flex-direction: column; gap: var(--espace-2); margin: 0; padding: 0; list-style: none; }
+.eva-dd-choix {
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-blanc);
+  transition: border-color var(--transition-rapide), background var(--transition-rapide);
+}
+.eva-dd-choix:hover { border-color: var(--couleur-bordure-forte); }
+.eva-dd-choix--actif { border-color: var(--couleur-emeraude); background: var(--couleur-emeraude-fond-doux); }
+.eva-dd-choix__ligne { display: flex; align-items: flex-start; gap: var(--espace-3); }
+.eva-dd-choix__ligne input[type="checkbox"] {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--couleur-emeraude);
+  cursor: pointer;
+}
+.eva-dd-choix__libelle { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; cursor: pointer; }
+.eva-dd-choix__nom { font-size: 14px; font-weight: 600; color: var(--couleur-encre); }
+.eva-dd-choix__actuelle { font-size: 12.5px; color: var(--couleur-texte-discret); overflow-wrap: anywhere; }
+.eva-dd-choix__saisie { margin-top: var(--espace-3); padding-left: calc(18px + var(--espace-3)); }
+.eva-dd-correction__recap { margin-top: var(--espace-2); }
+.eva-dd-correction__recap h3 { margin: 0 0 var(--espace-2); font-size: 14px; font-weight: 600; color: var(--couleur-encre); }
+
+/* ================================ MOBILE ================================= */
+
+@media (max-width: 720px) {
+  .eva-dd { padding-bottom: var(--espace-8); }
+  .eva-dd-panneau-corps { padding: var(--espace-3) var(--espace-4); }
+  .eva-dd-fiche { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--espace-3) var(--espace-4); padding: var(--espace-4); }
+  .eva-dd-fiche__item:nth-child(1),
+  .eva-dd-fiche__item--echeance { grid-column: 1 / -1; }
+
+  /* Barre d'actions fixe, à portée du pouce */
+  .eva-dd-entete .eva-entete-page__actions { display: contents; }
+  .eva-dd-actions {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: calc(var(--z-voile) - 1);
+    flex-wrap: nowrap;
+    padding: var(--espace-3) var(--espace-4) calc(var(--espace-3) + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--couleur-bordure-forte);
+    background: var(--couleur-blanc);
+    box-shadow: var(--ombre-flottante);
+  }
+  .eva-dd-actions--masquee-mobile { display: none; }
+  .eva-dd-actions__principale { flex: 1 1 auto; min-width: 0; }
+  .eva-dd-actions__principale > .eva-bouton { width: 100%; }
+
+  /* Comparaison : chaque champ devient un bloc à deux lignes étiquetées */
+  .eva-dd-diff__entete { display: none; }
+  .eva-dd-diff__ligne { grid-template-columns: minmax(0, 1fr); gap: var(--espace-1); padding: var(--espace-3); }
+  .eva-dd-diff__fleche { display: none; }
+  .eva-dd-diff__valeur { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: var(--espace-2); align-items: baseline; }
+  .eva-dd-diff__etiquette {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    font-size: 12px;
+    color: var(--couleur-texte-discret);
+  }
+  .eva-dd-diff__valeur--apres .eva-dd-diff__texte { justify-self: start; }
+  .eva-dd-pied-actions { width: 100%; }
+  .eva-dd-pied-actions > .eva-bouton { flex: 1 1 auto; }
+  .eva-dd-choix__saisie { padding-left: 0; }
+}

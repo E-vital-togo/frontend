@@ -1,9 +1,28 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, FileSpreadsheet, FileText, RefreshCw, Save, Table2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { AlertTriangle, BarChart3, Check, FileSpreadsheet, FileText, Info, RefreshCw, Save, Table2 } from "lucide-react";
 import MiseEnPage from "../../../components/MiseEnPage";
-import { Bouton, Carte, Champ, EnteteDePage, GraphiqueECharts, Modale, Tableau, type PoigneeGraphique } from "../../../components/ui";
+import {
+  Alerte,
+  Bouton,
+  Carte,
+  Champ,
+  EnteteDePage,
+  EtatVide,
+  GraphiqueECharts,
+  Interrupteur,
+  ListeResponsive,
+  Modale,
+  Onglets,
+  Selecteur,
+  Squelette,
+  type ColonneListe,
+  type PoigneeGraphique
+} from "../../../components/ui";
 import GraphiqueCarte from "../../../components/GraphiqueCarte";
 import PanneauStyleCarte from "../../../components/PanneauStyleCarte";
+import SectionRepliable from "../../../components/statistiques/SectionRepliable";
+import SelecteurPilules from "../../../components/statistiques/SelecteurPilules";
+import { TYPES_GRAPHIQUE, typeGraphique as descriptionType } from "../../../components/statistiques/typesGraphique";
 import type { ParametresCarte } from "../../../lib/carte";
 import { useMonTerritoire } from "../../../lib/useMonTerritoire";
 import { telechargerBlob } from "../../../lib/telechargerBlob";
@@ -15,6 +34,7 @@ import type {
   DimensionStat,
   ListeOuPaginee,
   MesureStat,
+  PivotLigne,
   PivotResultat,
   TableauDeBord,
   TriPivot,
@@ -22,19 +42,7 @@ import type {
 } from "../../../types/domaine";
 import { listeDepuis } from "../../../types/domaine";
 
-const TYPES_GRAPHIQUE: { code: TypeGraphiqueStat; label: string }[] = [
-  { code: "barres", label: "Barres" },
-  { code: "barres_empilees", label: "Barres empilees" },
-  { code: "barres_horizontales", label: "Barres horizontales" },
-  { code: "courbes", label: "Courbes" },
-  { code: "aires_empilees", label: "Aires empilees" },
-  { code: "camembert", label: "Camembert" },
-  { code: "anneau", label: "Anneau" },
-  { code: "combo", label: "Combo (double axe)" },
-  { code: "nuage_points", label: "Nuage de points" },
-  { code: "carte_chaleur", label: "Carte de chaleur" },
-  { code: "carte", label: "Carte geographique (region, prefecture ou commune)" }
-];
+import "../../../styles/statistiques.css";
 
 // Le moteur backend (apps.statistiques.moteur) accepte n'importe quel
 // nombre de dimensions, mais au-dela de 2 (axe X + serie/regroupement),
@@ -44,10 +52,66 @@ const TYPES_GRAPHIQUE: { code: TypeGraphiqueStat; label: string }[] = [
 // rien ne saurait dessiner correctement.
 const MAX_DIMENSIONS = 2;
 
+const LIBELLES_TRI: Record<TriPivot, string> = {
+  valeur_desc: "Valeur décroissante",
+  valeur_asc: "Valeur croissante",
+  libelle_asc: "Libellé (A à Z)"
+};
+
+const LIBELLES_EVENEMENT: Record<string, string> = { naissance: "Naissances", deces: "Décès" };
+
+/** Role de chaque dimension choisie selon le type de graphique (affiche dans la pastille de choix). */
+function rolesDimensions(type: TypeGraphiqueStat): string[] {
+  switch (type) {
+    case "camembert":
+    case "anneau":
+      return ["Secteurs"];
+    case "nuage_points":
+      return ["Points"];
+    case "carte_chaleur":
+      return ["Axe X", "Axe Y"];
+    case "carte":
+      return ["Territoire", "Non utilisée"];
+    case "combo":
+      return ["Axe X", "Non utilisée"];
+    default:
+      return ["Axe X", "Série"];
+  }
+}
+
+function rolesMesures(type: TypeGraphiqueStat): string[] {
+  if (type === "combo") return ["Barres", "Courbe", "Courbe", "Courbe", "Courbe", "Courbe"];
+  if (type === "nuage_points") return ["Axe X", "Axe Y"];
+  return [];
+}
+
+function formaterDate(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("fr-FR");
+}
+
+function IllustrationApercu() {
+  return (
+    <svg className="eva-st-illustration" viewBox="0 0 160 110" role="img" aria-label="Schéma d'un graphique en barres en attente de données">
+      <line className="eva-st-illustration__axe" x1="14" y1="96" x2="150" y2="96" />
+      <line className="eva-st-illustration__axe" x1="14" y1="14" x2="14" y2="96" />
+      <line className="eva-st-illustration__grille" x1="14" y1="64" x2="150" y2="64" />
+      <line className="eva-st-illustration__grille" x1="14" y1="32" x2="150" y2="32" />
+      <rect className="eva-st-illustration__barre" x="28" y="58" width="20" height="38" rx="3" />
+      <rect className="eva-st-illustration__barre eva-st-illustration__barre--forte" x="58" y="30" width="20" height="66" rx="3" />
+      <rect className="eva-st-illustration__barre" x="88" y="46" width="20" height="50" rx="3" />
+      <rect className="eva-st-illustration__barre eva-st-illustration__barre--forte" x="118" y="20" width="20" height="76" rx="3" />
+      <path className="eva-st-illustration__courbe" d="M38 60 C58 44, 72 34, 88 40 S122 20, 130 12" />
+    </svg>
+  );
+}
+
 export default function ConstructeurGraphique() {
   const toast = useToast();
   const [dimensionsDisponibles, setDimensionsDisponibles] = useState<DimensionStat[]>([]);
   const [mesuresDisponibles, setMesuresDisponibles] = useState<MesureStat[]>([]);
+  const [chargementReferentiels, setChargementReferentiels] = useState(true);
+  const [erreurReferentiels, setErreurReferentiels] = useState(false);
 
   const [dimensionsChoisies, setDimensionsChoisies] = useState<string[]>([]);
   const [mesuresChoisies, setMesuresChoisies] = useState<string[]>([]);
@@ -79,14 +143,27 @@ export default function ConstructeurGraphique() {
 
   const [modaleEnregistrement, setModaleEnregistrement] = useState(false);
   const [tableauxDeBord, setTableauxDeBord] = useState<TableauDeBord[]>([]);
+  const [chargementTableaux, setChargementTableaux] = useState(false);
   const [nomWidget, setNomWidget] = useState("");
   const [cibleTableauDeBord, setCibleTableauDeBord] = useState("__nouveau__");
   const [nomNouveauTableau, setNomNouveauTableau] = useState("");
   const [enregistrementEnCours, setEnregistrementEnCours] = useState(false);
+  const [erreursFormulaire, setErreursFormulaire] = useState<{ nom?: string; tableau?: string }>({});
+
+  function chargerReferentiels() {
+    setChargementReferentiels(true);
+    setErreurReferentiels(false);
+    Promise.all([appelApi<DimensionStat[]>("/statistiques/dimensions"), appelApi<MesureStat[]>("/statistiques/mesures")])
+      .then(([dimensions, mesures]) => {
+        setDimensionsDisponibles(dimensions);
+        setMesuresDisponibles(mesures);
+      })
+      .catch(() => setErreurReferentiels(true))
+      .finally(() => setChargementReferentiels(false));
+  }
 
   useEffect(() => {
-    appelApi<DimensionStat[]>("/statistiques/dimensions").then(setDimensionsDisponibles).catch(() => {});
-    appelApi<MesureStat[]>("/statistiques/mesures").then(setMesuresDisponibles).catch(() => {});
+    chargerReferentiels();
   }, []);
 
   const libellesMesures = useMemo(
@@ -97,6 +174,11 @@ export default function ConstructeurGraphique() {
   const unitesMesures = useMemo(
     () => Object.fromEntries(mesuresDisponibles.map((m) => [m.code, m.unite])),
     [mesuresDisponibles]
+  );
+
+  const libellesDimensions = useMemo(
+    () => Object.fromEntries(dimensionsDisponibles.map((d) => [d.code, d.label])),
+    [dimensionsDisponibles]
   );
 
   function filtresActuels(): Record<string, string> {
@@ -190,24 +272,27 @@ export default function ConstructeurGraphique() {
   }
 
   async function ouvrirModaleEnregistrement() {
+    setErreursFormulaire({});
     setModaleEnregistrement(true);
+    setChargementTableaux(true);
     try {
       const donnees = await appelApi<ListeOuPaginee<TableauDeBord>>("/statistiques/tableaux-de-bord/");
       setTableauxDeBord(listeDepuis(donnees));
     } catch {
       setTableauxDeBord([]);
+    } finally {
+      setChargementTableaux(false);
     }
   }
 
-  async function enregistrer() {
-    if (!nomWidget.trim()) {
-      toast.erreur("Le nom du graphique est requis.");
-      return;
-    }
-    if (cibleTableauDeBord === "__nouveau__" && !nomNouveauTableau.trim()) {
-      toast.erreur("Le nom du tableau de bord est requis.");
-      return;
-    }
+  async function enregistrer(evenement?: FormEvent) {
+    evenement?.preventDefault();
+    const erreurs: { nom?: string; tableau?: string } = {};
+    if (!nomWidget.trim()) erreurs.nom = "Le nom du graphique est requis.";
+    if (cibleTableauDeBord === "__nouveau__" && !nomNouveauTableau.trim()) erreurs.tableau = "Le nom du tableau de bord est requis.";
+    setErreursFormulaire(erreurs);
+    if (erreurs.nom || erreurs.tableau) return;
+
     setEnregistrementEnCours(true);
     try {
       let tableauDeBordId = cibleTableauDeBord;
@@ -235,7 +320,7 @@ export default function ConstructeurGraphique() {
           parametres_carte: typeGraphique === "carte" ? parametresCarte : {}
         }
       });
-      toast.succes("Graphique enregistre sur le tableau de bord.");
+      toast.succes("Graphique enregistré sur le tableau de bord.");
       setModaleEnregistrement(false);
       setNomWidget("");
       setNomNouveauTableau("");
@@ -246,6 +331,123 @@ export default function ConstructeurGraphique() {
     }
   }
 
+  // --- Libelles de synthese (resumes des etapes, sous-titre de l'apercu, recapitulatif)
+  const descriptionTypeCourant = descriptionType(typeGraphique);
+  const libelleDimensions = dimensionsChoisies.map((c) => libellesDimensions[c] ?? c);
+  const libelleMesuresChoisies = mesuresChoisies.map((c) => libellesMesures[c] ?? c);
+  const configurationComplete = dimensionsChoisies.length > 0 && mesuresChoisies.length > 0;
+  const resultatPret = !!resultat && resultat.lignes.length > 0;
+
+  const resumeFiltres = [
+    eventType ? LIBELLES_EVENEMENT[eventType] ?? eventType : null,
+    dateMin ? `depuis le ${formaterDate(dateMin)}` : null,
+    dateMax ? `jusqu'au ${formaterDate(dateMax)}` : null
+  ].filter(Boolean);
+  const resumeOptions = [LIBELLES_TRI[tri], limite ? `Top ${limite}` : null, seuilActuel() ? `Cellules < ${seuilActuel()} masquées` : null].filter(Boolean);
+
+  const sousTitreApercu = configurationComplete
+    ? `${libelleMesuresChoisies.join(" et ")} par ${libelleDimensions.join(" et ")}`
+    : "Choisissez au moins une dimension et une mesure.";
+
+  const colonnesTable = useMemo<ColonneListe<PivotLigne>[]>(() => {
+    if (!resultat) return [];
+    return [
+      ...resultat.dimensions.map((d, index) => ({
+        id: d,
+        libelle: libellesDimensions[d] ?? d,
+        principale: index === 0,
+        rendu: (ligne: PivotLigne) => ligne[d]
+      })),
+      ...resultat.mesures.map((m) => ({
+        id: m,
+        libelle: libellesMesures[m] ?? m,
+        numerique: true,
+        rendu: (ligne: PivotLigne) =>
+          ligne._masque ? <span className="eva-st-masque">{`< ${resultat.traitements?.seuil_petites_cellules ?? ""}`}</span> : (ligne[m] ?? "-")
+      }))
+    ];
+  }, [resultat, libellesDimensions, libellesMesures]);
+
+  function rendreApercu() {
+    if (!configurationComplete) {
+      return (
+        <div className="eva-st-vide">
+          <IllustrationApercu />
+          <h3 className="eva-st-vide__titre">Composez votre graphique</h3>
+          <p className="eva-st-vide__texte">L'aperçu apparaît dès que vous avez choisi ce qu'il faut croiser.</p>
+          <ul className="eva-st-vide__etapes" aria-label="Étapes restantes">
+            <li className={dimensionsChoisies.length > 0 ? "est-faite" : undefined}>
+              <span className="eva-st-vide__coche" aria-hidden="true">
+                {dimensionsChoisies.length > 0 && <Check size={12} strokeWidth={3} />}
+              </span>
+              Choisir au moins une dimension (étape 2)
+            </li>
+            <li className={mesuresChoisies.length > 0 ? "est-faite" : undefined}>
+              <span className="eva-st-vide__coche" aria-hidden="true">
+                {mesuresChoisies.length > 0 && <Check size={12} strokeWidth={3} />}
+              </span>
+              Choisir au moins une mesure (étape 3)
+            </li>
+          </ul>
+        </div>
+      );
+    }
+    if (erreur) {
+      return (
+        <Alerte
+          variante="erreur"
+          titre="Le calcul a échoué"
+          actions={
+            <Bouton variante="secondaire" taille="petit" onClick={() => setDimensionsChoisies((d) => [...d])}>
+              Réessayer
+            </Bouton>
+          }
+        >
+          {erreur}
+        </Alerte>
+      );
+    }
+    if (chargement && !resultat) return <Squelette variante="bloc" hauteur={360} libelle="Calcul de l'aperçu en cours" />;
+    if (!resultat) return null;
+    if (resultat.lignes.length === 0) {
+      return (
+        <EtatVide
+          variante="neutre"
+          icone={<BarChart3 size={26} />}
+          titre="Aucune donnée pour ce croisement"
+          description="Modifiez les filtres ou élargissez la période pour obtenir des résultats."
+        />
+      );
+    }
+    if (vueTable) {
+      return (
+        <ListeResponsive<PivotLigne>
+          legende="Résultat du croisement"
+          colonnes={colonnesTable}
+          lignes={resultat.lignes}
+          cle={(_, index) => String(index)}
+          hauteurMax="420px"
+          dense
+          sansSurvol
+        />
+      );
+    }
+    return typeGraphique === "carte" ? (
+      <GraphiqueCarte
+        ref={poigneeGraphique}
+        resultat={resultat}
+        parametres={parametresCarte}
+        libellesMesures={libellesMesures}
+        unites={unitesMesures}
+        hauteur={460}
+      />
+    ) : (
+      <GraphiqueECharts ref={poigneeGraphique} option={construireOptionECharts(resultat, typeGraphique, libellesMesures)} hauteur={360} />
+    );
+  }
+
+  const exportPossible = resultatPret && !chargement;
+
   return (
     <MiseEnPage liens={LIENS_ADMIN_CEC}>
       <EnteteDePage
@@ -253,246 +455,238 @@ export default function ConstructeurGraphique() {
         sousTitre="Croisez librement dimensions et mesures, puis enregistrez sur un tableau de bord."
       />
 
-      <div className="eva-grille-2" style={{ alignItems: "start", gap: 20 }}>
-        <Carte>
-          <h2 style={{ fontSize: 14, marginBottom: 14 }}>Configuration</h2>
+      {erreurReferentiels && (
+        <Alerte
+          variante="erreur"
+          titre="Les dimensions et mesures n'ont pas pu être chargées"
+          className="eva-st-alerte-page"
+          actions={
+            <Bouton variante="secondaire" taille="petit" iconeGauche={<RefreshCw size={14} />} onClick={chargerReferentiels}>
+              Réessayer
+            </Bouton>
+          }
+        >
+          Vérifiez votre connexion, puis réessayez.
+        </Alerte>
+      )}
 
-          <Champ id="type-graphique" label="Type de graphique">
-            <select id="type-graphique" value={typeGraphique} onChange={(e) => setTypeGraphique(e.target.value as TypeGraphiqueStat)}>
-              {TYPES_GRAPHIQUE.map((t) => (
-                <option key={t.code} value={t.code}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </Champ>
+      <div className="eva-st-constructeur">
+        <Carte titre="Configuration" description="L'aperçu se met à jour à chaque modification." className="eva-st-configuration">
+          <div className="eva-st-etapes">
+            <SectionRepliable numero={1} titre="Type de graphique" resume={descriptionTypeCourant.label} complete ouverteParDefaut>
+              <div className="eva-st-types" role="radiogroup" aria-label="Type de graphique">
+                {TYPES_GRAPHIQUE.map((t) => {
+                  const Icone = t.icone;
+                  const choisi = t.code === typeGraphique;
+                  return (
+                    <label key={t.code} className={`eva-st-type${choisi ? " est-choisi" : ""}`}>
+                      <input
+                        type="radio"
+                        name="type-graphique"
+                        className="eva-sr-only"
+                        value={t.code}
+                        checked={choisi}
+                        onChange={() => setTypeGraphique(t.code)}
+                      />
+                      <Icone size={22} aria-hidden="true" />
+                      <span>{t.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              {descriptionTypeCourant.exigence && (
+                <p className="eva-st-astuce">
+                  <Info size={15} aria-hidden="true" />
+                  {descriptionTypeCourant.exigence}
+                </p>
+              )}
+            </SectionRepliable>
 
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>
-              Dimensions (axe X, puis serie) - {MAX_DIMENSIONS} maximum
-            </label>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {dimensionsDisponibles.map((d) => {
-                const position = dimensionsChoisies.indexOf(d.code);
-                return (
-                  <button
-                    key={d.code}
-                    type="button"
-                    onClick={() => basculerDimension(d.code)}
-                    className={`eva-bouton eva-bouton--petit ${position >= 0 ? "eva-bouton--principal" : "eva-bouton--fantome"}`}
-                  >
-                    {position >= 0 && `${position + 1}. `}
-                    {d.label}
-                  </button>
-                );
-              })}
-            </div>
+            <SectionRepliable
+              numero={2}
+              titre="Dimensions"
+              resume={libelleDimensions.length > 0 ? libelleDimensions.join(", ") : "À choisir (2 au maximum)"}
+              complete={dimensionsChoisies.length > 0}
+              ouverteParDefaut
+            >
+              <p className="eva-st-consigne">Ce que vous voulez comparer : axe X, puis série ou regroupement.</p>
+              <SelecteurPilules
+                options={dimensionsDisponibles.map((d) => ({ code: d.code, label: d.label }))}
+                selection={dimensionsChoisies}
+                onBasculer={basculerDimension}
+                max={MAX_DIMENSIONS}
+                roles={rolesDimensions(typeGraphique)}
+                ariaLabel="Dimensions disponibles"
+                placeholderRecherche="Rechercher une dimension"
+                chargement={chargementReferentiels}
+                unite="dimensions"
+              />
+            </SectionRepliable>
+
+            <SectionRepliable
+              numero={3}
+              titre="Mesures"
+              resume={libelleMesuresChoisies.length > 0 ? libelleMesuresChoisies.join(", ") : "À choisir"}
+              complete={mesuresChoisies.length > 0}
+              ouverteParDefaut
+            >
+              <p className="eva-st-consigne">Ce que vous voulez mesurer (axe Y). Plusieurs mesures sont possibles.</p>
+              <SelecteurPilules
+                options={mesuresDisponibles.map((m) => ({ code: m.code, label: m.label }))}
+                selection={mesuresChoisies}
+                onBasculer={basculerMesure}
+                roles={rolesMesures(typeGraphique)}
+                ariaLabel="Mesures disponibles"
+                placeholderRecherche="Rechercher une mesure"
+                chargement={chargementReferentiels}
+                unite="mesures"
+              />
+            </SectionRepliable>
+
+            <SectionRepliable numero={4} titre="Filtres" resume={resumeFiltres.length > 0 ? resumeFiltres.join(", ") : "Aucun filtre"}>
+              <div className="eva-st-champs">
+                <Champ id="filtre-event" label="Type d'événement" className="eva-st-champs__large">
+                  <Selecteur id="filtre-event" valeur={eventType} onChange={setEventType}>
+                    <option value="">Tous</option>
+                    <option value="naissance">Naissance</option>
+                    <option value="deces">Décès</option>
+                  </Selecteur>
+                </Champ>
+                <Champ id="date-min" label="Déclarés depuis le">
+                  <input id="date-min" type="date" value={dateMin} max={dateMax || undefined} onChange={(e) => setDateMin(e.target.value)} />
+                </Champ>
+                <Champ id="date-max" label="Jusqu'au">
+                  <input id="date-max" type="date" value={dateMax} min={dateMin || undefined} onChange={(e) => setDateMax(e.target.value)} />
+                </Champ>
+              </div>
+            </SectionRepliable>
+
+            <SectionRepliable numero={5} titre="Options" resume={resumeOptions.join(" · ")}>
+              <div className="eva-st-champs">
+                <Champ id="tri" label="Tri">
+                  <Selecteur id="tri" valeur={tri} onChange={(v) => setTri(v as TriPivot)}>
+                    <option value="valeur_desc">Valeur décroissante</option>
+                    <option value="valeur_asc">Valeur croissante</option>
+                    <option value="libelle_asc">Libellé (A à Z)</option>
+                  </Selecteur>
+                </Champ>
+                <Champ id="limite" label="Limite (top N)">
+                  <input id="limite" type="number" min={1} value={limite} onChange={(e) => setLimite(e.target.value)} placeholder="Aucune" />
+                </Champ>
+              </div>
+              <div className="eva-st-interrupteurs">
+                <Interrupteur checked={regrouperAutres} onChange={setRegrouperAutres} label="Regrouper le surplus dans « Autres »" aide="Les valeurs au-delà de la limite sont additionnées en une seule ligne." />
+                <Interrupteur
+                  checked={exclureNonRenseigne}
+                  onChange={setExclureNonRenseigne}
+                  label="Exclure « Non renseigné »"
+                  aide="Écarte les dossiers sans valeur pour une des dimensions ; les taux se calculent sur le renseigné."
+                />
+                <Interrupteur
+                  checked={seuilActif}
+                  onChange={setSeuilActif}
+                  label="Masquer les petites cellules"
+                  aide="Protection contre la ré-identification : toute cellule de moins de N dossiers est masquée (« < N ») dans le graphique, le tableau et les exports."
+                />
+                {seuilActif && (
+                  <Champ id="seuil" label="Masquer les cellules de moins de (dossiers)" className="eva-st-seuil">
+                    <input id="seuil" type="number" min={2} value={seuil} onChange={(e) => setSeuil(e.target.value)} />
+                  </Champ>
+                )}
+              </div>
+            </SectionRepliable>
+
+            {typeGraphique === "carte" && (
+              <SectionRepliable numero={6} titre="Style de la carte" resume="Zone, couleurs, étiquettes, légende" ouverteParDefaut>
+                <PanneauStyleCarte valeur={parametresCarte} onChange={setParametresCarte} nomZone={territoire ? territoire.nom : undefined} />
+              </SectionRepliable>
+            )}
           </div>
-
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6 }}>
-              Mesures (axe Y) - plusieurs possibles
-            </label>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {mesuresDisponibles.map((m) => {
-                const position = mesuresChoisies.indexOf(m.code);
-                return (
-                  <button
-                    key={m.code}
-                    type="button"
-                    onClick={() => basculerMesure(m.code)}
-                    className={`eva-bouton eva-bouton--petit ${position >= 0 ? "eva-bouton--principal" : "eva-bouton--fantome"}`}
-                  >
-                    {position >= 0 && `${position + 1}. `}
-                    {m.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <div style={{ flex: "1 1 140px" }}>
-              <Champ id="filtre-event" label="Type d'evenement">
-                <select id="filtre-event" value={eventType} onChange={(e) => setEventType(e.target.value)}>
-                  <option value="">Tous</option>
-                  <option value="naissance">Naissance</option>
-                  <option value="deces">Deces</option>
-                </select>
-              </Champ>
-            </div>
-            <div style={{ flex: "1 1 140px" }}>
-              <Champ id="date-min" label="Depuis le">
-                <input id="date-min" type="date" value={dateMin} onChange={(e) => setDateMin(e.target.value)} />
-              </Champ>
-            </div>
-            <div style={{ flex: "1 1 140px" }}>
-              <Champ id="date-max" label="Jusqu'au">
-                <input id="date-max" type="date" value={dateMax} onChange={(e) => setDateMax(e.target.value)} />
-              </Champ>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <div style={{ flex: "1 1 160px" }}>
-              <Champ id="tri" label="Tri">
-                <select id="tri" value={tri} onChange={(e) => setTri(e.target.value as TriPivot)}>
-                  <option value="valeur_desc">Valeur decroissante</option>
-                  <option value="valeur_asc">Valeur croissante</option>
-                  <option value="libelle_asc">Libelle (A-Z)</option>
-                </select>
-              </Champ>
-            </div>
-            <div style={{ flex: "1 1 120px" }}>
-              <Champ id="limite" label="Limite (top N)">
-                <input id="limite" type="number" min={1} value={limite} onChange={(e) => setLimite(e.target.value)} placeholder="Aucune" />
-              </Champ>
-            </div>
-          </div>
-
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 8 }}>
-            <input type="checkbox" checked={regrouperAutres} onChange={(e) => setRegrouperAutres(e.target.checked)} />
-            Regrouper le surplus dans "Autres"
-          </label>
-          <label
-            style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 8 }}
-            title="Écarte les dossiers sans valeur pour une des dimensions choisies ; les taux se calculent sur le renseigné."
-          >
-            <input type="checkbox" checked={exclureNonRenseigne} onChange={(e) => setExclureNonRenseigne(e.target.checked)} />
-            Exclure « Non renseigné »
-          </label>
-          <label
-            style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 14, flexWrap: "wrap" }}
-            title="Protection contre la ré-identification : toute cellule de moins de N dossiers est masquée (« < N ») dans le graphique, le tableau et les exports."
-          >
-            <input type="checkbox" checked={seuilActif} onChange={(e) => setSeuilActif(e.target.checked)} />
-            Masquer les cellules de moins de
-            <input type="number" min={2} value={seuil} disabled={!seuilActif} onChange={(e) => setSeuil(e.target.value)} style={{ width: 64 }} />
-            dossiers
-          </label>
-
-          {typeGraphique === "carte" && (
-            <PanneauStyleCarte
-              valeur={parametresCarte}
-              onChange={setParametresCarte}
-              nomZone={territoire ? territoire.nom : undefined}
-            />
-          )}
-
-          <Bouton
-            onClick={ouvrirModaleEnregistrement}
-            disabled={!resultat || resultat.lignes.length === 0}
-            iconeGauche={<Save size={15} />}
-            style={{ width: "100%" }}
-          >
-            Enregistrer sur un tableau de bord
-          </Bouton>
         </Carte>
 
-        <Carte>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-            <h2 style={{ fontSize: 14 }}>Apercu</h2>
-            <div style={{ display: "flex", gap: 6 }}>
-              <button
-                type="button"
-                onClick={() => setVueTable(false)}
-                className={`eva-bouton eva-bouton--petit ${!vueTable ? "eva-bouton--principal" : "eva-bouton--fantome"}`}
-                aria-label="Vue graphique"
-                aria-pressed={!vueTable}
-              >
-                <BarChart3 size={14} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setVueTable(true)}
-                className={`eva-bouton eva-bouton--petit ${vueTable ? "eva-bouton--principal" : "eva-bouton--fantome"}`}
-                aria-label="Vue tableau"
-                aria-pressed={vueTable}
-              >
-                <Table2 size={14} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setDimensionsChoisies((d) => [...d])}
-                className="eva-bouton eva-bouton--petit eva-bouton--fantome"
-                aria-label="Rafraichir"
-                title="Rafraichir"
-              >
-                <RefreshCw size={14} />
-              </button>
-              <Bouton
-                variante="fantome"
-                taille="petit"
-                onClick={() => exporter("xlsx")}
-                chargement={exportEnCours === "xlsx"}
-                disabled={!resultat || resultat.lignes.length === 0}
-                iconeGauche={<FileSpreadsheet size={14} />}
-                title="Exporter en Excel (donnees + graphique)"
-              >
-                Excel
-              </Bouton>
-              <Bouton
-                variante="fantome"
-                taille="petit"
-                onClick={() => exporter("pdf")}
-                chargement={exportEnCours === "pdf"}
-                disabled={!resultat || resultat.lignes.length === 0}
-                iconeGauche={<FileText size={14} />}
-                title="Exporter en PDF (graphique + fiche methodologique + donnees)"
-              >
-                PDF
+        <Carte
+          className="eva-st-apercu"
+          titre="Aperçu"
+          description={sousTitreApercu}
+          pied={
+            <div className="eva-st-pied">
+              <div className="eva-st-pied__groupe">
+                <span className="eva-st-pied__etiquette">Exporter</span>
+                <Bouton
+                  variante="secondaire"
+                  taille="petit"
+                  onClick={() => exporter("xlsx")}
+                  chargement={exportEnCours === "xlsx"}
+                  disabled={!exportPossible || exportEnCours !== null}
+                  iconeGauche={<FileSpreadsheet size={15} />}
+                  title="Exporter en Excel (données et graphique)"
+                >
+                  Excel
+                </Bouton>
+                <Bouton
+                  variante="secondaire"
+                  taille="petit"
+                  onClick={() => exporter("pdf")}
+                  chargement={exportEnCours === "pdf"}
+                  disabled={!exportPossible || exportEnCours !== null}
+                  iconeGauche={<FileText size={15} />}
+                  title="Exporter en PDF (graphique, fiche méthodologique et données)"
+                >
+                  PDF
+                </Bouton>
+              </div>
+              <Bouton onClick={ouvrirModaleEnregistrement} disabled={!resultatPret} iconeGauche={<Save size={16} />}>
+                Enregistrer sur un tableau de bord
               </Bouton>
             </div>
+          }
+        >
+          <div className="eva-st-apercu__barre">
+            <Onglets
+              variante="pilules"
+              ariaLabel="Mode d'affichage"
+              prefixeId="apercu"
+              actif={vueTable ? "tableau" : "graphique"}
+              onChanger={(id) => setVueTable(id === "tableau")}
+              onglets={[
+                { id: "graphique", libelle: "Graphique", icone: <BarChart3 size={15} aria-hidden="true" /> },
+                { id: "tableau", libelle: "Tableau", icone: <Table2 size={15} aria-hidden="true" /> }
+              ]}
+            />
+            <Bouton
+              variante="fantome"
+              taille="petit"
+              iconeSeule
+              iconeGauche={<RefreshCw size={15} />}
+              aria-label="Actualiser l'aperçu"
+              title="Actualiser l'aperçu"
+              onClick={() => setDimensionsChoisies((d) => [...d])}
+              disabled={!configurationComplete}
+            />
           </div>
 
-          {dimensionsChoisies.length === 0 || mesuresChoisies.length === 0 ? (
-            <p style={{ color: "var(--couleur-gris-service-2)", fontSize: 13.5 }}>
-              Choisissez au moins une dimension et une mesure pour voir un apercu.
+          <div
+            className={chargement && resultat ? "eva-st-apercu__zone eva-st-rafraichit" : "eva-st-apercu__zone"}
+            role="tabpanel"
+            id={`apercu-panneau-${vueTable ? "tableau" : "graphique"}`}
+            aria-labelledby={`apercu-${vueTable ? "tableau" : "graphique"}`}
+            aria-busy={chargement}
+          >
+            {rendreApercu()}
+          </div>
+
+          {resultat && resultat.lignes.length > 0 && (
+            <p className="eva-st-apercu__info">
+              <span>
+                {resultat.total_lignes.toLocaleString("fr-FR")} ligne{resultat.total_lignes > 1 ? "s" : ""}
+              </span>
+              {!!resultat.traitements?.cellules_masquees && (
+                <span className="eva-st-apercu__info-alerte">
+                  <AlertTriangle size={13} aria-hidden="true" />
+                  {resultat.traitements.cellules_masquees} cellule{resultat.traitements.cellules_masquees > 1 ? "s" : ""} masquée{resultat.traitements.cellules_masquees > 1 ? "s" : ""}
+                </span>
+              )}
             </p>
-          ) : erreur ? (
-            <p className="message-erreur">{erreur}</p>
-          ) : chargement && !resultat ? (
-            <p style={{ color: "var(--couleur-gris-service-2)", fontSize: 13.5 }}>Calcul en cours...</p>
-          ) : !resultat ? null : vueTable ? (
-            <Tableau>
-              <thead>
-                <tr>
-                  {resultat.dimensions.map((d) => (
-                    <th key={d}>{dimensionsDisponibles.find((dd) => dd.code === d)?.label ?? d}</th>
-                  ))}
-                  {resultat.mesures.map((m) => (
-                    <th key={m}>{libellesMesures[m] ?? m}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {resultat.lignes.map((ligne, index) => (
-                  <tr key={index}>
-                    {resultat.dimensions.map((d) => (
-                      <td key={d}>{ligne[d]}</td>
-                    ))}
-                    {resultat.mesures.map((m) => (
-                      <td key={m} style={ligne._masque ? { color: "var(--gris-2)", fontStyle: "italic" } : undefined}>
-                        {ligne._masque ? `< ${resultat.traitements?.seuil_petites_cellules ?? ""}` : ligne[m] ?? "-"}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </Tableau>
-          ) : (
-            typeGraphique === "carte" ? (
-              <GraphiqueCarte
-                ref={poigneeGraphique}
-                resultat={resultat}
-                parametres={parametresCarte}
-                libellesMesures={libellesMesures}
-                unites={unitesMesures}
-                hauteur={460}
-              />
-            ) : (
-              <GraphiqueECharts ref={poigneeGraphique} option={construireOptionECharts(resultat, typeGraphique, libellesMesures)} hauteur={360} />
-            )
           )}
         </Carte>
       </div>
@@ -500,41 +694,75 @@ export default function ConstructeurGraphique() {
       {modaleEnregistrement && (
         <Modale
           titre="Enregistrer ce graphique"
+          description="Il sera ajouté à la grille d'un tableau de bord, où vous pourrez le déplacer et l'exporter."
           onFermer={() => setModaleEnregistrement(false)}
           actions={
             <>
               <Bouton variante="fantome" onClick={() => setModaleEnregistrement(false)}>
                 Annuler
               </Bouton>
-              <Bouton chargement={enregistrementEnCours} onClick={enregistrer}>
+              <Bouton chargement={enregistrementEnCours} onClick={() => enregistrer()} iconeGauche={<Save size={16} />}>
                 Enregistrer
               </Bouton>
             </>
           }
         >
-          <Champ id="nom-widget" label="Nom du graphique" requis>
-            <input id="nom-widget" value={nomWidget} onChange={(e) => setNomWidget(e.target.value)} placeholder="Ex. Naissances par commune" />
-          </Champ>
-          <Champ id="cible-tableau" label="Tableau de bord">
-            <select id="cible-tableau" value={cibleTableauDeBord} onChange={(e) => setCibleTableauDeBord(e.target.value)}>
-              <option value="__nouveau__">+ Nouveau tableau de bord</option>
-              {tableauxDeBord.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nom}
-                </option>
-              ))}
-            </select>
-          </Champ>
-          {cibleTableauDeBord === "__nouveau__" && (
-            <Champ id="nom-nouveau-tableau" label="Nom du nouveau tableau de bord" requis>
-              <input
-                id="nom-nouveau-tableau"
-                value={nomNouveauTableau}
-                onChange={(e) => setNomNouveauTableau(e.target.value)}
-                placeholder="Ex. Suivi mensuel"
-              />
+          <form onSubmit={enregistrer} noValidate className="eva-st-formulaire">
+            <dl className="eva-st-recap">
+              <div>
+                <dt>Type</dt>
+                <dd>{descriptionTypeCourant.label}</dd>
+              </div>
+              <div>
+                <dt>Dimensions</dt>
+                <dd>{libelleDimensions.join(", ")}</dd>
+              </div>
+              <div>
+                <dt>Mesures</dt>
+                <dd>{libelleMesuresChoisies.join(", ")}</dd>
+              </div>
+            </dl>
+
+            <Champ id="nom-widget" label="Nom du graphique" requis erreur={erreursFormulaire.nom}>
+              <input id="nom-widget" autoFocus value={nomWidget} onChange={(e) => setNomWidget(e.target.value)} placeholder="Ex. Naissances par commune" />
             </Champ>
-          )}
+
+            <div className="eva-st-cible">
+              <span className="eva-st-cible__etiquette" id="etiquette-cible">
+                Tableau de bord
+              </span>
+              <Onglets
+                variante="pilules"
+                ariaLabel="Destination du graphique"
+                prefixeId="cible"
+                actif={cibleTableauDeBord === "__nouveau__" ? "nouveau" : "existant"}
+                onChanger={(id) => setCibleTableauDeBord(id === "nouveau" ? "__nouveau__" : (tableauxDeBord[0]?.id ?? "__nouveau__"))}
+                onglets={[
+                  { id: "nouveau", libelle: "Nouveau tableau" },
+                  { id: "existant", libelle: "Tableau existant", compteur: chargementTableaux ? undefined : tableauxDeBord.length, desactive: chargementTableaux || tableauxDeBord.length === 0 }
+                ]}
+              />
+            </div>
+
+            {cibleTableauDeBord === "__nouveau__" ? (
+              <Champ id="nom-nouveau-tableau" label="Nom du nouveau tableau de bord" requis erreur={erreursFormulaire.tableau}>
+                <input id="nom-nouveau-tableau" value={nomNouveauTableau} onChange={(e) => setNomNouveauTableau(e.target.value)} placeholder="Ex. Suivi mensuel" />
+              </Champ>
+            ) : (
+              <Champ id="cible-tableau" label="Ajouter au tableau de bord">
+                <Selecteur id="cible-tableau" valeur={cibleTableauDeBord} onChange={setCibleTableauDeBord}>
+                  {tableauxDeBord.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.nom}
+                    </option>
+                  ))}
+                </Selecteur>
+              </Champ>
+            )}
+            <button type="submit" className="eva-sr-only" tabIndex={-1}>
+              Enregistrer
+            </button>
+          </form>
         </Modale>
       )}
     </MiseEnPage>

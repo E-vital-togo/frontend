@@ -1,0 +1,587 @@
+/*
+  Selecteur maison (liste deroulante avec recherche). Fichier UNIQUE partage par :
+  l'app CEC (import dans components/ui/Selecteur.tsx) et les gabarits Django
+  (compile en backend/static/css/evital-selecteur.css par
+  `npm run build:selecteur-django`, widget lib/selecteurDjango.ts).
+  Les couleurs viennent des jetons de l'app hote quand ils existent
+  (--couleur-* cote CEC, --ev-* cote Django) avec la charte E-Vital en repli.
+  Le panneau est rendu dans <body> (portail) en position fixe : il n'est jamais
+  rogne par un conteneur a defilement ni par une modale. Sous 560px, il devient
+  une feuille basse (classe eva-sel__panneau--feuille posee par le script).
+  Documentation : docs/design-system-react.md (section Selecteur) et
+  docs/design-system-django.md.
+*/
+
+.eva-sel,
+.eva-sel__panneau,
+.eva-sel__voile {
+  --sel-accent: var(--couleur-emeraude, var(--ev-emeraude, #0B7A57));
+  --sel-accent-profond: var(--couleur-emeraude-profond, var(--ev-emeraude-profond, #086346));
+  --sel-anneau: var(--ombre-anneau-focus, var(--ev-anneau-focus, 0 0 0 3px rgba(11, 122, 87, 0.24)));
+  --sel-anneau-erreur: 0 0 0 3px rgba(179, 38, 30, 0.2);
+  --sel-bordure-champ: var(--couleur-bordure-champ, var(--ev-bordure-champ, #8C9A93));
+  --sel-bordure-survol: var(--couleur-gris-service-2-marque, var(--ev-gris-2, #6B7A73));
+  --sel-bordure: var(--couleur-bordure, var(--ev-bordure, #E2E7DF));
+  --sel-bordure-forte: var(--couleur-bordure-forte, var(--ev-bordure-forte, #C9D2C6));
+  --sel-fond: var(--couleur-blanc, var(--ev-blanc, #FFFFFF));
+  --sel-fond-papier: var(--couleur-papier, var(--ev-papier, #FBFDF6));
+  --sel-fond-desactive: var(--couleur-fond-desactive, var(--ev-fond-desactive, #F1F3EF));
+  --sel-fond-actif: var(--couleur-emeraude-fond, var(--ev-emeraude-fond, #E7F3EE));
+  --sel-fond-doux: var(--couleur-emeraude-fond-doux, var(--ev-emeraude-fond-doux, #F2F8F5));
+  --sel-fond-vif: var(--couleur-emeraude-fond-vif, var(--ev-emeraude-fond-vif, #DCEFE6));
+  --sel-neutre-fond: var(--couleur-neutre-fond, var(--ev-neutre-fond, #EEF2EE));
+  --sel-texte: var(--couleur-encre, var(--ev-encre, #14231C));
+  --sel-texte-fort: var(--couleur-gris-service-1, var(--ev-gris-1, #40534B));
+  --sel-texte-doux: var(--couleur-texte-discret, var(--ev-texte-discret, #5E6B65));
+  --sel-vert-profond: var(--couleur-vert-profond, var(--ev-vert-profond, #0B4A3B));
+  --sel-erreur: var(--couleur-erreur, var(--ev-erreur, #B3261E));
+  --sel-erreur-fond: var(--couleur-erreur-fond, var(--ev-erreur-fond, #FBEAE9));
+  --sel-erreur-bordure: var(--couleur-erreur-bordure, var(--ev-erreur-bordure, #F0C6C3));
+  --sel-rayon-champ: var(--rayon-champ, var(--ev-rayon-champ, 8px));
+  --sel-rayon-petit: var(--rayon-petit, var(--ev-rayon-petit, 6px));
+  --sel-rayon-panneau: var(--rayon-standard, var(--ev-rayon, 10px));
+  --sel-ombre: var(--ombre-flottante, var(--ev-ombre-flottante, 0 8px 24px rgba(20, 35, 28, 0.14), 0 2px 6px rgba(20, 35, 28, 0.08)));
+  --sel-transition: var(--transition-rapide, 140ms ease);
+  --sel-hauteur: var(--hauteur-controle, var(--ev-hauteur-controle, 40px));
+  --sel-z: 120; /* au-dessus des modales (--z-modale: 100) */
+  --sel-police: var(--police-titrage, var(--ev-police, "Instrument Sans", system-ui, sans-serif));
+}
+
+.eva-sel,
+.eva-sel *, .eva-sel *::before, .eva-sel *::after,
+.eva-sel__panneau, .eva-sel__panneau *, .eva-sel__panneau *::before, .eva-sel__panneau *::after,
+.eva-sel__voile { box-sizing: border-box; }
+.eva-sel [hidden], .eva-sel__panneau [hidden] { display: none !important; }
+
+/* ============================ DECLENCHEUR ============================ */
+
+.eva-sel {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  font-family: var(--sel-police);
+  font-size: 14px;
+  color: var(--sel-texte);
+  text-align: left;
+}
+.eva-sel--compact { display: inline-block; width: auto; min-width: 170px; max-width: 100%; vertical-align: middle; }
+
+.eva-sel .eva-sel__declencheur,
+.eva-sel input.eva-sel__saisie {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--sel-hauteur);
+  margin: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--sel-bordure-champ);
+  border-radius: var(--sel-rayon-champ);
+  background: var(--sel-fond);
+  color: var(--sel-texte);
+  font: inherit;
+  font-size: inherit;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color var(--sel-transition), box-shadow var(--sel-transition), background-color var(--sel-transition);
+}
+.eva-sel .eva-sel__declencheur:hover:not(:disabled),
+.eva-sel input.eva-sel__saisie:hover:not(:disabled) { border-color: var(--sel-bordure-survol); }
+.eva-sel .eva-sel__declencheur:focus,
+.eva-sel input.eva-sel__saisie:focus { outline: none; }
+.eva-sel .eva-sel__declencheur:focus-visible,
+.eva-sel input.eva-sel__saisie:focus-visible,
+.eva-sel--ouvert .eva-sel__declencheur,
+.eva-sel--ouvert input.eva-sel__saisie {
+  outline: none;
+  border-color: var(--sel-accent);
+  box-shadow: var(--sel-anneau);
+}
+
+/* Variante saisie libre (ChampSuggestions) : un vrai <input>, avec une bascule pour afficher les suggestions */
+.eva-sel .eva-sel__saisie { display: block; cursor: text; padding-right: 36px; text-overflow: ellipsis; }
+.eva-sel .eva-sel__saisie::placeholder { color: var(--sel-texte-doux); opacity: 0.8; }
+.eva-sel .eva-sel__saisie--mono { font-family: var(--police-donnees, var(--ev-police-mono, ui-monospace, monospace)); font-size: 13.5px; }
+.eva-sel--sans-chevron .eva-sel__saisie { padding-right: 12px; }
+.eva-sel .eva-sel__bascule {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--sel-rayon-petit);
+  background: transparent;
+  color: var(--sel-texte-doux);
+  cursor: pointer;
+}
+.eva-sel .eva-sel__bascule:hover { background: var(--sel-fond-desactive); }
+.eva-sel--ouvert .eva-sel__bascule .eva-sel__chevron { transform: rotate(180deg); color: var(--sel-accent); }
+.eva-sel__panneau--suggestions .eva-sel__liste { padding: 4px; }
+
+.eva-sel__contenu {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.eva-sel__valeur { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eva-sel__valeur--mono { font-family: var(--police-donnees, var(--ev-police-mono, ui-monospace, monospace)); font-size: 13.5px; }
+.eva-sel__placeholder { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--sel-texte-doux); }
+.eva-sel__icone { flex: none; display: inline-flex; align-items: center; color: var(--sel-texte-doux); }
+.eva-sel__icone svg { display: block; }
+.eva-sel__chevron { flex: none; color: var(--sel-texte-doux); transition: transform var(--sel-transition); }
+.eva-sel--ouvert .eva-sel__chevron { transform: rotate(180deg); color: var(--sel-accent); }
+
+/* Bouton d'effacement : frere du declencheur (un bouton ne contient pas de bouton) */
+.eva-sel .eva-sel__effacer {
+  position: absolute;
+  top: 50%;
+  right: 34px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sel-texte-doux);
+  cursor: pointer;
+  transition: background-color var(--sel-transition), color var(--sel-transition);
+}
+.eva-sel .eva-sel__effacer:hover { background: var(--sel-fond-desactive); color: var(--sel-erreur); }
+.eva-sel .eva-sel__effacer:focus-visible { outline: 2px solid var(--sel-accent); outline-offset: 0; }
+.eva-sel--effacable .eva-sel__declencheur,
+.eva-sel--effacable input.eva-sel__saisie { padding-right: 62px; }
+
+/* Choix multiple : puces dans le declencheur */
+.eva-sel__puce {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 8px;
+  border: 1px solid var(--sel-fond-vif);
+  border-radius: var(--sel-rayon-petit);
+  background: var(--sel-fond-actif);
+  color: var(--sel-vert-profond);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.eva-sel__plus {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: var(--sel-rayon-petit);
+  background: var(--sel-neutre-fond);
+  color: var(--sel-texte-fort);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Taille compacte (barres d'outils) */
+.eva-sel--petit { --sel-hauteur: 32px; font-size: 13px; }
+.eva-sel--petit .eva-sel__declencheur,
+.eva-sel--petit input.eva-sel__saisie { padding-top: 3px; padding-bottom: 3px; }
+
+/* Controle d'un formulaire de dossier (aligne sur .eva-ctl : 42px, rayon 6px) */
+.eva-fchamp .eva-sel { --sel-hauteur: 42px; --sel-rayon-champ: var(--rayon-petit, 6px); }
+
+/* ---- Etats ---- */
+.eva-sel--invalide .eva-sel__declencheur,
+.eva-sel--invalide input.eva-sel__saisie,
+.eva-sel--invalide .eva-sel__declencheur:hover:not(:disabled),
+.eva-sel--invalide input.eva-sel__saisie:hover:not(:disabled) { border-color: var(--sel-erreur); background-color: #FFFAF9; }
+.eva-sel--invalide .eva-sel__declencheur:focus-visible,
+.eva-sel--invalide input.eva-sel__saisie:focus-visible,
+.eva-sel--invalide.eva-sel--ouvert .eva-sel__declencheur,
+.eva-sel--invalide.eva-sel--ouvert input.eva-sel__saisie { border-color: var(--sel-erreur); box-shadow: var(--sel-anneau-erreur); }
+
+.eva-sel--desactive .eva-sel__declencheur,
+.eva-sel--desactive input.eva-sel__saisie,
+.eva-sel--desactive .eva-sel__declencheur:hover,
+.eva-sel--desactive input.eva-sel__saisie:hover {
+  background: var(--sel-fond-desactive);
+  border-color: var(--sel-bordure-forte);
+  color: var(--sel-texte-doux);
+  cursor: not-allowed;
+}
+.eva-sel--lecture .eva-sel__declencheur,
+.eva-sel--lecture input.eva-sel__saisie,
+.eva-sel--lecture .eva-sel__declencheur:hover,
+.eva-sel--lecture input.eva-sel__saisie:hover {
+  background: var(--sel-fond-desactive);
+  border-color: var(--sel-bordure-forte);
+  cursor: default;
+}
+.eva-sel--desactive .eva-sel__chevron, .eva-sel--lecture .eva-sel__chevron { opacity: 0.45; }
+.eva-sel--verrouille .eva-sel__declencheur,
+.eva-sel--verrouille input.eva-sel__saisie,
+.eva-sel--verrouille .eva-sel__declencheur:hover,
+.eva-sel--verrouille input.eva-sel__saisie:hover {
+  background: var(--sel-erreur-fond);
+  border-color: var(--sel-erreur-bordure);
+  cursor: not-allowed;
+}
+
+/* Champ natif qui porte la validation HTML5 (required) : invisible mais focalisable par le navigateur */
+.eva-sel__validation {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.eva-sel__sr {
+  position: absolute !important;
+  width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* ---- Gabarits Django : le <select> natif reste dans le DOM (source de verite) mais masque ---- */
+.eva-sel[hidden] { display: none !important; }
+select.eva-sel-natif {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+}
+.eva-sel--auto { display: inline-block; width: auto; min-width: 200px; max-width: 320px; vertical-align: middle; }
+.eva-sel--mono .eva-sel__valeur { font-family: var(--police-donnees, var(--ev-police-mono, ui-monospace, monospace)); font-size: 13.5px; }
+/* Focus recu par le champ natif masque (clic sur le label, echec de la validation HTML5) : anneau sur le declencheur */
+.eva-sel--focus-natif .eva-sel__declencheur,
+.eva-sel__validation:focus + .eva-sel__declencheur { border-color: var(--sel-accent); box-shadow: var(--sel-anneau); }
+/* Etats du systeme de design Django (.ev-champ--erreur, .ev-champ--verrouille, errorlist des formulaires Django) */
+.ev-champ--erreur .eva-sel .eva-sel__declencheur,
+.formulaire-simple p:has(> .errorlist) .eva-sel .eva-sel__declencheur { border-color: var(--sel-erreur); background-color: #FFFAF9; }
+.ev-champ--verrouille .eva-sel .eva-sel__declencheur { background: var(--sel-erreur-fond); border-color: var(--sel-erreur-bordure); cursor: not-allowed; }
+.formulaire-simple p > .eva-sel, .ev-form > div:not([class]) > .eva-sel { order: 2; }
+
+/* ============================ PANNEAU ============================ */
+
+.eva-sel__panneau {
+  position: fixed;
+  z-index: var(--sel-z);
+  display: flex;
+  flex-direction: column;
+  background: var(--sel-fond);
+  border: 1px solid var(--sel-bordure-forte);
+  border-radius: var(--sel-rayon-panneau);
+  box-shadow: var(--sel-ombre);
+  overflow: hidden;
+  font-family: var(--sel-police);
+  font-size: 14px;
+  color: var(--sel-texte);
+  text-align: left;
+  animation: eva-sel-apparition 120ms ease-out;
+}
+.eva-sel__panneau--haut { transform-origin: bottom center; }
+@keyframes eva-sel-apparition {
+  from { opacity: 0; transform: translateY(-4px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+.eva-sel__panneau--haut { animation-name: eva-sel-apparition-haut; }
+@keyframes eva-sel-apparition-haut {
+  from { opacity: 0; transform: translateY(4px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Barre de recherche */
+.eva-sel__recherche { position: relative; flex: none; padding: 8px; border-bottom: 1px solid var(--sel-bordure); background: var(--sel-fond); }
+.eva-sel__loupe { position: absolute; left: 19px; top: 50%; transform: translateY(-50%); color: var(--sel-texte-doux); pointer-events: none; }
+.eva-sel__panneau input.eva-sel__recherche-champ {
+  display: block;
+  width: 100%;
+  min-height: 36px;
+  margin: 0;
+  padding: 7px 34px 7px 34px;
+  border: 1px solid var(--sel-bordure-champ);
+  border-radius: var(--sel-rayon-champ);
+  background: var(--sel-fond);
+  box-shadow: none;
+  color: var(--sel-texte);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.eva-sel__panneau input.eva-sel__recherche-champ::placeholder { color: var(--sel-texte-doux); opacity: 0.8; }
+.eva-sel__panneau input.eva-sel__recherche-champ:focus { border-color: var(--sel-accent); box-shadow: var(--sel-anneau); }
+.eva-sel__panneau input.eva-sel__recherche-champ::-webkit-search-cancel-button,
+.eva-sel__panneau input.eva-sel__recherche-champ::-webkit-search-decoration { -webkit-appearance: none; display: none; }
+.eva-sel__panneau .eva-sel__recherche-effacer {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sel-texte-doux);
+  cursor: pointer;
+}
+.eva-sel__panneau .eva-sel__recherche-effacer:hover { background: var(--sel-fond-desactive); color: var(--sel-texte); }
+
+/* Liste */
+.eva-sel__liste {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  outline: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sel-bordure-forte) transparent;
+}
+.eva-sel__groupe-entete {
+  padding: 10px 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sel-texte-doux);
+  -webkit-user-select: none;
+  user-select: none;
+}
+.eva-sel__groupe + .eva-sel__groupe { margin-top: 2px; border-top: 1px solid var(--sel-bordure); padding-top: 2px; }
+.eva-sel__groupe:first-child .eva-sel__groupe-entete { padding-top: 6px; }
+
+.eva-sel__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 7px 10px;
+  border-radius: var(--sel-rayon-petit);
+  color: var(--sel-texte);
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.eva-sel__option--actif { background: var(--sel-fond-actif); }
+.eva-sel__option[aria-selected="true"] { font-weight: 600; color: var(--sel-vert-profond); }
+.eva-sel__option[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+.eva-sel__option[aria-disabled="true"].eva-sel__option--actif { background: transparent; }
+.eva-sel__option-icone { flex: none; display: inline-flex; color: var(--sel-texte-doux); }
+.eva-sel__option[aria-selected="true"] .eva-sel__option-icone { color: var(--sel-accent); }
+.eva-sel__texte { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.eva-sel__libelle { overflow-wrap: anywhere; line-height: 1.35; }
+.eva-sel__description { font-size: 12.5px; font-weight: 400; line-height: 1.35; color: var(--sel-texte-doux); overflow-wrap: anywhere; }
+.eva-sel__coche { flex: none; display: inline-flex; color: var(--sel-accent); }
+.eva-sel__surlignage {
+  padding: 0 1px;
+  margin: 0 -1px;
+  border-radius: 3px;
+  background: rgba(200, 217, 47, 0.42);
+  color: inherit;
+  font-weight: 700;
+}
+
+/* Case des listes a choix multiple */
+.eva-sel__case {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--sel-bordure-champ);
+  border-radius: 5px;
+  background: var(--sel-fond);
+  color: #fff;
+  transition: background-color var(--sel-transition), border-color var(--sel-transition);
+}
+.eva-sel__case svg { opacity: 0; }
+.eva-sel__option[aria-selected="true"] .eva-sel__case { background: var(--sel-accent); border-color: var(--sel-accent); }
+.eva-sel__option[aria-selected="true"] .eva-sel__case svg { opacity: 1; }
+
+.eva-sel__vide { padding: 22px 12px; text-align: center; font-size: 13.5px; color: var(--sel-texte-doux); }
+
+/* Pied : compteur discret, actions du choix multiple */
+.eva-sel__pied {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--sel-bordure);
+  background: var(--sel-fond-papier);
+  font-size: 12px;
+  color: var(--sel-texte-doux);
+}
+.eva-sel__compteur { font-variant-numeric: tabular-nums; }
+.eva-sel__pied-actions { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
+.eva-sel__panneau .eva-sel__lien {
+  margin: 0;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--sel-rayon-petit);
+  background: transparent;
+  color: var(--sel-texte-fort);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.eva-sel__panneau .eva-sel__lien:hover:not(:disabled) { background: var(--sel-fond-desactive); color: var(--sel-erreur); }
+.eva-sel__panneau .eva-sel__lien:disabled { opacity: 0.45; cursor: default; }
+.eva-sel__panneau .eva-sel__lien:focus-visible { outline: 2px solid var(--sel-accent); outline-offset: 0; }
+.eva-sel__panneau .eva-sel__terminer {
+  display: none;
+  min-height: 40px;
+  margin: 0;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--sel-rayon-champ);
+  background: var(--sel-accent);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.eva-sel__panneau .eva-sel__terminer:hover { background: var(--sel-accent-profond); }
+.eva-sel__panneau .eva-sel__terminer:focus-visible { outline: 2px solid var(--sel-accent); outline-offset: 2px; }
+
+/* ============================ FEUILLE BASSE (< 560px) ============================ */
+
+.eva-sel__voile {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--sel-z) - 1);
+  background: rgba(20, 35, 28, 0.5);
+  animation: eva-sel-fondu 160ms ease-out;
+}
+@keyframes eva-sel-fondu { from { opacity: 0; } to { opacity: 1; } }
+
+.eva-sel__panneau--feuille {
+  top: auto !important;
+  left: 0 !important;
+  right: 0;
+  bottom: 0 !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  max-height: min(82vh, 82dvh) !important;
+  border-width: 1px 0 0;
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -10px 40px rgba(20, 35, 28, 0.22);
+  font-size: 16px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  animation: eva-sel-feuille 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes eva-sel-feuille { from { transform: translateY(100%); } to { transform: none; } }
+
+.eva-sel__entete { display: none; }
+.eva-sel__panneau--feuille .eva-sel__entete {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 8px 6px 16px;
+}
+.eva-sel__panneau--feuille .eva-sel__entete::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  width: 38px;
+  height: 4px;
+  margin-left: -19px;
+  border-radius: 999px;
+  background: var(--sel-bordure-forte);
+}
+.eva-sel__titre { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 700; color: var(--sel-texte); }
+.eva-sel__panneau .eva-sel__fermer {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sel-texte-doux);
+  cursor: pointer;
+}
+.eva-sel__panneau .eva-sel__fermer:hover { background: var(--sel-fond-desactive); color: var(--sel-texte); }
+
+.eva-sel__panneau--feuille .eva-sel__recherche { border-bottom: 0; padding: 4px 16px 10px; }
+.eva-sel__panneau--feuille .eva-sel__loupe { left: 28px; top: 27px; }
+.eva-sel__panneau--feuille .eva-sel__recherche-effacer { right: 22px; top: 27px; width: 32px; height: 32px; }
+.eva-sel__panneau--feuille input.eva-sel__recherche-champ { min-height: 46px; font-size: 16px; padding-left: 38px; }
+.eva-sel__panneau--feuille .eva-sel__liste { padding: 4px 8px 8px; border-top: 1px solid var(--sel-bordure); }
+.eva-sel__panneau--feuille .eva-sel__option { min-height: 48px; padding: 10px 12px; gap: 12px; }
+.eva-sel__panneau--feuille .eva-sel__case { width: 22px; height: 22px; border-radius: 6px; }
+.eva-sel__panneau--feuille .eva-sel__description { font-size: 13.5px; }
+.eva-sel__panneau--feuille .eva-sel__groupe-entete { font-size: 12px; padding-top: 14px; }
+.eva-sel__panneau--feuille .eva-sel__pied { min-height: 56px; padding: 8px 16px; font-size: 13px; }
+.eva-sel__panneau--feuille .eva-sel__lien { min-height: 40px; padding: 0 12px; font-size: 14px; }
+.eva-sel__panneau--feuille .eva-sel__terminer { display: inline-flex; align-items: center; justify-content: center; }
+
+/* Petit ecran : barres d'outils pleine largeur ; 16px dans les formulaires (evite le zoom iOS) */
+@media (max-width: 720px) {
+  .eva-sel--compact { display: block; width: 100%; }
+}
+@media (max-width: 559.98px) {
+  .eva-fchamp .eva-sel { --sel-hauteur: 46px; font-size: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eva-sel__panneau, .eva-sel__voile { animation: none; }
+.eva-sel .eva-sel__declencheur,
+.eva-sel input.eva-sel__saisie,
+.eva-sel__chevron,
+.eva-sel__case { transition: none; }
+}

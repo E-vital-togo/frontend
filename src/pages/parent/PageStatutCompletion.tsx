@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
-import { AlertTriangle, Check } from "lucide-react";
-import Logo from "../../components/Logo";
+import { AlertTriangle, BadgeCheck, Check, CircleHelp, ClipboardCheck, FileText, Hourglass, Inbox, Landmark, RefreshCw, WifiOff } from "lucide-react";
+import EcranResultat from "../../components/auth/EcranResultat";
+import { decrireErreur, estErreurReseau, type MessageErreur } from "../../components/auth/messagesAuth";
+import { Bouton, LienBouton, PageAuth, Squelette } from "../../components/ui";
+import { cx } from "../../components/ui/utilitaires";
 import { appelApiPublic } from "../../lib/apiPublic";
 import type { StatutDossier } from "../../types/domaine";
+import "../../styles/auth.css";
 
 interface ReponseStatutCompletion {
   statut: StatutDossier;
@@ -11,19 +15,67 @@ interface ReponseStatutCompletion {
 }
 
 const ETAPES: Array<{ statuts: StatutDossier[]; libelle: string }> = [
-  { statuts: ["recu", "notifie"], libelle: "Recu" },
-  { statuts: ["en_attente_complement"], libelle: "Verification" },
+  { statuts: ["recu", "notifie"], libelle: "Reçu" },
+  { statuts: ["en_attente_complement"], libelle: "Complément" },
   { statuts: ["complete"], libelle: "Complet" },
-  { statuts: ["acte_emis"], libelle: "Acte emis" }
+  { statuts: ["acte_emis"], libelle: "Acte émis" }
 ];
 
-const MESSAGES: Record<StatutDossier, string> = {
-  recu: "Votre declaration a ete recue.",
-  notifie: "Votre declaration a ete recue et vous a ete notifiee.",
-  en_attente_complement: "Un complement d'information est attendu.",
-  complete: "Votre dossier est complet, en attente de verification par la mairie.",
-  acte_emis: "Votre acte a ete etabli, vous pouvez le retirer a la mairie.",
-  sans_suite: "Le delai legal est depasse. Rapprochez-vous de la mairie pour la procedure de rattrapage."
+interface DescriptionStatut {
+  ton: "info" | "attention" | "succes" | "erreur";
+  icone: ReactNode;
+  titre: string;
+  message: string;
+  /** Vrai : le parent peut (ou doit) encore completer son dossier. */
+  aCompleter?: boolean;
+  conseil?: string;
+}
+
+const STATUTS: Record<StatutDossier, DescriptionStatut> = {
+  recu: {
+    ton: "info",
+    icone: <Inbox size={20} />,
+    titre: "Déclaration reçue",
+    message: "Votre déclaration a été reçue.",
+    aCompleter: true,
+    conseil: "Complétez votre dossier pour que la mairie puisse le traiter."
+  },
+  notifie: {
+    ton: "info",
+    icone: <Inbox size={20} />,
+    titre: "Déclaration reçue",
+    message: "Votre déclaration a été reçue et vous a été notifiée.",
+    aCompleter: true,
+    conseil: "Complétez votre dossier pour que la mairie puisse le traiter."
+  },
+  en_attente_complement: {
+    ton: "attention",
+    icone: <Hourglass size={20} />,
+    titre: "Complément attendu",
+    message: "Un complément d'information est attendu.",
+    aCompleter: true,
+    conseil: "Ouvrez votre dossier et renseignez les informations demandées."
+  },
+  complete: {
+    ton: "info",
+    icone: <ClipboardCheck size={20} />,
+    titre: "Dossier complet",
+    message: "Votre dossier est complet, en attente de vérification par la mairie.",
+    conseil: "Aucune démarche n'est nécessaire de votre part pour le moment."
+  },
+  acte_emis: {
+    ton: "succes",
+    icone: <BadgeCheck size={20} />,
+    titre: "Acte établi",
+    message: "Votre acte a été établi, vous pouvez le retirer à la mairie.",
+    conseil: "Munissez-vous d'une pièce d'identité."
+  },
+  sans_suite: {
+    ton: "erreur",
+    icone: <AlertTriangle size={20} />,
+    titre: "Délai légal dépassé",
+    message: "Le délai légal est dépassé. Rapprochez-vous de la mairie pour la procédure de rattrapage."
+  }
 };
 
 function indexEtape(statut: StatutDossier): number {
@@ -33,69 +85,143 @@ function indexEtape(statut: StatutDossier): number {
 export default function PageStatutCompletion() {
   const { code } = useParams<{ code: string }>();
   const [statut, setStatut] = useState<ReponseStatutCompletion | null>(null);
-  const [erreur, setErreur] = useState<string | null>(null);
+  const [erreur, setErreur] = useState<MessageErreur | null>(null);
+  const [actualisation, setActualisation] = useState(false);
 
-  useEffect(() => {
+  const charger = useCallback(() => {
     if (!code) return;
+    setActualisation(true);
     appelApiPublic<ReponseStatutCompletion>(`/completion/statut/${code}`)
-      .then(setStatut)
-      .catch(() => setErreur("Code invalide."));
+      .then((donnees) => {
+        setStatut(donnees);
+        setErreur(null);
+      })
+      .catch((e: unknown) => {
+        setErreur(
+          estErreurReseau(e)
+            ? decrireErreur(e, "Connexion impossible")
+            : { variante: "erreur", titre: "Code introuvable", message: "Ce code ne correspond à aucun dossier." }
+        );
+      })
+      .finally(() => setActualisation(false));
   }, [code]);
 
-  const etapeActuelle = statut ? indexEtape(statut.statut) : -1;
+  useEffect(() => {
+    charger();
+  }, [charger]);
 
-  return (
-    <div className="eva-ecran-centre">
-      <div className="eva-carte" style={{ width: "100%", maxWidth: 460, textAlign: "center" }}>
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}>
-          <Logo variante="vertical" hauteur={90} />
-        </div>
-        {erreur && <p className="message-erreur">{erreur}</p>}
-        {statut && (
-          <>
-            <p className="eva-sous-titre" style={{ marginBottom: 20 }}>Mairie de {statut.mairie}</p>
-
-            {statut.statut === "sans_suite" ? (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-                <AlertTriangle size={30} color="var(--couleur-erreur)" />
-                <p style={{ fontSize: 15 }}>{MESSAGES[statut.statut]}</p>
-              </div>
+  // Echec sans donnees a afficher (un echec d'actualisation garde l'ancien statut a l'ecran)
+  if (erreur && !statut) {
+    const reseau = erreur.variante === "avertissement";
+    return (
+      <PageAuth>
+        <EcranResultat
+          ton={reseau ? "attention" : "erreur"}
+          icone={reseau ? <WifiOff size={34} /> : <CircleHelp size={34} />}
+          titre={erreur.titre}
+          actions={
+            reseau ? (
+              <Bouton type="button" pleineLargeur iconeGauche={<RefreshCw size={16} />} chargement={actualisation} onClick={charger}>
+                Réessayer
+              </Bouton>
             ) : (
               <>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 24, position: "relative" }}>
-                  <div style={{ position: "absolute", top: 13, left: "12%", right: "12%", height: 2, background: "var(--couleur-bordure)", zIndex: 0 }} />
-                  {ETAPES.map((etape, index) => {
-                    const atteinte = index <= etapeActuelle;
-                    return (
-                      <div key={etape.libelle} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, position: "relative", zIndex: 1, flex: 1 }}>
-                        <div
-                          style={{
-                            width: 26,
-                            height: 26,
-                            borderRadius: "50%",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            background: atteinte ? "var(--couleur-emeraude)" : "var(--couleur-blanc)",
-                            border: `2px solid ${atteinte ? "var(--couleur-emeraude)" : "var(--couleur-bordure-forte)"}`,
-                            color: "var(--couleur-blanc)"
-                          }}
-                        >
-                          {atteinte && <Check size={14} />}
-                        </div>
-                        <span style={{ fontSize: 10.5, color: atteinte ? "var(--couleur-encre)" : "var(--couleur-gris-service-2)", fontWeight: atteinte ? 600 : 400 }}>
-                          {etape.libelle}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-                <p style={{ fontSize: 15 }}>{MESSAGES[statut.statut] || statut.statut}</p>
+                <LienBouton to="/retrouver-mon-code" pleineLargeur>
+                  J'ai perdu mon code
+                </LienBouton>
+                <LienBouton to="/completion" variante="secondaire" pleineLargeur>
+                  Saisir un autre code
+                </LienBouton>
               </>
-            )}
-          </>
-        )}
+            )
+          }
+        >
+          <p>{erreur.message}</p>
+          {!reseau && <p>Vérifiez le code reçu par SMS. Si vous l'avez égaré, vous pouvez le retrouver avec votre numéro de téléphone.</p>}
+        </EcranResultat>
+      </PageAuth>
+    );
+  }
+
+  // Chargement : squelettes a la forme de la page
+  if (!statut) {
+    return (
+      <PageAuth titre="Suivi de mon dossier" description="Nous recherchons votre dossier...">
+        <div className="eva-acces-squelette" role="status" aria-busy="true">
+          <span className="eva-sr-only">Chargement du suivi de votre dossier</span>
+          <Squelette variante="bloc" hauteur={64} libelle="" />
+          <Squelette variante="bloc" hauteur={84} libelle="" />
+        </div>
+      </PageAuth>
+    );
+  }
+
+  const description = STATUTS[statut.statut];
+  const etapeActuelle = indexEtape(statut.statut);
+
+  return (
+    <PageAuth
+      titre="Suivi de mon dossier"
+      icone={<Landmark size={26} />}
+      description={
+        <>
+          Mairie de <strong>{statut.mairie}</strong>
+        </>
+      }
+    >
+      {statut.statut !== "sans_suite" && (
+        <ol className="eva-acces-progression" aria-label="Avancement du dossier">
+          {ETAPES.map((etape, index) => {
+            const courante = index === etapeActuelle;
+            // L'etape en cours n'est "faite" que si c'est la derniere (acte emis) ; sinon elle reste a accomplir.
+            const faite = index < etapeActuelle || (courante && index === ETAPES.length - 1);
+            return (
+              <li key={etape.libelle} className={cx("eva-acces-progression__item", faite && "est-atteint", courante && "est-courant")} aria-current={courante ? "step" : undefined}>
+                <span className="eva-acces-progression__puce" aria-hidden="true">
+                  {faite ? <Check size={15} strokeWidth={3} /> : index + 1}
+                </span>
+                <span className="eva-acces-progression__libelle">
+                  {etape.libelle}
+                  <span className="eva-sr-only">{courante && !faite ? " (étape en cours)" : faite ? " (terminée)" : " (à venir)"}</span>
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+
+      <div className={cx("eva-acces-statut", `eva-acces-statut--${description.ton}`)} role="status">
+        <span className="eva-acces-statut__icone" aria-hidden="true">
+          {description.icone}
+        </span>
+        <div>
+          <p className="eva-acces-statut__titre">{description.titre}</p>
+          <p className="eva-acces-statut__texte">{description.message}</p>
+          {description.conseil && <p className="eva-acces-statut__conseil">{description.conseil}</p>}
+        </div>
       </div>
-    </div>
+
+      {erreur && (
+        <p className="eva-acces-statut__echec" role="alert">
+          {erreur.message}
+        </p>
+      )}
+
+      <div className="eva-acces-actions-statut">
+        {description.aCompleter && code && (
+          <LienBouton to={`/completion/${code}`} pleineLargeur iconeGauche={<FileText size={17} />}>
+            {statut.statut === "en_attente_complement" ? "Compléter mon dossier" : "Compléter ma déclaration"}
+          </LienBouton>
+        )}
+        <Bouton type="button" variante="secondaire" pleineLargeur chargement={actualisation} iconeGauche={<RefreshCw size={16} />} onClick={charger}>
+          Actualiser le statut
+        </Bouton>
+      </div>
+      {code && (
+        <p className="eva-acces-rappel-code">
+          Code de retrait : <strong className="texte-mono">{code}</strong>
+        </p>
+      )}
+    </PageAuth>
   );
 }

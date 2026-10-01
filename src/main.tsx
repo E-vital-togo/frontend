@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./styles/theme.css";
 import "./styles/formulaire.css";
+import "./styles/composants.css";
 
 const conteneur = document.getElementById("root");
 if (!conteneur) {
