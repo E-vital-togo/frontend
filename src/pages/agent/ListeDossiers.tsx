@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Baby, CloudOff, CloudUpload, Download, FilePlus, Flower2, Search } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
 import BadgeStatut from "../../components/BadgeStatut";
+import BadgeRetrait from "../../components/retrait/BadgeRetrait";
 import {
   Alerte,
   Badge,
@@ -34,6 +35,14 @@ import { classeUrgence, echeanceActive, joursRestants } from "../../lib/urgence"
 import { LIENS_AGENT } from "./navigation";
 import type { Dossier, ReponsePaginee, StatutDossier, TypeEvenement } from "../../types/domaine";
 import "../../styles/agent.css";
+import "../../styles/retrait.css";
+
+/** Filtre de retrait de l'acte (paramètre `retrait` du serveur) : "" = tous. */
+type FiltreRetrait = "" | "a_retirer" | "retire";
+
+function filtreRetraitDepuis(valeur: string | null): FiltreRetrait {
+  return valeur === "a_retirer" || valeur === "retire" ? valeur : "";
+}
 
 const TAILLE_PAGE = 25;
 
@@ -82,6 +91,8 @@ export default function ListeDossiers() {
   const [recherche, setRecherche] = useState("");
   const [echeanceUniquement, setEcheanceUniquement] = useState(parametresUrl.get("echeance") === "1");
   const [masquerActesEmis, setMasquerActesEmis] = useState(false);
+  const retraitUrl = parametresUrl.get("retrait");
+  const [retraitFiltre, setRetraitFiltre] = useState<FiltreRetrait>(filtreRetraitDepuis(retraitUrl));
   const [page, setPage] = useState(1);
   const [chargement, setChargement] = useState(true);
   const [exportEnCours, setExportEnCours] = useState<"xlsx" | "pdf" | null>(null);
@@ -101,6 +112,12 @@ export default function ListeDossiers() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evenementUrl]);
 
+  useEffect(() => {
+    // Même principe pour le compteur « Actes à retirer » du tableau de bord (?retrait=a_retirer).
+    setRetraitFiltre(filtreRetraitDepuis(retraitUrl));
+    setPage(1);
+  }, [retraitUrl]);
+
   const construireParametres = useCallback((): URLSearchParams => {
     const parametres = new URLSearchParams();
     if (statutFiltre) parametres.set("statut", statutFiltre);
@@ -108,8 +125,9 @@ export default function ListeDossiers() {
     if (recherche) parametres.set("search", recherche);
     if (echeanceUniquement) parametres.set("echeance_proche", "true");
     if (masquerActesEmis) parametres.set("masquer_actes_emis", "true");
+    if (retraitFiltre) parametres.set("retrait", retraitFiltre);
     return parametres;
-  }, [statutFiltre, evenementFiltre, recherche, echeanceUniquement, masquerActesEmis]);
+  }, [statutFiltre, evenementFiltre, recherche, echeanceUniquement, masquerActesEmis, retraitFiltre]);
 
   useEffect(() => {
     const parametres = construireParametres();
@@ -169,7 +187,7 @@ export default function ListeDossiers() {
       annule = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statutFiltre, evenementFiltre, recherche, echeanceUniquement, masquerActesEmis, page, enLigne, relance]);
+  }, [statutFiltre, evenementFiltre, recherche, echeanceUniquement, masquerActesEmis, retraitFiltre, page, enLigne, relance]);
 
   async function exporter(format: "xlsx" | "pdf") {
     setExportEnCours(format);
@@ -194,6 +212,12 @@ export default function ListeDossiers() {
     ...s,
     compteur: s.valeur === statutFiltre && dossiers && !horsLigne ? total : undefined
   }));
+
+  const pilulesRetrait: PiluleFiltre<FiltreRetrait>[] = [
+    { valeur: "", libelle: "Tous" },
+    { valeur: "a_retirer", libelle: "À retirer" },
+    { valeur: "retire", libelle: "Retirés" }
+  ];
 
   const pilulesEvenement: PiluleFiltre<TypeEvenement | "">[] = [
     { valeur: "", libelle: "Tous" },
@@ -238,6 +262,7 @@ export default function ListeDossiers() {
       rendu: (d) => (
         <span className="eva-ag-statuts">
           <BadgeStatut statut={d.statut} />
+          <BadgeRetrait etat={d.etat_retrait} retireLe={d.retire_le} masquerNonEmis />
           {d.a_une_nouvelle_version && <Badge variante="info">Nouvelle version</Badge>}
           {aSynchroniser.has(d.id) && (
             <span title="Modifications saisies sur cet appareil, pas encore envoyées au serveur">
@@ -332,6 +357,15 @@ export default function ListeDossiers() {
               onChanger={changer(setStatutFiltre)}
               pilules={pilulesStatut}
               defilement={mobile}
+            />
+          </div>
+          <div className="eva-ag-filtre">
+            <span className="eva-ag-filtre__libelle">Retrait</span>
+            <PilulesFiltre
+              ariaLabel="Filtrer par retrait de l'acte"
+              valeur={retraitFiltre}
+              onChanger={changer(setRetraitFiltre)}
+              pilules={pilulesRetrait}
             />
           </div>
           <div className="eva-ag-filtre eva-ag-filtre--options">

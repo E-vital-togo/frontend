@@ -1,13 +1,18 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import { ArrowRight, Baby, Camera, CheckCircle2, Flower2, Keyboard, Phone, QrCode, RotateCcw, Search } from "lucide-react";
+import { ArrowRight, Baby, Camera, CheckCircle2, Flower2, Keyboard, PackageCheck, Phone, QrCode, RotateCcw, Search } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
 import BadgeStatut from "../../components/BadgeStatut";
-import { Alerte, Bouton, Carte, Champ, ChampTelephone, EnteteDePage, LienBouton, Onglets, Spinner } from "../../components/ui";
+import BadgeRetrait from "../../components/retrait/BadgeRetrait";
+import ModaleRemiseActe from "../../components/retrait/ModaleRemiseActe";
+import OngletTelephoneRetrait from "../../components/retrait/OngletTelephoneRetrait";
+import { Alerte, Bouton, Carte, Champ, EnteteDePage, LienBouton, Onglets, Spinner } from "../../components/ui";
 import { appelApi, ErreurApi } from "../../lib/apiClient";
+import { useConnectivite } from "../../lib/connectivite";
 import { LIENS_AGENT } from "./navigation";
-import type { CodeRetraitTrouve, Dossier } from "../../types/domaine";
+import type { Dossier, ResumeRetrait } from "../../types/domaine";
 import "../../styles/agent.css";
+import "../../styles/retrait.css";
 
 const ID_LECTEUR = "eva-lecteur-qr";
 const PREFIXE_ONGLETS = "retrait";
@@ -31,8 +36,11 @@ function TitreEtape({ numero, titre, fait }: { numero: number; titre: string; fa
   );
 }
 
-function ResultatDossier({ dossier, onNouvelleRecherche }: { dossier: Dossier; onNouvelleRecherche: () => void }) {
+function ResultatDossier({ dossier, onNouvelleRecherche, onRetire }: { dossier: Dossier; onNouvelleRecherche: () => void; onRetire: (retrait: ResumeRetrait) => void }) {
   const naissance = dossier.event_type === "naissance";
+  const enLigne = useConnectivite();
+  const [remiseOuverte, setRemiseOuverte] = useState(false);
+  const peutRemettre = dossier.etat_retrait === "a_retirer";
   return (
     <Carte className="eva-ag-resultat" variante="accent" aria-live="polite">
       <div className="eva-ag-resultat__entete">
@@ -43,7 +51,10 @@ function ResultatDossier({ dossier, onNouvelleRecherche }: { dossier: Dossier; o
           <span className="eva-ag-resultat__type">Dossier de {naissance ? "naissance" : "décès"}</span>
           <span className="texte-mono eva-texte-petit eva-texte-discret">{dossier.id}</span>
         </div>
-        <BadgeStatut statut={dossier.statut} />
+        <span className="eva-ag-statuts">
+          <BadgeStatut statut={dossier.statut} />
+          <BadgeRetrait etat={dossier.etat_retrait} retireLe={dossier.retire_le} retirePar={dossier.retrait?.retire_par_nom} masquerNonEmis />
+        </span>
       </div>
       <dl className="eva-definitions">
         <dt>Nom</dt>
@@ -53,14 +64,43 @@ function ResultatDossier({ dossier, onNouvelleRecherche }: { dossier: Dossier; o
         <dt>Date limite</dt>
         <dd>{formaterDate(dossier.date_limite)}</dd>
       </dl>
+      {dossier.etat_retrait === "retire" && (
+        <p className="eva-rt-carte__note">
+          Acte déjà remis{dossier.retrait?.retire_nom_receveur ? ` à ${dossier.retrait.retire_nom_receveur}` : ""}. Il ne peut pas être remis une seconde fois.
+        </p>
+      )}
       <div className="eva-groupe-boutons eva-ag-resultat__actions">
-        <LienBouton to={`/agent/dossiers/${dossier.id}`} iconeDroite={<ArrowRight size={16} />}>
+        {peutRemettre && (
+          <Bouton
+            onClick={() => setRemiseOuverte(true)}
+            disabled={!enLigne}
+            title={enLigne ? undefined : "Le retrait nécessite une connexion"}
+            iconeGauche={<PackageCheck size={16} />}
+          >
+            Remettre l'acte
+          </Bouton>
+        )}
+        <LienBouton to={`/agent/dossiers/${dossier.id}`} variante="secondaire" iconeDroite={<ArrowRight size={16} />}>
           Ouvrir le dossier
         </LienBouton>
         <Bouton variante="secondaire" onClick={onNouvelleRecherche} iconeGauche={<RotateCcw size={16} />}>
           Nouvelle recherche
         </Bouton>
       </div>
+      {remiseOuverte && (
+        <ModaleRemiseActe
+          idDossier={dossier.id}
+          basePath="/agent"
+          libelleFin="Nouvelle recherche"
+          onRetire={onRetire}
+          onDejaRetire={onRetire}
+          onFermer={() => setRemiseOuverte(false)}
+          onTerminer={() => {
+            setRemiseOuverte(false);
+            onNouvelleRecherche();
+          }}
+        />
+      )}
     </Carte>
   );
 }
@@ -207,102 +247,6 @@ function OngletCode({ onTrouve }: { onTrouve: (d: Dossier) => void }) {
   );
 }
 
-function OngletTelephone({ onTrouve }: { onTrouve: (d: Dossier) => void }) {
-  // E.164 ("+22890123456") ; le backend retrouve aussi les codes créés avec un ancien format libre.
-  const [telephone, setTelephone] = useState("");
-  const [telephoneValide, setTelephoneValide] = useState(false);
-  const [resultats, setResultats] = useState<CodeRetraitTrouve[] | null>(null);
-  const [enCours, setEnCours] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
-  const [ouverture, setOuverture] = useState<string | null>(null);
-
-  async function rechercher(evenement: FormEvent<HTMLFormElement>) {
-    evenement.preventDefault();
-    if (!telephone || !telephoneValide) return;
-    setEnCours(true);
-    setErreur(null);
-    setResultats(null);
-    try {
-      const donnees = await appelApi<CodeRetraitTrouve[]>(`/codes-retrait/rechercher?telephone=${encodeURIComponent(telephone)}`);
-      setResultats(donnees);
-    } catch (e) {
-      setErreur(e instanceof ErreurApi ? e.message : "Erreur de recherche.");
-    } finally {
-      setEnCours(false);
-    }
-  }
-
-  async function ouvrir(codeTrouve: CodeRetraitTrouve) {
-    setOuverture(codeTrouve.code);
-    try {
-      const dossier = await appelApi<Dossier>(`/codes-retrait/verifier/${codeTrouve.code}`);
-      onTrouve(dossier);
-    } catch {
-      setErreur("Ce dossier n'est plus accessible.");
-    } finally {
-      setOuverture(null);
-    }
-  }
-
-  return (
-    <div className="eva-ag-telephone">
-      <Carte className="eva-ag-formulaire">
-        <form onSubmit={rechercher} noValidate>
-          <Champ id="telephone" label="Numéro de téléphone du déclarant" aide="Le numéro donné lors de la déclaration du dossier.">
-            <ChampTelephone id="telephone" nom="telephone" valeur={telephone} onChange={setTelephone} onValidite={setTelephoneValide} />
-          </Champ>
-          {erreur && <Alerte variante="erreur" compacte>{erreur}</Alerte>}
-          <div className="eva-ag-formulaire__actions">
-            <Bouton type="submit" chargement={enCours} disabled={!telephone || !telephoneValide} iconeGauche={<Search size={16} />}>
-              Rechercher les codes
-            </Bouton>
-          </div>
-        </form>
-      </Carte>
-
-      <div aria-live="polite">
-        {resultats && resultats.length === 0 && (
-          <Alerte variante="info" titre="Aucun code trouvé pour ce numéro">
-            Vérifiez le numéro, ou essayez avec le code de retrait remis au déclarant.
-          </Alerte>
-        )}
-        {resultats && resultats.length > 0 && (
-          <section aria-label="Codes trouvés">
-            <p className="eva-ag-compteur-resultats">
-              {resultats.length} code{resultats.length > 1 ? "s" : ""} trouvé{resultats.length > 1 ? "s" : ""}
-            </p>
-            <ul className="eva-ag-cartes-codes">
-              {resultats.map((r) => (
-                <li key={r.code}>
-                  <Carte className="eva-ag-code">
-                    <span className="eva-ag-code__icone" aria-hidden="true">
-                      <QrCode size={20} />
-                    </span>
-                    <div className="eva-ag-code__corps">
-                      <span className="texte-mono eva-ag-code__valeur">{r.code}</span>
-                      <span className="eva-texte-petit eva-texte-discret">Émis le {formaterDate(r.created_at)}</span>
-                    </div>
-                    <Bouton
-                      variante="secondaire"
-                      taille="petit"
-                      onClick={() => ouvrir(r)}
-                      chargement={ouverture === r.code}
-                      disabled={ouverture !== null}
-                      iconeDroite={<ArrowRight size={15} />}
-                    >
-                      Ouvrir
-                    </Bouton>
-                  </Carte>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-      </div>
-    </div>
-  );
-}
-
 export default function PageRetrait() {
   const [onglet, setOnglet] = useState("code");
   const [dossierTrouve, setDossierTrouve] = useState<Dossier | null>(null);
@@ -323,7 +267,7 @@ export default function PageRetrait() {
     <MiseEnPage liens={LIENS_AGENT}>
       <EnteteDePage
         titre="Retrait d'acte"
-        sousTitre="Retrouvez un dossier à partir du code, du QR code ou du numéro de téléphone remis au déclarant."
+        sousTitre="Retrouvez un dossier à partir du code, du QR code ou du numéro de téléphone du déclarant, puis remettez l'acte."
       />
 
       <div className="eva-ag-parcours">
@@ -356,12 +300,18 @@ export default function PageRetrait() {
           <div role="tabpanel" id={`${PREFIXE_ONGLETS}-panneau-${onglet}`} aria-labelledby={`${PREFIXE_ONGLETS}-${onglet}`}>
             {dossierTrouve ? (
               <div ref={refResultat} tabIndex={-1} className="eva-ag-resultat-focus">
-                <ResultatDossier dossier={dossierTrouve} onNouvelleRecherche={() => setDossierTrouve(null)} />
+                <ResultatDossier
+                  dossier={dossierTrouve}
+                  onNouvelleRecherche={() => setDossierTrouve(null)}
+                  onRetire={(retrait) =>
+                    setDossierTrouve((d) => (d ? { ...d, etat_retrait: "retire", retire_le: retrait.retire_le, retrait } : d))
+                  }
+                />
               </div>
             ) : onglet === "scanner" ? (
               <OngletScanner key={tentativeScanner} onTrouve={setDossierTrouve} onReessayer={() => setTentativeScanner((n) => n + 1)} />
             ) : onglet === "telephone" ? (
-              <OngletTelephone onTrouve={setDossierTrouve} />
+              <OngletTelephoneRetrait />
             ) : (
               <OngletCode onTrouve={setDossierTrouve} />
             )}

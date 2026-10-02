@@ -5,6 +5,9 @@ import MiseEnPage from "../../components/MiseEnPage";
 import ActionsDossier from "../../components/dossier/ActionsDossier";
 import { BandeauHorsLigne, BandeauVerrou } from "../../components/dossier/BandeauxDossier";
 import EnteteDossier from "../../components/dossier/EnteteDossier";
+import BandeauRetrait from "../../components/retrait/BandeauRetrait";
+import ModaleAnnulationRetrait from "../../components/retrait/ModaleAnnulationRetrait";
+import ModaleRemiseActe from "../../components/retrait/ModaleRemiseActe";
 import PanneauDemandes from "../../components/dossier/PanneauDemandes";
 import PanneauFormulaire from "../../components/dossier/PanneauFormulaire";
 import PanneauHistorique from "../../components/dossier/PanneauHistorique";
@@ -27,6 +30,7 @@ import {
   cleCacheFormulaire
 } from "../../lib/db";
 import { useConnectivite } from "../../lib/connectivite";
+import { signalerCompletionDesactivee } from "../../lib/etatCompletion";
 import { planFormulaire } from "../../lib/formulaire";
 import { mettreEnCacheMiseEnPage, miseEnPageEnCache } from "../../lib/formulairesHorsLigne";
 import { telechargerBlob } from "../../lib/telechargerBlob";
@@ -88,6 +92,8 @@ export default function DetailDossier() {
   const [signataireVisible, setSignataireVisible] = useState<SignataireMairie | null>(null);
   const [chargementSignataire, setChargementSignataire] = useState(false);
   const [apercuActeEnCours, setApercuActeEnCours] = useState(false);
+  const [remiseOuverte, setRemiseOuverte] = useState(false);
+  const [annulationOuverte, setAnnulationOuverte] = useState(false);
 
   const nbModifications = Object.keys(valeursModifiees).length;
   useProtectionDepart(nbModifications > 0, nbModifications);
@@ -206,6 +212,12 @@ export default function DetailDossier() {
     }
   }
 
+  // Retrait enregistré, annulé ou déjà fait par un collègue : relit le dossier (badge, bandeau) et l'acte.
+  async function actualiserApresRetrait() {
+    setActe(null);
+    await charger();
+  }
+
   async function relancerMaintenant() {
     if (!idDossier) return;
     const ok = await confirmer({
@@ -222,6 +234,8 @@ export default function DetailDossier() {
       setNotifications(null);
       setErreurNotifications(null);
     } catch (e) {
+      // Coupee par l'administration entre-temps : le bouton se desactive et le bandeau apparait.
+      if (e instanceof ErreurApi && e.code === "completion_desactivee") signalerCompletionDesactivee();
       toast.erreur(messageErreur(e));
     } finally {
       setRelanceEnCours(false);
@@ -425,6 +439,9 @@ export default function DetailDossier() {
   const enEtapes = planFormulaire(champs, miseEnPage).mode === "etapes";
   const peutEmettreActe = estAgent && dossier.statut === "complete";
   const peutRelancer = dossier.statut !== "acte_emis" && dossier.statut !== "sans_suite";
+  // Remise de l'acte : agent, acte émis non retiré, données du serveur (jamais une copie locale).
+  const peutRemettre = estAgent && dossier.statut === "acte_emis" && dossier.etat_retrait === "a_retirer";
+  const retraitFait = dossier.etat_retrait === "retire" && dossier.retrait ? dossier.retrait : null;
   const propositionEnAttente = dossier.nouvelle_version?.statut === "en_attente" ? dossier.nouvelle_version : null;
   const demandesEnAttente = demandes ? demandes.filter((d) => d.statut === "en_attente").length : 0;
 
@@ -461,6 +478,9 @@ export default function DetailDossier() {
               peutEmettre={peutEmettreActe}
               onEmettre={() => navigate(`${basePath}/dossiers/${idDossier}/emission-acte`)}
               lienActe={dossier.statut === "acte_emis" ? `${basePath}/dossiers/${idDossier}/acte-pdf` : undefined}
+              peutRemettre={peutRemettre}
+              remiseIndisponible={!enLigne || horsLigne ? "La remise de l'acte nécessite une connexion" : undefined}
+              onRemettre={() => setRemiseOuverte(true)}
               peutVoirSignataire={dossier.statut === "acte_emis" && !!acte?.signataire}
               signataireEnCours={chargementSignataire}
               onSignataire={voirSignataire}
@@ -473,6 +493,16 @@ export default function DetailDossier() {
         />
 
         {horsLigne && <BandeauHorsLigne lienSynchronisation={estAgent ? "/agent/synchronisation" : undefined} />}
+
+        {retraitFait && idDossier && (
+          <BandeauRetrait
+            idDossier={idDossier}
+            retrait={retraitFait}
+            peutAnnuler={utilisateur?.role === "admin_cec" && enLigne && !horsLigne}
+            onAnnuler={() => setAnnulationOuverte(true)}
+            version={retraitFait.retire_le ?? ""}
+          />
+        )}
 
         {dossier.verrouille && idDossier && (
           <BandeauVerrou
@@ -568,6 +598,30 @@ export default function DetailDossier() {
           avertirAvantDepart
         />
       </div>
+
+      {remiseOuverte && idDossier && (
+        <ModaleRemiseActe
+          idDossier={idDossier}
+          basePath={basePath}
+          libelleFin="Fermer"
+          onRetire={() => void actualiserApresRetrait()}
+          onDejaRetire={() => void actualiserApresRetrait()}
+          onFermer={() => setRemiseOuverte(false)}
+        />
+      )}
+
+      {annulationOuverte && idDossier && retraitFait && (
+        <ModaleAnnulationRetrait
+          idDossier={idDossier}
+          retrait={retraitFait}
+          onFermer={() => setAnnulationOuverte(false)}
+          onAnnule={() => {
+            setAnnulationOuverte(false);
+            toast.succes("Le retrait est annulé : l'acte redevient « à retirer ». La trace reste dans l'historique.");
+            void actualiserApresRetrait();
+          }}
+        />
+      )}
 
       {signataireVisible && (
         <Modale titre="Signataire de l'acte" taille="petit" onFermer={() => setSignataireVisible(null)}>

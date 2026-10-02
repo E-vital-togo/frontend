@@ -23,6 +23,8 @@ export interface Compteurs {
   notificationsEchouees: number;
   notificationsEchoueesNaissance: number;
   notificationsEchoueesDeces: number;
+  /** Actes émis pas encore remis au déclarant (total serveur, pas la longueur d'une page). */
+  actesARetirer: number;
 }
 
 const VIDE: Compteurs = {
@@ -35,8 +37,14 @@ const VIDE: Compteurs = {
   demandesDeces: 0,
   notificationsEchouees: 0,
   notificationsEchoueesNaissance: 0,
-  notificationsEchoueesDeces: 0
+  notificationsEchoueesDeces: 0,
+  actesARetirer: 0
 };
+
+/** Total réel d'une liste : `count` du format paginé (page_size=1 suffit), sinon sa longueur. */
+function totalListe<T>(donnees: ListeOuPaginee<T>): number {
+  return Array.isArray(donnees) ? donnees.length : donnees.count;
+}
 
 /**
  * Etat garde au niveau module, PAS dans un useState de useCompteurs.
@@ -77,9 +85,10 @@ function rafraichir(): void {
     Promise.all([
       appelApi<ListeOuPaginee<Dossier>>("/dossiers/?echeance_proche=true&event_type=naissance"),
       appelApi<ListeOuPaginee<Dossier>>("/dossiers/?echeance_proche=true&event_type=deces"),
-      appelApi<ListeOuPaginee<ConflitSync>>("/sync/conflits/")
+      appelApi<ListeOuPaginee<ConflitSync>>("/sync/conflits/"),
+      appelApi<ListeOuPaginee<Dossier>>("/dossiers/?retrait=a_retirer&page_size=1")
     ])
-      .then(([dossiersNaissance, dossiersDeces, conflits]) => {
+      .then(([dossiersNaissance, dossiersDeces, conflits, aRetirer]) => {
         const echeancesNaissance = listeDepuis(dossiersNaissance).length;
         const echeancesDeces = listeDepuis(dossiersDeces).length;
         definir({
@@ -92,7 +101,8 @@ function rafraichir(): void {
           demandesDeces: 0,
           notificationsEchouees: 0,
           notificationsEchoueesNaissance: 0,
-          notificationsEchoueesDeces: 0
+          notificationsEchoueesDeces: 0,
+          actesARetirer: totalListe(aRetirer)
         });
       })
       .catch(() => {});
@@ -105,9 +115,10 @@ function rafraichir(): void {
       appelApi<ListeOuPaginee<DemandeModificationActe>>("/demandes-modification/?statut=en_attente&dossier__event_type=deces"),
       appelApi<ListeOuPaginee<ConflitSync>>("/sync/conflits/"),
       appelApi<ListeOuPaginee<NotificationEchouee>>("/notifications-echouees/?dossier__event_type=naissance"),
-      appelApi<ListeOuPaginee<NotificationEchouee>>("/notifications-echouees/?dossier__event_type=deces")
+      appelApi<ListeOuPaginee<NotificationEchouee>>("/notifications-echouees/?dossier__event_type=deces"),
+      appelApi<ListeOuPaginee<Dossier>>("/dossiers/?retrait=a_retirer&page_size=1")
     ])
-      .then(([demandesNaissance, demandesDeces, conflits, notifNaissance, notifDeces]) => {
+      .then(([demandesNaissance, demandesDeces, conflits, notifNaissance, notifDeces, aRetirer]) => {
         const compteDemandesNaissance = listeDepuis(demandesNaissance).length;
         const compteDemandesDeces = listeDepuis(demandesDeces).length;
         const compteNotifNaissance = listeDepuis(notifNaissance).length;
@@ -122,7 +133,8 @@ function rafraichir(): void {
           demandesDeces: compteDemandesDeces,
           notificationsEchouees: compteNotifNaissance + compteNotifDeces,
           notificationsEchoueesNaissance: compteNotifNaissance,
-          notificationsEchoueesDeces: compteNotifDeces
+          notificationsEchoueesDeces: compteNotifDeces,
+          actesARetirer: totalListe(aRetirer)
         });
       })
       .catch(() => {});

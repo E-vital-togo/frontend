@@ -8,7 +8,22 @@ import { extraireMessageErreur } from "./apiClient";
 
 const BASE_URL = import.meta.env.API_BASE_URL || "https://evital.duckdns.org/api/v1";
 
-export class ErreurApiPublique extends Error {}
+/**
+ * `code` et `statut` ne sont renseignes que pour une reponse d'erreur du
+ * serveur (jamais pour une panne reseau) : l'ecran parent s'en sert pour
+ * reconnaitre `completion_desactivee` (HTTP 503, interrupteur coupe par
+ * l'administration) sans parser le texte du message.
+ */
+export class ErreurApiPublique extends Error {
+  code?: string;
+  statut?: number;
+
+  constructor(message: string, code?: string, statut?: number) {
+    super(message);
+    this.code = code;
+    this.statut = statut;
+  }
+}
 
 export async function appelApiPublic<T>(chemin: string, options: RequestInit = {}): Promise<T> {
   let reponse: Response;
@@ -30,7 +45,12 @@ export async function appelApiPublic<T>(chemin: string, options: RequestInit = {
     }
     // Meme extraction que le client authentifie : le backend melange
     // {message}, {detail} et {champ: [...]} selon le type d'erreur.
-    throw new ErreurApiPublique(extraireMessageErreur(details, reponse.status));
+    const code = details && typeof details === "object" ? (details as { code?: unknown }).code : undefined;
+    throw new ErreurApiPublique(
+      extraireMessageErreur(details, reponse.status),
+      typeof code === "string" ? code : undefined,
+      reponse.status
+    );
   }
   return reponse.json() as Promise<T>;
 }

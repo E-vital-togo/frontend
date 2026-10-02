@@ -52,6 +52,57 @@ export interface NouvelleVersionDossier {
   updated_at: string;
 }
 
+/** État de retrait de l'acte au guichet (dérivé de l'acte actif ; le statut du dossier ne change pas). */
+export type EtatRetrait = "non_emis" | "a_retirer" | "retire";
+
+export type QualiteReceveur = "declarant" | "parent" | "mandataire" | "autre";
+export type PieceIdentite = "cni" | "passeport" | "permis" | "carte_electeur" | "autre";
+export type ModeVerificationRetrait = "physique" | "sms";
+
+/** Détail du retrait ; seul `etat` est toujours présent. */
+export interface ResumeRetrait {
+  etat: EtatRetrait;
+  retire_le: string | null;
+  retire_par_nom?: string;
+  retire_nom_receveur?: string;
+  retire_qualite?: QualiteReceveur | "";
+  retire_piece?: PieceIdentite | "";
+  retire_mode_verification?: ModeVerificationRetrait | "";
+  retire_note?: string;
+}
+
+/** Informations du déclarant à comparer au guichet (numéro partiellement masqué). */
+export interface DeclarantRetrait {
+  nom: string;
+  qualite: string;
+  telephone: string;
+  dossier_nom: string;
+  event_type: TypeEvenement;
+}
+
+export interface EntreeJournalRetrait {
+  id: string;
+  action: "retrait" | "annulation";
+  action_libelle: string;
+  date: string;
+  utilisateur_nom: string;
+  nom_receveur: string;
+  qualite: QualiteReceveur | "";
+  piece: PieceIdentite | "";
+  note: string;
+  mode_verification: ModeVerificationRetrait | "";
+  motif: string;
+  retire_le_annule: string | null;
+  numero_acte: number;
+  annee_registre: number;
+}
+
+export interface ReponseRetrait {
+  retrait: ResumeRetrait;
+  declarant?: DeclarantRetrait;
+  historique?: EntreeJournalRetrait[];
+}
+
 export interface Dossier {
   id: string;
   nom?: string | null;
@@ -73,6 +124,10 @@ export interface Dossier {
   a_une_nouvelle_version?: boolean;
   nouvelle_version?: NouvelleVersionDossier | null;
   valeurs?: ValeurChamp[];
+  /** Absent d'une copie locale antérieure à cette fonction : traiter comme inconnu. */
+  etat_retrait?: EtatRetrait;
+  retire_le?: string | null;
+  retrait?: ResumeRetrait;
 }
 
 // Miroir d'apps.catalogue.contraintes.TypeChamp (backend) : determine le
@@ -189,6 +244,10 @@ export interface Acte {
   motif_annulation: string;
   cree_par: string;
   created_at: string;
+  etat_retrait?: EtatRetrait;
+  retire_le?: string | null;
+  retire_par_nom?: string;
+  retire_nom_receveur?: string;
 }
 
 export interface DemandeModificationActe {
@@ -213,9 +272,19 @@ export interface NotificationDossier {
   type: "initiale" | "relance" | "confirmation";
   canal: "sms" | "whatsapp";
   fournisseur_utilise: string;
-  statut: "envoye" | "echec" | "en_attente";
+  /** `desactivee` : SMS volontairement non envoye (completion parent coupee par l'administration), jamais un echec. */
+  statut: "envoye" | "echec" | "en_attente" | "desactivee";
   contenu: string;
   created_at: string;
+}
+
+/** Reponse de GET /completion/etat : etat de l'interrupteur de la completion parent. */
+export interface EtatCompletion {
+  active: boolean;
+  /** Texte a afficher aux parents quand c'est desactive ("" quand c'est actif). */
+  message: string;
+  /** Vrai si `message` est le texte saisi par l'administrateur (et non le texte par defaut). */
+  message_personnalise: boolean;
 }
 
 export interface NotificationEchouee extends NotificationDossier {
@@ -228,6 +297,35 @@ export interface CodeRetraitTrouve {
   code: string;
   dossier_id: string;
   created_at: string;
+  // Enrichissement pour la vérification physique (absent d'un ancien serveur)
+  event_type?: TypeEvenement;
+  event_type_libelle?: string;
+  type_dossier?: TypeDossier;
+  dossier_nom?: string;
+  declarant_nom?: string;
+  declarant_qualite?: string;
+  /** Numéro partiellement masqué ("+228 ** ** 34 56"). */
+  declarant_telephone?: string;
+  date_declaration?: string;
+  statut_dossier?: StatutDossier;
+  statut_dossier_libelle?: string;
+  mairie_nom?: string;
+  etat_retrait?: EtatRetrait;
+  retire_le?: string | null;
+  retire_par_nom?: string;
+  retire_nom_receveur?: string;
+}
+
+/** Réponse de `GET /codes-retrait/mode` : la recherche par téléphone passe-t-elle par un code SMS ? */
+export interface ModeRetrait {
+  verification_sms: boolean;
+}
+
+/** Réponse de `POST /codes-retrait/guichet/demander-code` (identique que le numéro ait ou non des actes). */
+export interface DemandeCodeGuichet {
+  message: string;
+  delai_renvoi_secondes: number;
+  validite_minutes: number;
 }
 
 export interface StatistiqueRepartitionItem {
@@ -449,6 +547,7 @@ export type CleCompteur =
   | "notificationsEchouees"
   | "notificationsEchoueesNaissance"
   | "notificationsEchoueesDeces"
+  | "actesARetirer"
   | "syncEchouees";
 
 export interface SousLienNavigation {

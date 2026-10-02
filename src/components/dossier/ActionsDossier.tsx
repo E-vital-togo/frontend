@@ -1,4 +1,4 @@
-import { BellRing, CheckCircle2, ChevronDown, Eye, FileSignature, FileText, MoreHorizontal, UserCheck } from "lucide-react";
+import { BellRing, CheckCircle2, ChevronDown, Eye, FileSignature, FileText, MoreHorizontal, PackageCheck, UserCheck } from "lucide-react";
 import { Bouton, ItemMenu, LienBouton, MenuDeroulant, useMediaQuery } from "../ui";
 import { classesBouton } from "../ui/Bouton";
 import "../../styles/dossier.css";
@@ -18,6 +18,11 @@ interface ProprietesActionsDossier {
   onEmettre: () => void;
   /** Lien vers le PDF de l'acte émis. */
   lienActe?: string;
+  /** Remise de l'acte au déclarant (agent, acte émis non retiré) : devient l'action principale. */
+  peutRemettre?: boolean;
+  /** Hors ligne : la remise exige le serveur, le bouton est grisé avec son explication. */
+  remiseIndisponible?: string;
+  onRemettre?: () => void;
   /** Consultation du signataire (acte émis avec signataire connu). */
   peutVoirSignataire: boolean;
   signataireEnCours: boolean;
@@ -51,6 +56,10 @@ export default function ActionsDossier(p: ProprietesActionsDossier) {
     <Bouton onClick={p.onEmettre} iconeGauche={<FileSignature size={16} />}>
       Émettre l'acte
     </Bouton>
+  ) : p.peutRemettre ? (
+    <Bouton onClick={p.onRemettre} disabled={!!p.remiseIndisponible} title={p.remiseIndisponible} iconeGauche={<PackageCheck size={16} />}>
+      Remettre l'acte
+    </Bouton>
   ) : p.lienActe ? (
     <LienBouton to={p.lienActe} iconeGauche={<FileText size={16} />}>
       Voir le PDF de l'acte
@@ -63,8 +72,15 @@ export default function ActionsDossier(p: ProprietesActionsDossier) {
 
   // L'aperçu est secondaire dès qu'une autre action est principale (sinon il est lui-même le bouton principal).
   const apercuSecondaire = p.peutApercevoir && (p.peutValider || p.peutEmettre || !!p.lienActe);
+  // Quand « Remettre l'acte » est l'action principale, le PDF reste à portée de main en secondaire.
+  const pdfSecondaire = !!p.peutRemettre && !!p.lienActe;
 
   const elementsMenu = [
+    mobile && pdfSecondaire && (
+      <ItemMenu key="pdf" icone={FileText} vers={p.lienActe}>
+        Voir le PDF de l'acte
+      </ItemMenu>
+    ),
     mobile && apercuSecondaire && (
       <ItemMenu key="apercu" icone={Eye} onClick={p.onApercu} desactive={p.apercuEnCours}>
         Aperçu de l'acte
@@ -86,6 +102,11 @@ export default function ActionsDossier(p: ProprietesActionsDossier) {
 
   return (
     <div className={`eva-dd-actions${p.masquerMobile ? " eva-dd-actions--masquee-mobile" : ""}`}>
+      {!mobile && pdfSecondaire && (
+        <LienBouton to={p.lienActe as string} variante="secondaire" iconeGauche={<FileText size={16} />}>
+          Voir le PDF de l'acte
+        </LienBouton>
+      )}
       {!mobile && apercuSecondaire && (
         <Bouton variante="secondaire" onClick={p.onApercu} chargement={p.apercuEnCours} iconeGauche={<Eye size={16} />}>
           Aperçu de l'acte

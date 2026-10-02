@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, CalendarClock, CheckCircle2, Clock, FilePlus, FolderOpen, QrCode, RefreshCw, WifiOff } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckCircle2, Clock, FilePlus, FolderOpen, PackageCheck, QrCode, RefreshCw, WifiOff } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
+import AlerteCompletionDesactivee from "../../components/AlerteCompletionDesactivee";
 import BadgeStatut from "../../components/BadgeStatut";
 import EcheanceDossier from "../../components/statistiques/EcheanceDossier";
 import RaccourciAction from "../../components/statistiques/RaccourciAction";
@@ -126,6 +127,8 @@ export default function TableauDeBordAgent() {
         }
       />
 
+      <AlerteCompletionDesactivee />
+
       {horsLigne && !chargement && (
         <Alerte variante="avertissement" titre="Vous êtes hors ligne" icone={<WifiOff size={18} aria-hidden="true" />} className="eva-st-alerte-page">
           Liste mise en cache
@@ -153,6 +156,14 @@ export default function TableauDeBordAgent() {
               variante={enRetard > 0 ? "alerte" : "defaut"}
               detail={enRetard > 0 ? "Date limite dépassée" : "Aucun retard"}
               vers="/agent/dossiers"
+            />
+            <CarteStat
+              icone={<PackageCheck size={20} />}
+              valeur={compteurs.actesARetirer}
+              libelle="Actes à retirer"
+              variante={compteurs.actesARetirer > 0 ? "attention" : "defaut"}
+              detail={compteurs.actesARetirer > 0 ? "Émis, en attente d'être remis au déclarant" : "Aucun acte en attente de retrait"}
+              vers="/agent/dossiers?retrait=a_retirer"
             />
             <CarteStat
               icone={<AlertTriangle size={20} />}

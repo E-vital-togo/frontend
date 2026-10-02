@@ -1,0 +1,144 @@
+/* =========================================================================
+   Retrait de l'acte au guichet (agent CEC et administrateur CEC)
+   PageRetrait (onglet téléphone), modale « Remettre l'acte », annulation du
+   retrait, bandeau du dossier, pilules de filtre « À retirer / Retirés ».
+   Préfixe : eva-rt-. Uniquement des variables de jeton. Voir docs/retrait-acte.md.
+   ========================================================================= */
+
+/* ---- Bloc « à vérifier » (modale et cartes de résultat) ---- */
+.eva-rt-verifier {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-2);
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--couleur-citron-bordure);
+  border-left-width: 4px;
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-citron-fond);
+}
+.eva-rt-verifier__titre {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--couleur-citron-texte);
+}
+.eva-rt-verifier__liste { display: grid; gap: var(--espace-2) var(--espace-5); grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
+.eva-rt-verifier__liste > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.eva-rt-verifier__liste dt { font-size: 12px; color: var(--couleur-texte-discret); }
+.eva-rt-verifier__liste dd.texte-mono { white-space: nowrap; font-size: 13px; }
+.eva-rt-verifier__liste dd { margin: 0; font-size: 14px; font-weight: 600; color: var(--couleur-encre); overflow-wrap: anywhere; }
+
+/* ---- Check-list des informations à comparer ---- */
+.eva-rt-checklist { display: flex; flex-direction: column; gap: var(--espace-2); margin: 0; padding: 0; list-style: none; }
+.eva-rt-checklist li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 210px) minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--espace-2) var(--espace-3);
+}
+.eva-rt-checklist li > svg { align-self: center; color: var(--couleur-citron-texte); flex: none; }
+.eva-rt-checklist__libelle { font-size: 13px; color: var(--couleur-gris-service-1); }
+.eva-rt-checklist__valeur { font-size: 15px; font-weight: 600; color: var(--couleur-encre); overflow-wrap: anywhere; }
+
+/* ---- Carte de résultat ---- */
+.eva-rt-cartes { display: grid; gap: var(--espace-4); margin: 0 0 var(--espace-4); padding: 0; list-style: none; max-width: 640px; }
+.eva-rt-carte.eva-carte { display: flex; flex-direction: column; gap: var(--espace-4); }
+.eva-rt-carte--retire.eva-carte { background: var(--couleur-papier); }
+.eva-rt-carte__entete { display: flex; align-items: center; gap: var(--espace-3); }
+.eva-rt-carte__icone {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--rayon-grand);
+  background: var(--couleur-emeraude-fond);
+  color: var(--couleur-emeraude-profond);
+}
+.eva-rt-carte__titre { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.eva-rt-carte__type { font-size: 16px; font-weight: 600; color: var(--couleur-encre); }
+.eva-rt-carte__details { display: flex; flex-wrap: wrap; gap: var(--espace-2) var(--espace-6); margin: 0; }
+.eva-rt-carte__details > div { display: flex; flex-direction: column; gap: 1px; }
+.eva-rt-carte__details dt { font-size: 12px; color: var(--couleur-texte-discret); }
+.eva-rt-carte__details dd { margin: 0; font-size: 13.5px; color: var(--couleur-gris-service-1); }
+.eva-rt-carte__note { margin: 0; font-size: 13.5px; color: var(--couleur-gris-service-1); }
+.eva-rt-carte__actions { margin-top: var(--espace-1); }
+
+.eva-rt-resultats { display: flex; flex-direction: column; gap: var(--espace-4); max-width: 640px; }
+.eva-rt-resultats .eva-ag-compteur-resultats { margin: 0; }
+
+/* ---- Formulaires de l'onglet téléphone ---- */
+.eva-rt-aide-mode { display: flex; align-items: flex-start; gap: var(--espace-2); margin: 0 0 var(--espace-3); font-size: 13.5px; color: var(--couleur-texte-discret); }
+.eva-rt-aide-mode svg { flex: none; margin-top: 2px; color: var(--couleur-emeraude); }
+.eva-rt-code { margin: var(--espace-4) 0 0; }
+.eva-rt-code__actions { display: flex; flex-wrap: wrap; gap: var(--espace-2); }
+.eva-rt-aide-sms { margin: var(--espace-4) 0 0; padding-top: var(--espace-3); border-top: 1px solid var(--couleur-bordure); font-size: 13px; line-height: 1.5; color: var(--couleur-texte-discret); }
+.eva-rt-alerte-haute { margin-top: var(--espace-4); }
+
+/* ---- Modale « Remettre l'acte » ---- */
+.eva-rt-formulaire { display: flex; flex-direction: column; gap: var(--espace-4); }
+.eva-rt-formulaire .eva-champ { margin: 0; }
+.eva-rt-groupe { display: flex; flex-direction: column; gap: var(--espace-2); }
+.eva-rt-etiquette { font-size: 13px; font-weight: 600; color: var(--couleur-encre); }
+.eva-rt-case {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+  min-height: 44px;
+  padding: var(--espace-2) var(--espace-3);
+  border: 1px solid var(--couleur-bordure-forte);
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-emeraude-fond-doux);
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--couleur-encre);
+  cursor: pointer;
+}
+.eva-rt-case input { flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--couleur-emeraude); }
+.eva-rt-case:has(input:focus-visible) { box-shadow: var(--ombre-anneau-focus); }
+
+.eva-rt-succes { display: flex; flex-direction: column; align-items: center; gap: var(--espace-2); padding: var(--espace-4) 0 var(--espace-2); text-align: center; }
+.eva-rt-succes__icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--couleur-emeraude-fond);
+  color: var(--couleur-emeraude);
+}
+.eva-rt-succes__titre { margin: var(--espace-2) 0 0; font-size: 17px; font-weight: 600; color: var(--couleur-encre); }
+.eva-rt-succes__texte { margin: 0; max-width: 380px; font-size: 14px; line-height: 1.5; }
+
+/* ---- Historique du retrait (bandeau du dossier) ---- */
+.eva-rt-historique { margin-top: var(--espace-3); font-size: 13px; }
+.eva-rt-historique ul { display: flex; flex-direction: column; gap: var(--espace-2); margin: 0; padding: 0; list-style: none; }
+.eva-rt-historique li { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--espace-2); }
+
+/* ---- Filtre « À retirer / Retirés » dans les listes ---- */
+.eva-rt-filtre-retrait { display: flex; align-items: center; gap: var(--espace-3); min-width: 0; }
+.eva-rt-filtre-retrait--liste { margin-bottom: var(--espace-4); }
+.eva-rt-etiquette-filtre {
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--couleur-texte-discret);
+}
+.eva-rt-statuts { display: inline-flex; align-items: center; flex-wrap: wrap; gap: var(--espace-1) var(--espace-2); }
+
+@media (max-width: 720px) {
+  .eva-rt-verifier__liste { grid-template-columns: minmax(0, 1fr); gap: var(--espace-2); }
+  .eva-rt-checklist li { grid-template-columns: auto minmax(0, 1fr); }
+  .eva-rt-checklist__libelle { grid-column: 2; }
+  .eva-rt-checklist__valeur { grid-column: 2; }
+  .eva-rt-carte__entete { flex-wrap: wrap; }
+  .eva-rt-carte__titre { flex: 1 1 160px; }
+  .eva-rt-code__actions .eva-bouton { flex: 1 1 100%; }
+  .eva-rt-filtre-retrait { flex-wrap: wrap; }
+}

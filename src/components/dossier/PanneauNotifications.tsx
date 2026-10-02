@@ -1,10 +1,12 @@
-import { BellRing, MessageSquareOff } from "lucide-react";
+import { BellRing, BellOff, MessageSquareOff } from "lucide-react";
 import { Alerte, Badge, Bouton, Carte, ListeResponsive } from "../ui";
+import { useEtatCompletion } from "../../lib/etatCompletion";
 import type { ColonneListe } from "../ui";
 import ErreurChargement from "./ErreurChargement";
 import { formaterDateHeure } from "./utilitaires";
 import type { NotificationDossier } from "../../types/domaine";
 import "../../styles/dossier.css";
+import "../../styles/completion-desactivee.css";
 
 const LIBELLES_TYPE: Record<string, string> = {
   initiale: "Notification initiale",
@@ -12,10 +14,12 @@ const LIBELLES_TYPE: Record<string, string> = {
   confirmation: "Confirmation"
 };
 
-const STATUTS: Record<string, { libelle: string; variante: "succes" | "danger" | "attente" }> = {
+const STATUTS: Record<string, { libelle: string; variante: "succes" | "danger" | "attente" | "neutre"; detail?: string }> = {
   envoye: { libelle: "Envoyée", variante: "succes" },
   echec: { libelle: "Échec", variante: "danger" },
-  en_attente: { libelle: "En attente", variante: "attente" }
+  en_attente: { libelle: "En attente", variante: "attente" },
+  // Neutre, jamais rouge : un SMS volontairement coupe par l'administration n'est pas un echec.
+  desactivee: { libelle: "Désactivée", variante: "neutre", detail: "Aucun SMS envoyé" }
 };
 
 const COLONNES: ColonneListe<NotificationDossier>[] = [
@@ -35,9 +39,12 @@ const COLONNES: ColonneListe<NotificationDossier>[] = [
     rendu: (n) => {
       const statut = STATUTS[n.statut];
       return statut ? (
-        <Badge variante={statut.variante} point>
-          {statut.libelle}
-        </Badge>
+        <span className="eva-ci-statut" title={n.statut === "desactivee" ? n.contenu : undefined}>
+          <Badge variante={statut.variante} point>
+            {statut.libelle}
+          </Badge>
+          {statut.detail && <span className="eva-ci-statut__detail">{statut.detail}</span>}
+        </span>
       ) : (
         n.statut
       );
@@ -64,14 +71,20 @@ export default function PanneauNotifications({
   relanceEnCours,
   onRelancer
 }: ProprietesPanneauNotifications) {
+  const { active: completionActive } = useEtatCompletion();
   const nbEchecs = notifications?.filter((n) => n.statut === "echec").length ?? 0;
+  const nbDesactivees = notifications?.filter((n) => n.statut === "desactivee").length ?? 0;
+  // Completion parent coupee par l'administration : aucune relance possible (le serveur la refuse aussi).
   const boutonRelance = peutRelancer && (
     <Bouton
       variante="secondaire"
       taille="petit"
       onClick={onRelancer}
       chargement={relanceEnCours}
-      iconeGauche={!relanceEnCours && <BellRing size={14} />}
+      disabled={!completionActive}
+      aria-describedby={!completionActive ? "explication-relance-desactivee" : undefined}
+      title={!completionActive ? "Relance indisponible : notifications désactivées par l'administration" : undefined}
+      iconeGauche={!relanceEnCours && (completionActive ? <BellRing size={14} /> : <BellOff size={14} />)}
     >
       Relancer le déclarant
     </Bouton>
@@ -90,6 +103,26 @@ export default function PanneauNotifications({
         </div>
       ) : (
         <>
+          {!completionActive && (
+            <div className="eva-dd-panneau-corps">
+              <Alerte variante="info" compacte>
+                <span id="explication-relance-desactivee">
+                  Les notifications et rappels sont désactivés par l'administration : aucun SMS n'est envoyé au déclarant et la relance manuelle est
+                  indisponible. Le code de retrait reste valable au guichet.
+                </span>
+              </Alerte>
+            </div>
+          )}
+          {nbDesactivees > 0 && completionActive && (
+            <div className="eva-dd-panneau-corps">
+              <Alerte variante="info" compacte>
+                {nbDesactivees > 1
+                  ? `${nbDesactivees} envois ont été désactivés par l'administration.`
+                  : "Un envoi a été désactivé par l'administration."}{" "}
+                Ce n'est pas un échec : aucun SMS n'est parti à ce moment-là.
+              </Alerte>
+            </div>
+          )}
           {nbEchecs > 0 && (
             <div className="eva-dd-panneau-corps">
               <Alerte variante="avertissement" compacte>

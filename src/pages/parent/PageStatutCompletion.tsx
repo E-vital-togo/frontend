@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { AlertTriangle, BadgeCheck, Check, CircleHelp, ClipboardCheck, FileText, Hourglass, Inbox, Landmark, RefreshCw, WifiOff } from "lucide-react";
+import EcranCompletionIndisponible from "../../components/auth/EcranCompletionIndisponible";
 import EcranResultat from "../../components/auth/EcranResultat";
 import { decrireErreur, estErreurReseau, type MessageErreur } from "../../components/auth/messagesAuth";
 import { Bouton, LienBouton, PageAuth, Squelette } from "../../components/ui";
 import { cx } from "../../components/ui/utilitaires";
-import { appelApiPublic } from "../../lib/apiPublic";
+import { appelApiPublic, ErreurApiPublique } from "../../lib/apiPublic";
+import { signalerCompletionDesactivee, useEtatCompletion } from "../../lib/etatCompletion";
 import type { StatutDossier } from "../../types/domaine";
 import "../../styles/auth.css";
 
@@ -87,6 +89,7 @@ export default function PageStatutCompletion() {
   const [statut, setStatut] = useState<ReponseStatutCompletion | null>(null);
   const [erreur, setErreur] = useState<MessageErreur | null>(null);
   const [actualisation, setActualisation] = useState(false);
+  const etatCompletion = useEtatCompletion();
 
   const charger = useCallback(() => {
     if (!code) return;
@@ -97,6 +100,11 @@ export default function PageStatutCompletion() {
         setErreur(null);
       })
       .catch((e: unknown) => {
+        // Completion coupee par l'administration : ecran dedie (voir plus bas).
+        if (e instanceof ErreurApiPublique && e.code === "completion_desactivee") {
+          signalerCompletionDesactivee();
+          return;
+        }
         setErreur(
           estErreurReseau(e)
             ? decrireErreur(e, "Connexion impossible")
@@ -109,6 +117,20 @@ export default function PageStatutCompletion() {
   useEffect(() => {
     charger();
   }, [charger]);
+
+  // Completion parent coupee par l'administration (le suivi en ligne l'est aussi)
+  if (!etatCompletion.active) {
+    return (
+      <EcranCompletionIndisponible
+        message={etatCompletion.message_personnalise ? etatCompletion.message : undefined}
+        code={code}
+        reessaiEnCours={actualisation}
+        onReessayer={() => {
+          void etatCompletion.rafraichir().then(charger);
+        }}
+      />
+    );
+  }
 
   // Echec sans donnees a afficher (un echec d'actualisation garde l'ancien statut a l'ecran)
   if (erreur && !statut) {

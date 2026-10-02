@@ -3,14 +3,18 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, KeyRound, WifiOff } from "lucide-react";
 import { decrireErreur, type MessageErreur } from "../../components/auth/messagesAuth";
 import EtapesParcours from "../../components/auth/EtapesParcours";
+import EcranCompletionIndisponible from "../../components/auth/EcranCompletionIndisponible";
 import { Alerte, Bouton, Champ, LienBouton, PageAuth } from "../../components/ui";
 import { useConnectivite } from "../../lib/connectivite";
-import { appelApiPublic } from "../../lib/apiPublic";
+import { appelApiPublic, ErreurApiPublique } from "../../lib/apiPublic";
+import { signalerCompletionDesactivee, useEtatCompletion } from "../../lib/etatCompletion";
 import "../../styles/auth.css";
 
 export default function PageCompletionAccueil() {
   const navigate = useNavigate();
   const enLigne = useConnectivite();
+  const etatCompletion = useEtatCompletion();
+  const [reessaiEnCours, setReessaiEnCours] = useState(false);
   const [code, setCode] = useState("");
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<MessageErreur | null>(null);
@@ -28,10 +32,31 @@ export default function PageCompletionAccueil() {
       await appelApiPublic(`/completion/statut/${encodeURIComponent(codeSaisi)}`);
       navigate(`/completion/${encodeURIComponent(codeSaisi)}`);
     } catch (e) {
+      // Completion coupee par l'administration : ecran dedie, pas une erreur de saisie.
+      if (e instanceof ErreurApiPublique && e.code === "completion_desactivee") {
+        signalerCompletionDesactivee();
+        return;
+      }
       setErreur(decrireErreur(e, "Code non reconnu", "Code introuvable. Vérifiez la saisie."));
     } finally {
       setEnCours(false);
     }
+  }
+
+  async function reessayer() {
+    setReessaiEnCours(true);
+    await etatCompletion.rafraichir();
+    setReessaiEnCours(false);
+  }
+
+  if (!etatCompletion.active) {
+    return (
+      <EcranCompletionIndisponible
+        message={etatCompletion.message_personnalise ? etatCompletion.message : undefined}
+        onReessayer={reessayer}
+        reessaiEnCours={reessaiEnCours}
+      />
+    );
   }
 
   return (

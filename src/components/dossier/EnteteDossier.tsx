@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { DatabaseZap, Lock } from "lucide-react";
 import BadgeStatut from "../BadgeStatut";
+import BadgeRetrait from "../retrait/BadgeRetrait";
 import { Badge, EnteteDePage } from "../ui";
 import { formaterDate, resumeEcheance } from "./utilitaires";
 import type { Acte, Dossier } from "../../types/domaine";
@@ -34,6 +35,13 @@ export default function EnteteDossier({ dossier, basePath, acte, horsLigne, acti
         badges={
           <>
             <BadgeStatut statut={dossier.statut} />
+            <BadgeRetrait
+              etat={dossier.etat_retrait}
+              retireLe={dossier.retire_le}
+              retirePar={dossier.retrait?.retire_par_nom}
+              detaille
+              masquerNonEmis
+            />
             {dossier.verrouille && (
               <Badge variante="neutre" icone={<Lock size={13} aria-hidden="true" />}>
                 Verrouillé

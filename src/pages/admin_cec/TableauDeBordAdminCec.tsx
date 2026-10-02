@@ -10,11 +10,13 @@ import {
   FileEdit,
   FolderOpen,
   LayoutDashboard,
+  PackageCheck,
   Radio,
   RotateCcw,
   Users
 } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
+import AlerteCompletionDesactivee from "../../components/AlerteCompletionDesactivee";
 import BadgeStatut from "../../components/BadgeStatut";
 import EcheanceDossier from "../../components/statistiques/EcheanceDossier";
 import RaccourciAction from "../../components/statistiques/RaccourciAction";
@@ -27,6 +29,7 @@ import {
 import { Alerte, Badge, Bouton, Carte, CarteStat, Champ, EnteteDePage, EtatVide, GraphiqueECharts, ListeResponsive, PilulesFiltre, Squelette, type ColonneListe } from "../../components/ui";
 import { LienBouton } from "../../components/ui/Bouton";
 import { appelApi, ErreurApi } from "../../lib/apiClient";
+import { useCompteurs } from "../../lib/useCompteurs";
 import { classeUrgence, joursRestants as joursDepuisAujourdhui } from "../../lib/urgence";
 import { LIENS_ADMIN_CEC } from "./navigation";
 import type {
@@ -72,6 +75,7 @@ const COLONNES_ECHEANCES: ColonneListe<Dossier>[] = [
 
 export default function TableauDeBordAdminCec() {
   const navigate = useNavigate();
+  const compteurs = useCompteurs();
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
   const [periode, setPeriode] = useState<Periode>("");
@@ -181,6 +185,8 @@ export default function TableauDeBordAdminCec() {
         }
       />
 
+      <AlerteCompletionDesactivee />
+
       <Carte variante="plate" className="eva-st-periode" role="group" aria-label="Période analysée">
         <div className="eva-st-periode__filtres">
           <span className="eva-st-periode__titre">Période</span>
@@ -281,6 +287,14 @@ export default function TableauDeBordAdminCec() {
                 libelle="Taux d'expiration"
                 alerte={tauxExpiration > 15}
                 detail={`${sansSuite.toLocaleString("fr-FR")} dossier${sansSuite > 1 ? "s" : ""} sans suite`}
+              />
+              <CarteStat
+                icone={<PackageCheck size={20} />}
+                valeur={compteurs.actesARetirer}
+                libelle="Actes à retirer"
+                variante={compteurs.actesARetirer > 0 ? "attention" : "defaut"}
+                detail={compteurs.actesARetirer > 0 ? "Émis, pas encore remis aux déclarants" : "Aucun acte en attente de retrait"}
+                vers="/admin-cec/dossiers?retrait=a_retirer"
               />
               <CarteStat
                 icone={<Clock size={20} />}

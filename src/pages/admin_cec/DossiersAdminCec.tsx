@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowRight, FileSpreadsheet, FileText, FolderSearch } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
 import BadgeStatut from "../../components/BadgeStatut";
+import BadgeRetrait from "../../components/retrait/BadgeRetrait";
 import {
   Badge,
   BarreOutils,
@@ -34,6 +35,20 @@ import {
   type TypeEvenement
 } from "../../types/domaine";
 import "../../styles/admin-cec-pilotage.css";
+import "../../styles/retrait.css";
+
+/** Filtre de retrait de l'acte (paramètre `retrait` du serveur) : "" = tous. */
+type FiltreRetrait = "" | "a_retirer" | "retire";
+
+function filtreRetraitDepuis(valeur: string | null): FiltreRetrait {
+  return valeur === "a_retirer" || valeur === "retire" ? valeur : "";
+}
+
+const PILULES_RETRAIT: PiluleFiltre<FiltreRetrait>[] = [
+  { valeur: "", libelle: "Tous" },
+  { valeur: "a_retirer", libelle: "À retirer" },
+  { valeur: "retire", libelle: "Retirés" }
+];
 
 const LIBELLES_STATUT: Array<{ valeur: StatutDossier | ""; libelle: string }> = [
   { valeur: "", libelle: "Tous" },
@@ -65,6 +80,8 @@ export default function DossiersAdminCec() {
   const [mairieFiltre, setMairieFiltre] = useState("");
   const [recherche, setRecherche] = useState("");
   const [masquerActesEmis, setMasquerActesEmis] = useState(false);
+  const retraitUrl = parametresUrl.get("retrait");
+  const [retraitFiltre, setRetraitFiltre] = useState<FiltreRetrait>(filtreRetraitDepuis(retraitUrl));
   const [page, setPage] = useState(1);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -81,6 +98,12 @@ export default function DossiersAdminCec() {
   }, [evenementUrl]);
 
   useEffect(() => {
+    // Compteur « Actes à retirer » du tableau de bord : ?retrait=a_retirer
+    setRetraitFiltre(filtreRetraitDepuis(retraitUrl));
+    setPage(1);
+  }, [retraitUrl]);
+
+  useEffect(() => {
     appelApi<ListeOuPaginee<Mairie>>("/mairies/")
       .then((donnees) => setMairies(listeDepuis(donnees)))
       .catch(() => setMairies([]));
@@ -93,6 +116,7 @@ export default function DossiersAdminCec() {
     if (mairieFiltre) parametres.set("mairie", mairieFiltre);
     if (recherche) parametres.set("search", recherche);
     if (masquerActesEmis) parametres.set("masquer_actes_emis", "true");
+    if (retraitFiltre) parametres.set("retrait", retraitFiltre);
     return parametres;
   }
 
@@ -117,7 +141,7 @@ export default function DossiersAdminCec() {
       obsolete = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statutFiltre, evenementFiltre, mairieFiltre, recherche, masquerActesEmis, page, rechargement]);
+  }, [statutFiltre, evenementFiltre, mairieFiltre, recherche, masquerActesEmis, retraitFiltre, page, rechargement]);
 
   async function exporter(format: "xlsx" | "pdf") {
     setExportEnCours(format);
@@ -137,7 +161,7 @@ export default function DossiersAdminCec() {
   const resultats = dossiers?.results ?? [];
   const total = dossiers?.count ?? 0;
   const affichageMairie = mairies.length > 1;
-  const filtreActif = !!(statutFiltre || evenementFiltre || mairieFiltre || recherche || masquerActesEmis);
+  const filtreActif = !!(statutFiltre || evenementFiltre || mairieFiltre || recherche || masquerActesEmis || retraitFiltre);
 
   // Le serveur ne renvoie que le total du filtre courant : le compteur
   // n'est donc affiché que sur la pilule active.
@@ -156,6 +180,7 @@ export default function DossiersAdminCec() {
     setMairieFiltre("");
     setRecherche("");
     setMasquerActesEmis(false);
+    setRetraitFiltre("");
     setPage(1);
   }
 
@@ -173,7 +198,16 @@ export default function DossiersAdminCec() {
     },
     { id: "evenement", libelle: "Événement", rendu: (d) => libelleEvenement(d.event_type) },
     ...(affichageMairie ? [{ id: "mairie", libelle: "Mairie", rendu: (d: Dossier) => d.mairie_nom || "-" }] : []),
-    { id: "statut", libelle: "Statut", rendu: (d) => <BadgeStatut statut={d.statut} /> },
+    {
+      id: "statut",
+      libelle: "Statut",
+      rendu: (d) => (
+        <span className="eva-rt-statuts">
+          <BadgeStatut statut={d.statut} />
+          <BadgeRetrait etat={d.etat_retrait} retireLe={d.retire_le} masquerNonEmis />
+        </span>
+      )
+    },
     { id: "date", libelle: "Date de l'événement", alignement: "droite", rendu: (d) => <span className="texte-mono">{formaterDate(d.date_evenement)}</span> },
     {
       id: "echeance",
@@ -307,6 +341,19 @@ export default function DossiersAdminCec() {
             {compterAvecUnite(total, "dossier")}
           </span>
         )}
+      </div>
+
+      <div className="eva-rt-filtre-retrait eva-rt-filtre-retrait--liste">
+        <span className="eva-rt-etiquette-filtre">Retrait de l'acte</span>
+        <PilulesFiltre
+          ariaLabel="Filtrer par retrait de l'acte"
+          valeur={retraitFiltre}
+          onChanger={(v) => {
+            setPage(1);
+            setRetraitFiltre(v);
+          }}
+          pilules={PILULES_RETRAIT}
+        />
       </div>
 
       <ListeResponsive<Dossier>

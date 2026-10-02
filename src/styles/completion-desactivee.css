@@ -1,0 +1,40 @@
+/* =========================================================================
+   Interrupteur de la completion parent : ecran d'indisponibilite (parent)
+   et bandeaux d'information (agent / admin CEC).
+   Classes prefixees eva-ci-. Jetons uniquement, aucune couleur en dur.
+   Voir docs/completion-parent-interrupteur.md.
+   ========================================================================= */
+
+/* Message saisi par l'administrateur, cite sur l'ecran parent */
+.eva-ci-message {
+  margin: var(--espace-3) 0 var(--espace-4);
+  padding: var(--espace-3) var(--espace-4);
+  border-left: 4px solid var(--couleur-citron-profond);
+  border-radius: var(--rayon-champ);
+  background: var(--couleur-citron-fond);
+  color: var(--couleur-citron-texte);
+  font-size: 14.5px;
+  line-height: 1.55;
+  text-align: left;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+/* Conduite a tenir : petite liste sous le message */
+.eva-ci-conduite {
+  margin: var(--espace-4) 0 0;
+  padding: var(--espace-3) var(--espace-4);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-champ);
+  background: var(--couleur-papier);
+  text-align: left;
+}
+.eva-ci-conduite__titre { margin: 0 0 var(--espace-1); font-size: 13px; font-weight: 600; color: var(--couleur-encre); }
+.eva-ci-conduite p:last-child { margin-bottom: 0; }
+
+/* Bandeaux d'information des espaces agent / admin CEC */
+.eva-ci-bandeau { margin-bottom: var(--espace-4); }
+
+/* Ligne de statut "Desactivee" dans l'historique des notifications du dossier */
+.eva-ci-statut { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.eva-ci-statut__detail { font-size: 12px; color: var(--couleur-texte-discret); }

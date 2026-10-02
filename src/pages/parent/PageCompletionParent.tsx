@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { CheckCircle2, LinkIcon, RefreshCw, WifiOff } from "lucide-react";
+import EcranCompletionIndisponible from "../../components/auth/EcranCompletionIndisponible";
 import EcranResultat from "../../components/auth/EcranResultat";
 import EtapesParcours from "../../components/auth/EtapesParcours";
 import { decrireErreur, estErreurReseau, type MessageErreur } from "../../components/auth/messagesAuth";
@@ -8,6 +9,7 @@ import FormulaireDossier from "../../components/FormulaireDossier";
 import { Alerte, Bouton, LienBouton, PageAuth, Squelette } from "../../components/ui";
 import { appelApiPublic, ErreurApiPublique } from "../../lib/apiPublic";
 import { useConnectivite } from "../../lib/connectivite";
+import { signalerCompletionDesactivee, useEtatCompletion } from "../../lib/etatCompletion";
 import { champsManquants, planFormulaire, valeurEffective } from "../../lib/formulaire";
 import type { ChampFormulaireEffectif, MiseEnPage, ReponseFormulaireEffectif } from "../../types/domaine";
 import "../../styles/auth.css";
@@ -15,6 +17,7 @@ import "../../styles/auth.css";
 export default function PageCompletionParent() {
   const { code } = useParams<{ code: string }>();
   const enLigne = useConnectivite();
+  const etatCompletion = useEtatCompletion();
   const [champs, setChamps] = useState<ChampFormulaireEffectif[] | null>(null);
   const [miseEnPage, setMiseEnPage] = useState<MiseEnPage | null>(null);
   const [erreursChamps, setErreursChamps] = useState<Record<string, string>>({});
@@ -35,6 +38,11 @@ export default function PageCompletionParent() {
         setMiseEnPage(donnees.mise_en_page ?? null);
       })
       .catch((e: unknown) => {
+        // Completion coupee par l'administration : ecran dedie, pas une erreur de lien.
+        if (e instanceof ErreurApiPublique && e.code === "completion_desactivee") {
+          signalerCompletionDesactivee();
+          return;
+        }
         setErreurChargement(
           estErreurReseau(e)
             ? decrireErreur(e, "Connexion impossible")
@@ -72,6 +80,11 @@ export default function PageCompletionParent() {
 
       setEnvoye(true);
     } catch (e) {
+      // Coupee pendant la saisie : ecran dedie ; les valeurs saisies restent en memoire si le service revient (bouton Reessayer).
+      if (e instanceof ErreurApiPublique && e.code === "completion_desactivee") {
+        signalerCompletionDesactivee();
+        return;
+      }
       console.error(e);
       setErreur(
         e instanceof ErreurApiPublique
@@ -122,6 +135,19 @@ export default function PageCompletionParent() {
           )}
         </EcranResultat>
       </PageAuth>
+    );
+  }
+
+  // Completion parent coupee par l'administration
+  if (!etatCompletion.active) {
+    return (
+      <EcranCompletionIndisponible
+        message={etatCompletion.message_personnalise ? etatCompletion.message : undefined}
+        code={code}
+        onReessayer={() => {
+          void etatCompletion.rafraichir().then(() => setTentative((n) => n + 1));
+        }}
+      />
     );
   }
 

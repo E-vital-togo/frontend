@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { BellRing, CheckCircle2, FileText, RefreshCw, TriangleAlert } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
+import AlerteCompletionDesactivee from "../../components/AlerteCompletionDesactivee";
 import BadgeStatut from "../../components/BadgeStatut";
 import {
   BarreOutils,
@@ -15,7 +16,8 @@ import {
   type ColonneListe,
   type PiluleFiltre
 } from "../../components/ui";
-import { appelApi } from "../../lib/apiClient";
+import { appelApi, ErreurApi } from "../../lib/apiClient";
+import { signalerCompletionDesactivee, useEtatCompletion } from "../../lib/etatCompletion";
 import MenuActionsLigne from "./MenuActionsLigne";
 import { LIENS_ADMIN_CEC } from "./navigation";
 import { compterAvecUnite, formaterDateHeure, libelleEvenement, messageErreur } from "./outils";
@@ -37,6 +39,7 @@ export default function NotificationsEchouees() {
   const toast = useToast();
   const confirmer = useConfirmation();
   const navigate = useNavigate();
+  const { active: completionActive } = useEtatCompletion();
   const [parametresUrl, setParametresUrl] = useSearchParams();
   const evenementFiltre = (parametresUrl.get("event_type") || "") as FiltreEvenement;
   const [notifications, setNotifications] = useState<NotificationEchouee[]>([]);
@@ -101,6 +104,7 @@ export default function NotificationsEchouees() {
       toast.succes("Nouvel envoi mis en file d'attente.");
       charger();
     } catch (e) {
+      if (e instanceof ErreurApi && e.code === "completion_desactivee") signalerCompletionDesactivee();
       toast.erreur(messageErreur(e));
     } finally {
       setEnCoursId(null);
@@ -127,6 +131,7 @@ export default function NotificationsEchouees() {
       }
       charger();
     } catch (e) {
+      if (e instanceof ErreurApi && e.code === "completion_desactivee") signalerCompletionDesactivee();
       toast.erreur(messageErreur(e));
     } finally {
       setReessaiGroupeEnCours(false);
@@ -179,7 +184,8 @@ export default function NotificationsEchouees() {
             taille="petit"
             onClick={() => reessayerUne(n)}
             chargement={enCoursId === n.id}
-            disabled={enCoursId !== null || reessaiGroupeEnCours}
+            disabled={enCoursId !== null || reessaiGroupeEnCours || !completionActive}
+            title={!completionActive ? "Nouvel essai indisponible : notifications désactivées par l'administration" : undefined}
             iconeGauche={<RefreshCw size={14} />}
           >
             Réessayer
@@ -201,12 +207,23 @@ export default function NotificationsEchouees() {
         sousTitre="SMS ou WhatsApp qui n'ont pas pu être envoyés : ces déclarants n'ont pas reçu leur code et ne peuvent pas compléter leur dossier en ligne tant que ce n'est pas corrigé."
         actions={
           notifications.length > 0 && (
-            <Bouton onClick={reessayerToutes} chargement={reessaiGroupeEnCours} disabled={enCoursId !== null} iconeGauche={<RefreshCw size={16} />}>
+            <Bouton
+              onClick={reessayerToutes}
+              chargement={reessaiGroupeEnCours}
+              disabled={enCoursId !== null || !completionActive}
+              title={!completionActive ? "Nouvel essai indisponible : notifications désactivées par l'administration" : undefined}
+              iconeGauche={<RefreshCw size={16} />}
+            >
               Tout réessayer ({notifications.length})
             </Bouton>
           )
         }
       />
+
+      <AlerteCompletionDesactivee titre="Les notifications et rappels sont désactivés par l'administration">
+        Aucun SMS n'est envoyé aux parents pour le moment et les nouveaux essais sont suspendus. Les envois non réalisés pendant cette période ne sont
+        pas des échecs : ils n'apparaissent pas dans cette liste, seulement dans l'historique de chaque dossier.
+      </AlerteCompletionDesactivee>
 
       <BarreOutils
         carte
