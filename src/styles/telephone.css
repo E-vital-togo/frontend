@@ -4,7 +4,7 @@
   (copie via `npm run sync:telephone`) et les gabarits Django (compile en
   backend/static/css/evital-telephone.css par `npm run build:telephone-django`).
   Les couleurs viennent des jetons de l'app hote quand ils existent
-  (--couleur-* cote CEC, --ev-* cote Django) avec la charte E-Vital en repli,
+  (--couleur-* cote CEC, --ev-* cote Django) avec la charte RECVIT en repli,
   de sorte que le champ est juste partout sans CSS supplementaire. Une app
   peut surcharger les variables --tel-* sur .eva-tel (voir DHIS2).
 */

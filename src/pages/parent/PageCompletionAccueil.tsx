@@ -61,6 +61,7 @@ export default function PageCompletionAccueil() {
 
   return (
     <PageAuth
+      nomDeveloppe
       titre="Compléter ma déclaration"
       description="Saisissez le code de retrait reçu par SMS pour accéder à votre dossier."
       message={

@@ -1,5 +1,5 @@
 /*
-  E-VITAL - Composants reutilisables ajoutes au systeme de design (React).
+  RECVIT - Composants reutilisables ajoutes au systeme de design (React).
   Charge APRES theme.css (voir main.tsx). Utilise uniquement les jetons de
   theme.css. Documentation complete : docs/design-system-react.md
 
@@ -563,7 +563,7 @@ th[aria-sort="ascending"] .eva-liste__tri svg, th[aria-sort="descending"] .eva-l
   width: 560px;
   height: 560px;
   opacity: 0.045;
-  background: url("../assets/brand/evital-symbole-emeraude.svg") center / contain no-repeat;
+  background: url("../assets/brand/recvit-symbole-emeraude.svg") center / contain no-repeat;
   transform: rotate(-8deg);
 }
 .eva-auth--haut { justify-content: flex-start; padding-top: var(--espace-8); padding-bottom: var(--espace-8); }
@@ -578,8 +578,8 @@ th[aria-sort="ascending"] .eva-liste__tri svg, th[aria-sort="descending"] .eva-l
   animation: eva-apparition-modale 320ms ease both;
 }
 .eva-auth--large .eva-auth__carte { max-width: 680px; }
-.eva-auth__logo { display: flex; justify-content: center; margin: 0 0 var(--espace-6); }
-.eva-auth__logo--vertical img { height: 96px; }
+.eva-auth__logo { display: flex; flex-direction: column; align-items: center; margin: 0 0 var(--espace-6); }
+.eva-auth__nom { margin: var(--espace-1) 0 0; font-family: var(--police-donnees); font-size: 11px; line-height: 1.4; letter-spacing: 0; text-align: center; text-wrap: balance; color: var(--couleur-texte-discret); }
 .eva-auth__entete { margin-bottom: var(--espace-6); text-align: center; }
 .eva-auth__icone {
   display: inline-flex;

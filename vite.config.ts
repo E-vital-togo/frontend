@@ -7,19 +7,44 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.svg"],
+      includeAssets: ["favicon.ico", "recvit-favicon.svg", "icons/apple-touch-icon.png"],
       manifest: {
-        name: "E-Vital",
-        short_name: "E-Vital",
-        description: "Systeme national d'enregistrement des faits d'etat civil",
-        // Couleurs issues du cahier d'identite E-Vital, jamais improvisees.
+        name: "RECVIT",
+        short_name: "RECVIT",
+        description: "RECVIT - Registre de l'État Civil et des Faits Vitaux du Togo",
+        lang: "fr",
+        // Couleurs issues du cahier d'identite RECVIT, jamais improvisees.
         theme_color: "#0B7A57",
         background_color: "#FBFDF6",
         display: "standalone",
         start_url: "/",
         icons: [
           {
-            src: "/icons/evital-favicon.svg",
+            src: "/icons/icon-192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "any"
+          },
+          {
+            src: "/icons/icon-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any"
+          },
+          {
+            src: "/icons/icon-maskable-192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "maskable"
+          },
+          {
+            src: "/icons/icon-maskable-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable"
+          },
+          {
+            src: "/icons/recvit-favicon.svg",
             sizes: "any",
             type: "image/svg+xml",
             purpose: "any"

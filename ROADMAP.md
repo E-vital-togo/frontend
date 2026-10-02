@@ -1,9 +1,9 @@
-# Feuille de route frontend — E-Vital
+# Feuille de route frontend - RECVIT
 
 Suivi de la refonte design et des évolutions fonctionnelles du frontend PWA (agent_cec / admin_cec / parent).
 Contexte complet : `docs/cahier-des-charges-processus.md` et `docs/cahier-des-charges-technique.md`.
 
-Règle de design : couleurs et logo strictement conformes à `docs/E-Vital Identite-1-8.pdf` (déjà repris dans
+Règle de design : couleurs et logo strictement conformes à `docs/RECVIT Cahier d'identite.pdf` (déjà repris dans
 `src/styles/theme.css` et `src/assets/brand/`). Le reste (mise en page, composants, densité, ergonomie) est
 librement modernisé — sobre, pas de fantaisie.
 

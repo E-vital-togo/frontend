@@ -75,6 +75,7 @@ export default function PageConnexion() {
 
   return (
     <PageAuth
+      nomDeveloppe
       titre="Connexion"
       description="Espace agent et administrateur de l'état civil"
       message={erreur || !enLigne || actionsEnAttente > 0 ? message : undefined}

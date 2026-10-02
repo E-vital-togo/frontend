@@ -246,8 +246,8 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
           >
             {barreOuverte ? <X size={22} aria-hidden="true" /> : <Menu size={22} aria-hidden="true" />}
           </button>
-          <Link to="/" className="eva-entete__logo" aria-label="E-Vital, accueil">
-            <Logo variante="horizontal-inverse" hauteur={26} alt="" />
+          <Link to="/" className="eva-entete__logo" aria-label="RECVIT, accueil">
+            <Logo variante="horizontal-inverse" hauteur={40} alt="" />
           </Link>
         </div>
         <div className="eva-entete__droite">

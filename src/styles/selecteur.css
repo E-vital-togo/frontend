@@ -4,7 +4,7 @@
   (compile en backend/static/css/evital-selecteur.css par
   `npm run build:selecteur-django`, widget lib/selecteurDjango.ts).
   Les couleurs viennent des jetons de l'app hote quand ils existent
-  (--couleur-* cote CEC, --ev-* cote Django) avec la charte E-Vital en repli.
+  (--couleur-* cote CEC, --ev-* cote Django) avec la charte RECVIT en repli.
   Le panneau est rendu dans <body> (portail) en position fixe : il n'est jamais
   rogne par un conteneur a defilement ni par une modale. Sous 560px, il devient
   une feuille basse (classe eva-sel__panneau--feuille posee par le script).

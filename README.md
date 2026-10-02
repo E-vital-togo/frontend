@@ -1,4 +1,6 @@
-# E-Vital — Frontend (PWA agent CEC / admin CEC / parent)
+# RECVIT - Frontend (PWA agent CEC / admin CEC / parent)
+
+RECVIT : Registre de l'État Civil et des Faits Vitaux du Togo.
 
 PWA React + TypeScript + Vite. Consomme l'API REST du backend Django (`/api/v1/...`).
 Tout le code applicatif est en `.tsx`/`.ts` ; aucun `.jsx`/`.js` dans `src/`.

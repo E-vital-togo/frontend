@@ -4,6 +4,8 @@ import { ArrowLeft } from "lucide-react";
 import Logo from "../Logo";
 import { cx } from "./utilitaires";
 
+const NOM_DEVELOPPE = "Registre de l'État Civil et des Faits Vitaux du Togo";
+
 interface ProprietesPageAuth {
   /** Titre de l'ecran (h1) : "Connexion", "Verification du code"... */
   titre?: string;
@@ -15,6 +17,8 @@ interface ProprietesPageAuth {
   message?: ReactNode;
   /** Logo vertical plus grand (accueil, ecran d'entree) plutot que l'horizontal. */
   logoVertical?: boolean;
+  /** Forme developpee du nom ("Registre de l'État Civil et des Faits Vitaux du Togo") sous le logo : ecrans d'accueil et de connexion. */
+  nomDeveloppe?: boolean;
   /** Carte plus large (680px) pour un formulaire complet (ex: declaration du parent). */
   large?: boolean;
   /** Aligne la carte en haut de l'ecran (formulaire long) au lieu de la centrer. */
@@ -40,6 +44,7 @@ export default function PageAuth({
   icone,
   message,
   logoVertical,
+  nomDeveloppe,
   large,
   alignementHaut,
   retour,
@@ -63,7 +68,12 @@ export default function PageAuth({
             </button>
           ))}
         <div className={cx("eva-auth__logo", logoVertical && "eva-auth__logo--vertical")}>
-          <Logo variante={logoVertical ? "vertical" : "horizontal"} hauteur={logoVertical ? 96 : 44} />
+          <Logo
+            variante={logoVertical ? "vertical" : "horizontal"}
+            hauteur={logoVertical ? 150 : 56}
+            alt={logoVertical ? `RECVIT - ${NOM_DEVELOPPE}` : "RECVIT"}
+          />
+          {nomDeveloppe && !logoVertical && <p className="eva-auth__nom">{NOM_DEVELOPPE}</p>}
         </div>
         {message}
         {(titre || description || icone) && (

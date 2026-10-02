@@ -1,5 +1,5 @@
 /**
- * Logique pure (sans framework ni DOM) du selecteur maison E-Vital, partagee par :
+ * Logique pure (sans framework ni DOM) du selecteur maison RECVIT, partagee par :
  *  - le composant React `components/ui/Selecteur.tsx`,
  *  - le widget vanilla des gabarits Django `lib/selecteurDjango.ts`
  *    (bundle `backend/static/js/evital_selecteur.js`).
