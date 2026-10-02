@@ -1,7 +1,10 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly API_BASE_URL: string;
+  /** URL de l'API (voir lib/config.ts) ; absente = repli sur la production. */
+  readonly API_BASE_URL?: string;
+  /** URL publique du frontend ; absente = origine de la page. */
+  readonly FRONTEND_BASE_URL?: string;
 }
 
 interface ImportMeta {

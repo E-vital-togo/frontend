@@ -1,17 +1,7 @@
-const BASE_URL = import.meta.env.API_BASE_URL || "https://evital.duckdns.org/api/v1";
+import { API_BASE_URL as BASE_URL, ORIGINE_API } from "./config";
 
-/**
- * Origine (schema + hote, sans le /api/v1) utilisee par lib/connectivite.ts
- * pour sonder /ping. Calculee une seule fois : si BASE_URL n'est pas une
- * URL absolue (config relative), on retombe sur l'origine de la page.
- */
-export const ORIGINE_API = (() => {
-  try {
-    return new URL(BASE_URL).origin;
-  } catch {
-    return window.location.origin;
-  }
-})();
+// Reexporte : lib/connectivite.ts l'importe depuis ici.
+export { ORIGINE_API };
 
 const CLE_ACCES = "evital_access_token";
 const CLE_RAFRAICHISSEMENT = "evital_refresh_token";

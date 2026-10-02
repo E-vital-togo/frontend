@@ -5,8 +5,7 @@
  * ailleurs dans l'app.
  */
 import { extraireMessageErreur } from "./apiClient";
-
-const BASE_URL = import.meta.env.API_BASE_URL || "https://evital.duckdns.org/api/v1";
+import { API_BASE_URL as BASE_URL } from "./config";
 
 /**
  * `code` et `statut` ne sont renseignes que pour une reponse d'erreur du

@@ -7,7 +7,8 @@ Tout le code applicatif est en `.tsx`/`.ts` ; aucun `.jsx`/`.js` dans `src/`.
 
 ```bash
 cp .env.example .env
-# ajuster VITE_API_BASE_URL si le backend ne tourne pas sur localhost:8000
+# ajuster API_BASE_URL (et FRONTEND_BASE_URL) si besoin ; sur Vercel, memes noms
+# dans Settings > Environment Variables (sans prefixe VITE_), puis redeployer
 
 npm install
 npm run dev

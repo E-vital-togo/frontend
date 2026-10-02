@@ -42,6 +42,9 @@ export default defineConfig({
       }
     })
   ],
+  // Seules ces deux variables d'environnement (Vercel ou .env) sont exposees au
+  // code du navigateur, sans prefixe VITE_ : voir src/lib/config.ts.
+  envPrefix: ["API_BASE_URL", "FRONTEND_BASE_URL"],
   server: {
     port: 5173,
     // Vite rejette par defaut tout Host: inconnu (anti DNS-rebinding) ; on
