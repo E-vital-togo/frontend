@@ -9,17 +9,17 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg"],
       manifest: {
-        name: "E-Vital",
-        short_name: "E-Vital",
+        name: "RECVIT",
+        short_name: "RECVIT",
         description: "Systeme national d'enregistrement des faits d'etat civil",
-        // Couleurs issues du cahier d'identite E-Vital, jamais improvisees.
+        // Couleurs issues du cahier d'identite RECVIT, jamais improvisees.
         theme_color: "#0B7A57",
         background_color: "#FBFDF6",
         display: "standalone",
         start_url: "/",
         icons: [
           {
-            src: "/icons/evital-favicon.svg",
+            src: "/icons/recvit-favicon.svg",
             sizes: "any",
             type: "image/svg+xml",
             purpose: "any"

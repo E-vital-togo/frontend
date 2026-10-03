@@ -1,5 +1,5 @@
 /*
-  E-VITAL - Composants reutilisables ajoutes au systeme de design (React).
+  RECVIT - Composants reutilisables ajoutes au systeme de design (React).
   Charge APRES theme.css (voir main.tsx). Utilise uniquement les jetons de
   theme.css. Documentation complete : docs/design-system-react.md
 
@@ -563,7 +563,7 @@ th[aria-sort="ascending"] .eva-liste__tri svg, th[aria-sort="descending"] .eva-l
   width: 560px;
   height: 560px;
   opacity: 0.045;
-  background: url("../assets/brand/evital-symbole-emeraude.svg") center / contain no-repeat;
+  background: url("../assets/brand/recvit-symbole-emeraude.svg") center / contain no-repeat;
   transform: rotate(-8deg);
 }
 .eva-auth--haut { justify-content: flex-start; padding-top: var(--espace-8); padding-bottom: var(--espace-8); }

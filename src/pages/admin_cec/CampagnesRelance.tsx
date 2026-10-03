@@ -431,7 +431,7 @@ export default function CampagnesRelance() {
                   rows={3}
                   value={formulaire.message_modele}
                   onChange={(e) => setFormulaire({ ...formulaire, message_modele: e.target.value })}
-                  placeholder="E-Vital - Rappel : il vous reste {jours_restants} jour(s)..."
+                  placeholder="RECVIT - Rappel : il vous reste {jours_restants} jour(s)..."
                 />
               </Champ>
               <div className="eva-ac-variables">

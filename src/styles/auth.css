@@ -1,5 +1,5 @@
 /*
-  E-VITAL - Ecrans d'acces et parcours parent (React).
+  RECVIT - Ecrans d'acces et parcours parent (React).
   ATTENTION a l'ordre de cascade : main.tsx importe App avant les feuilles
   globales, donc ce fichier est evalue AVANT theme.css et composants.css. Toute
   regle qui surcharge un style global doit etre plus specifique (selecteur

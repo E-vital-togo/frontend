@@ -274,7 +274,7 @@ export default function PanneauStyleCarte({ valeur, onChange, nomZone }: Proprie
           <input id={id("sous-titre")} value={p.sous_titre} onChange={(e) => maj({ sous_titre: e.target.value })} maxLength={160} />
         </Champ>
         <Champ id={id("source")} label="Source">
-          <input id={id("source")} value={p.source} onChange={(e) => maj({ source: e.target.value })} placeholder="Ex. E-VITAL, état civil, 2026" maxLength={160} />
+          <input id={id("source")} value={p.source} onChange={(e) => maj({ source: e.target.value })} placeholder="Ex. RECVIT, état civil, 2026" maxLength={160} />
         </Champ>
         <div className="eva-st-interrupteurs">
           <Interrupteur checked={p.echelle} onChange={(v) => maj({ echelle: v })} label="Échelle graphique" />

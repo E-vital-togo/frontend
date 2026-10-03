@@ -24,7 +24,7 @@ export default function PageAccueil() {
   return (
     <PageAuth
       large
-      titre="Bienvenue sur E-Vital"
+      titre="Bienvenue sur le RECVIT"
       description="Le système national d'enregistrement des naissances et des décès. Choisissez votre espace pour continuer."
       pied={
         <>
