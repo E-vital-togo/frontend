@@ -20,7 +20,9 @@ interface ActionRejetee {
   type?: string;
   horodatage_client?: string;
   version_connue?: number | null;
-  payload?: { data_element_code?: string; valeur?: unknown } & Record<string, unknown>;
+  payload?: { data_element_code?: string; valeur?: unknown; valeur_precedente?: unknown } & Record<string, unknown>;
+  /** Valeur du champ en ligne au moment du rejet (conservee) - absente des conflits anciens. */
+  valeur_en_ligne?: unknown;
 }
 
 function actionRejetee(conflit: ConflitSync): ActionRejetee {
@@ -50,6 +52,8 @@ function ComparaisonConflit({ conflit }: { conflit: ConflitSync }) {
   const action = actionRejetee(conflit);
   const champ = action.payload?.data_element_code;
   const aUneValeur = action.payload !== undefined && "valeur" in action.payload;
+  const aValeurOrigine = action.payload !== undefined && "valeur_precedente" in action.payload;
+  const aValeurEnLigne = "valeur_en_ligne" in action;
   return (
     <div className="eva-ag-comparaison">
       <Alerte variante="succes" icone={<ShieldCheck size={18} aria-hidden="true" />} titre="Aucune donnée n'a été perdue">
@@ -69,6 +73,12 @@ function ComparaisonConflit({ conflit }: { conflit: ConflitSync }) {
               <>
                 <dt>Champ</dt>
                 <dd className="texte-mono">{champ}</dd>
+              </>
+            )}
+            {aValeurOrigine && (
+              <>
+                <dt>Valeur d'origine</dt>
+                <dd>{afficherValeur(action.payload?.valeur_precedente)}</dd>
               </>
             )}
             {aUneValeur && (
@@ -93,8 +103,14 @@ function ComparaisonConflit({ conflit }: { conflit: ConflitSync }) {
             <h3 id={`conflit-${conflit.id}-el`}>Version en ligne</h3>
             <Badge variante="succes" point>Conservée</Badge>
           </header>
+          {aValeurEnLigne && (
+            <dl className="eva-definitions">
+              <dt>Valeur en ligne</dt>
+              <dd>{afficherValeur(action.valeur_en_ligne)}</dd>
+            </dl>
+          )}
           <p>
-            Un collègue a modifié ce dossier en ligne pendant que vous étiez hors connexion. Cette version fait foi : c'est celle que vous retrouverez en ouvrant le dossier.
+            Ce champ a été modifié en ligne pendant que vous étiez hors connexion. Cette version fait foi : c'est celle que vous retrouverez en ouvrant le dossier.
           </p>
           <p className="eva-texte-discret eva-texte-petit">Enregistré par le serveur le {formaterDateHeure(conflit.created_at)}.</p>
         </section>
@@ -118,15 +134,30 @@ export default function ConflitsSynchronisation() {
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
   const [detail, setDetail] = useState<ConflitSync | null>(null);
+  const [historique, setHistorique] = useState(false);
+  const [traitementEnCours, setTraitementEnCours] = useState<string | null>(null);
 
   const charger = useCallback(() => {
     setChargement(true);
     setErreur(null);
-    appelApi<ListeOuPaginee<ConflitSync>>("/sync/conflits/")
+    appelApi<ListeOuPaginee<ConflitSync>>(`/sync/conflits/${historique ? "?historique=1" : ""}`)
       .then((donnees) => setConflits(listeDepuis(donnees)))
       .catch((e: unknown) => setErreur(e instanceof ErreurApi ? e.message : "Le serveur n'a pas répondu. Vérifiez votre connexion."))
       .finally(() => setChargement(false));
-  }, []);
+  }, [historique]);
+
+  async function marquerTraite(conflit: ConflitSync) {
+    setTraitementEnCours(conflit.id);
+    try {
+      await appelApi(`/sync/conflits/${conflit.id}/resoudre/`, { methode: "POST" });
+      setDetail(null);
+      charger();
+    } catch (e: unknown) {
+      setErreur(e instanceof ErreurApi ? e.message : "Le serveur n'a pas répondu. Vérifiez votre connexion.");
+    } finally {
+      setTraitementEnCours(null);
+    }
+  }
 
   useEffect(() => {
     charger();
@@ -137,6 +168,11 @@ export default function ConflitsSynchronisation() {
     { id: "dossier", libelle: "Dossier", rendu: (c) => <span className="texte-mono">{c.dossier.slice(0, 8)}</span> },
     { id: "date", libelle: "Date", numerique: true, rendu: (c) => new Date(c.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) },
     { id: "raison", libelle: "Raison", rendu: (c) => <span className="eva-ag-raison">{c.raison}</span> },
+    {
+      id: "etat",
+      libelle: "État",
+      rendu: (c) => (c.resolu_le ? <Badge variante="succes" point>Traité</Badge> : <Badge variante="attente" point>À traiter</Badge>)
+    },
     {
       id: "actions",
       libelle: "Actions",
@@ -159,7 +195,12 @@ export default function ConflitsSynchronisation() {
     <MiseEnPage liens={liens}>
       <EnteteDePage
         titre="Conflits de synchronisation"
-        sousTitre="Actions faites hors ligne qui n'ont pas pu s'appliquer parce que le dossier avait été modifié en ligne entre-temps."
+        sousTitre="Modifications faites hors ligne qui n'ont pas pu s'appliquer parce que le champ avait été modifié en ligne entre-temps (de A vers B hors ligne, alors qu'il est devenu C en ligne)."
+        actions={
+          <Bouton variante="secondaire" onClick={() => setHistorique((precedent) => !precedent)}>
+            {historique ? "Voir seulement les conflits à traiter" : "Afficher aussi les conflits traités"}
+          </Bouton>
+        }
       />
 
       <Alerte className="eva-ag-alerte-liste" variante="info" icone={<ShieldCheck size={18} aria-hidden="true" />} titre="Rien n'est perdu en silence">
@@ -178,8 +219,8 @@ export default function ConflitsSynchronisation() {
         hauteurMax="none"
         vide={{
           icone: <CheckCircle2 size={26} />,
-          titre: "Aucun conflit en attente",
-          description: "Toutes les actions hors ligne ont été synchronisées sans problème."
+          titre: historique ? "Aucun conflit enregistré" : "Aucun conflit à traiter",
+          description: historique ? "Aucune modification hors ligne n'est entrée en conflit." : "Toutes les actions hors ligne ont été synchronisées sans problème."
         }}
       />
 
@@ -194,6 +235,11 @@ export default function ConflitsSynchronisation() {
               <Bouton variante="secondaire" onClick={() => setDetail(null)}>
                 Fermer
               </Bouton>
+              {!detail.resolu_le && (
+                <Bouton variante="secondaire" chargement={traitementEnCours === detail.id} onClick={() => marquerTraite(detail)}>
+                  Marquer comme traité
+                </Bouton>
+              )}
               <LienBouton to={`${basePath}/dossiers/${detail.dossier}`}>Reprendre le dossier</LienBouton>
             </>
           }

@@ -459,6 +459,8 @@ export interface ConflitSync {
   payload_rejete: unknown;
   raison: string;
   created_at: string;
+  /** Date de traitement ; null = conflit encore a traiter. */
+  resolu_le: string | null;
 }
 
 export interface Mairie {
