@@ -2,6 +2,7 @@ import { Navigate } from "react-router-dom";
 import { ChevronRight, KeyRound, Landmark, UserRound } from "lucide-react";
 import { CarteLien, LienBouton, PageAuth } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
+import { useEtatCompletion } from "../lib/etatCompletion";
 import type { Role } from "../types/domaine";
 import "../styles/auth.css";
 
@@ -15,11 +16,20 @@ const DESTINATION_PAR_ROLE: Partial<Record<Role, string>> = {
  * sinon, l'ecran d'accueil propose les deux entrees de l'application (parent
  * ou declarant, agent ou administrateur) au lieu d'un renvoi direct vers la
  * connexion, qui laissait les parents sans repere.
+ *
+ * Completion parent coupee par l'administration (voir lib/etatCompletion.ts) :
+ * l'espace parent n'existe plus, donc plus de choix a proposer - on va
+ * directement a la connexion agent / administrateur, au lieu de laisser un
+ * parent cliquer pour decouvrir que c'est indisponible. L'etat est "actif"
+ * par defaut (et en cas d'erreur reseau) : jamais de redirection sur la foi
+ * d'une panne.
  */
 export default function PageAccueil() {
   const { utilisateur, enChargement } = useAuth();
+  const { active: completionActive } = useEtatCompletion();
   if (enChargement) return null;
   if (utilisateur) return <Navigate to={DESTINATION_PAR_ROLE[utilisateur.role] || "/connexion"} replace />;
+  if (!completionActive) return <Navigate to="/connexion" replace />;
 
   return (
     <PageAuth
