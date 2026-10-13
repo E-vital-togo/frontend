@@ -209,3 +209,28 @@
   .eva-dd-pied-actions > .eva-bouton { flex: 1 1 auto; }
   .eva-dd-choix__saisie { padding-left: 0; }
 }
+
+/* ---- Liaison naissance / décès (components/dossier/PanneauLiaison.tsx). Préfixe : eva-dd-liaison ---- */
+.eva-dd-liaison { display: flex; flex-direction: column; gap: var(--espace-3); min-width: 0; }
+.eva-dd-liaison__liste { display: flex; flex-direction: column; gap: var(--espace-3); margin: 0; padding: 0; list-style: none; }
+.eva-dd-liaison__candidat { border: 1px solid var(--couleur-bordure); border-radius: var(--rayon-standard); padding: var(--espace-3); background: var(--couleur-surface); min-width: 0; }
+.eva-dd-liaison__entete { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--espace-3); flex-wrap: wrap; }
+.eva-dd-liaison__identite { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.eva-dd-liaison__nom { font-weight: 600; overflow-wrap: anywhere; }
+.eva-dd-liaison__meta { font-size: 13px; color: var(--couleur-texte-discret); overflow-wrap: anywhere; }
+.eva-dd-liaison__score { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; min-width: 96px; }
+.eva-dd-liaison__score-valeur { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.eva-dd-liaison__jauge { width: 96px; height: 6px; border-radius: 3px; background: var(--couleur-neutre-fond); overflow: hidden; }
+.eva-dd-liaison__jauge > span { display: block; height: 100%; background: var(--couleur-primaire); }
+.eva-dd-liaison__jauge--forte > span { background: var(--couleur-succes, var(--couleur-primaire)); }
+.eva-dd-liaison__actions { display: flex; gap: var(--espace-2); flex-wrap: wrap; margin-top: var(--espace-3); }
+.eva-dd-liaison__detail { margin-top: var(--espace-3); overflow-x: auto; }
+.eva-dd-liaison__detail table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.eva-dd-liaison__detail th, .eva-dd-liaison__detail td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--couleur-bordure); vertical-align: top; }
+.eva-dd-liaison__detail th { font-weight: 600; color: var(--couleur-texte-discret); }
+.eva-dd-liaison__neutre { color: var(--couleur-texte-discret); }
+
+@media (max-width: 720px) {
+  .eva-dd-liaison__score { align-items: flex-start; }
+  .eva-dd-liaison__actions > * { flex: 1 1 100%; }
+}

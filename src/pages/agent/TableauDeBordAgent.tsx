@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { AlertTriangle, CalendarClock, CheckCircle2, Clock, FilePlus, FolderOpen, PackageCheck, QrCode, RefreshCw, WifiOff } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
 import AlerteCompletionDesactivee from "../../components/AlerteCompletionDesactivee";
+import DecesSignales from "../../components/dossier/DecesSignales";
 import BadgeStatut from "../../components/BadgeStatut";
 import EcheanceDossier from "../../components/statistiques/EcheanceDossier";
 import RaccourciAction from "../../components/statistiques/RaccourciAction";
@@ -128,6 +129,7 @@ export default function TableauDeBordAgent() {
       />
 
       <AlerteCompletionDesactivee />
+      <DecesSignales basePath="/agent" />
 
       {horsLigne && !chargement && (
         <Alerte variante="avertissement" titre="Vous êtes hors ligne" icone={<WifiOff size={18} aria-hidden="true" />} className="eva-st-alerte-page">

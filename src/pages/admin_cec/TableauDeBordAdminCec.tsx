@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
 import AlerteCompletionDesactivee from "../../components/AlerteCompletionDesactivee";
+import DecesSignales from "../../components/dossier/DecesSignales";
 import BadgeStatut from "../../components/BadgeStatut";
 import EcheanceDossier from "../../components/statistiques/EcheanceDossier";
 import RaccourciAction from "../../components/statistiques/RaccourciAction";
@@ -186,6 +187,7 @@ export default function TableauDeBordAdminCec() {
       />
 
       <AlerteCompletionDesactivee />
+      <DecesSignales basePath="/admin-cec" />
 
       <Carte variante="plate" className="eva-st-periode" role="group" aria-label="Période analysée">
         <div className="eva-st-periode__filtres">

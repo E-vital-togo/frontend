@@ -11,6 +11,7 @@ import ModaleRemiseActe from "../../components/retrait/ModaleRemiseActe";
 import PanneauDemandes from "../../components/dossier/PanneauDemandes";
 import PanneauFormulaire from "../../components/dossier/PanneauFormulaire";
 import PanneauHistorique from "../../components/dossier/PanneauHistorique";
+import PanneauLiaison from "../../components/dossier/PanneauLiaison";
 import PanneauNotifications from "../../components/dossier/PanneauNotifications";
 import PropositionDhis2 from "../../components/dossier/PropositionDhis2";
 import SqueletteDossier from "../../components/dossier/SqueletteDossier";
@@ -41,6 +42,7 @@ import {
   type ChampFormulaireEffectif,
   type DemandeModificationActe,
   type Dossier,
+  type LiaisonDeces,
   type ListeOuPaginee,
   type MiseEnPage as MiseEnPageFormulaire,
   type NotificationDossier,
@@ -92,6 +94,8 @@ export default function DetailDossier() {
   const [chargementSignataire, setChargementSignataire] = useState(false);
   const [remiseOuverte, setRemiseOuverte] = useState(false);
   const [annulationOuverte, setAnnulationOuverte] = useState(false);
+  // Liaison naissance / décès (décès uniquement) : sert à avertir avant « complet » ou « émission » au niveau « moyen ».
+  const [liaisonDeces, setLiaisonDeces] = useState<LiaisonDeces | null>(null);
 
   const nbModifications = Object.keys(valeursModifiees).length;
   useProtectionDepart(nbModifications > 0, nbModifications);
@@ -317,6 +321,18 @@ export default function DetailDossier() {
     setValeursModifiees({});
   }
 
+  async function emettre() {
+    if (liaisonDeces?.avertissement && liaisonDeces.moment === "emission") {
+      const ok = await confirmer({
+        titre: "Naissance non retrouvée",
+        description: `${liaisonDeces.avertissement} Voulez-vous quand même émettre l'acte de décès ?`,
+        libelleConfirmer: "Émettre quand même"
+      });
+      if (!ok) return;
+    }
+    navigate(`${basePath}/dossiers/${idDossier}/emission-acte`);
+  }
+
   async function valider() {
     if (!idDossier) return;
     if (champsObligatoiresManquants.length > 0) {
@@ -329,9 +345,11 @@ export default function DetailDossier() {
       nbModifications > 0
         ? ` Attention : ${pluriel(nbModifications, "modification non enregistrée", "modifications non enregistrées")} ne ${nbModifications > 1 ? "seront" : "sera"} pas prise${nbModifications > 1 ? "s" : ""} en compte.`
         : "";
+    const avertissementLiaison =
+      liaisonDeces?.avertissement && liaisonDeces.moment === "complet" ? ` Attention : ${liaisonDeces.avertissement}` : "";
     const ok = await confirmer({
       titre: "Marquer ce dossier comme complet ?",
-      description: `L'agent pourra ensuite procéder à l'émission de l'acte. Cette étape confirme que toutes les informations nécessaires ont été vérifiées.${avertissement}`,
+      description: `L'agent pourra ensuite procéder à l'émission de l'acte. Cette étape confirme que toutes les informations nécessaires ont été vérifiées.${avertissement}${avertissementLiaison}`,
       libelleConfirmer: "Marquer comme complet"
     });
     if (!ok) return;
@@ -460,7 +478,7 @@ export default function DetailDossier() {
               peutApercevoir={dossier.statut === "complete"}
               onApercu={() => navigate(`${basePath}/dossiers/${idDossier}/apercu-acte`)}
               peutEmettre={peutEmettreActe}
-              onEmettre={() => navigate(`${basePath}/dossiers/${idDossier}/emission-acte`)}
+              onEmettre={emettre}
               lienActe={dossier.statut === "acte_emis" ? `${basePath}/dossiers/${idDossier}/acte-pdf` : undefined}
               peutRemettre={peutRemettre}
               remiseIndisponible={!enLigne || horsLigne ? "La remise de l'acte nécessite une connexion" : undefined}
@@ -507,6 +525,15 @@ export default function DetailDossier() {
             horsLigne={horsLigne}
             onAccepter={accepterNouvelleVersion}
             onRefuser={refuserNouvelleVersion}
+          />
+        )}
+
+        {idDossier && !horsLigne && enLigne && (
+          <PanneauLiaison
+            idDossier={idDossier}
+            basePath={basePath}
+            peutDecider={dossier.statut !== "sans_suite"}
+            onSituation={setLiaisonDeces}
           />
         )}
 

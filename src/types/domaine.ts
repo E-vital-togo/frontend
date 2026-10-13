@@ -591,3 +591,83 @@ export interface ActeSigneParSignataire {
   date_etablissement: string;
   statut: "actif" | "annule";
 }
+
+// --- Liaison naissance / décès (apps.liaisons) ----------------------------------------------------
+export type SituationLiaison =
+  | "inactive"
+  | "incomplet"
+  | "en_attente"
+  | "propositions"
+  | "introuvable"
+  | "aucune_declaree"
+  | "confirmee";
+
+export type NiveauBlocageLiaison = "aucun" | "moyen" | "bloquant";
+export type MomentLiaison = "complet" | "emission";
+
+export interface CritereLiaisonDetail {
+  code: string;
+  libelle: string;
+  poids: number;
+  /** 0 à 100 ; null si le critère n'a pas pu être comparé (valeur absente d'un côté). */
+  score: number | null;
+  statut: "compare" | "absent_deces" | "absent_naissance";
+  valeur_deces: string;
+  valeur_naissance: string;
+}
+
+/** Résumé d'un dossier lié ; hors périmètre de l'agent (`consultable` faux), on n'affiche qu'un résumé, sans lien. */
+export interface ResumeDossierLie {
+  dossier_id: string;
+  nom: string;
+  naissance: string;
+  mere: string;
+  sexe: string;
+  date_evenement: string | null;
+  mairie: string;
+  numero_acte: number | null;
+  annee_registre: number | null;
+  consultable: boolean;
+  confirmee_le?: string | null;
+  score?: number;
+}
+
+export interface CandidatLiaison {
+  id: string;
+  score: number;
+  forte: boolean;
+  statut: "proposee" | "confirmee";
+  detail: CritereLiaisonDetail[];
+  decidee_le: string | null;
+  naissance: ResumeDossierLie;
+}
+
+export interface LiaisonDeces {
+  role: "deces";
+  active: boolean;
+  situation: SituationLiaison;
+  niveau_blocage: NiveauBlocageLiaison;
+  moment: MomentLiaison;
+  seuil_forte: number;
+  message: string;
+  /** Renseigné au niveau « moyen » tant que la naissance n'est pas retrouvée. */
+  avertissement: string | null;
+  manquants: string[];
+  candidats: CandidatLiaison[];
+  confirmee: CandidatLiaison | null;
+}
+
+export interface LiaisonNaissance {
+  role: "naissance";
+  active: boolean;
+  deces: ResumeDossierLie | null;
+}
+
+export type LiaisonDossier = LiaisonDeces | LiaisonNaissance;
+
+export interface DecesSignale {
+  id: string;
+  naissance_dossier_id: string;
+  deces: ResumeDossierLie;
+  confirmee_le: string | null;
+}
