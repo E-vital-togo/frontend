@@ -9,9 +9,8 @@ interface ProprietesActionsDossier {
   /** Champs obligatoires manquants : le bouton reste visible mais désactivé, avec l'explication en infobulle. */
   explicationValidationBloquee?: string;
   onValider: () => void;
-  /** Aperçu PDF de l'acte (statut "complet"). */
+  /** Aperçu de l'acte (statut "complet"), affiché sur une page dédiée. */
   peutApercevoir: boolean;
-  apercuEnCours: boolean;
   onApercu: () => void;
   /** Émission de l'acte (agent, statut "complet"). */
   peutEmettre: boolean;
@@ -65,7 +64,7 @@ export default function ActionsDossier(p: ProprietesActionsDossier) {
       Voir le PDF de l'acte
     </LienBouton>
   ) : p.peutApercevoir ? (
-    <Bouton onClick={p.onApercu} chargement={p.apercuEnCours} iconeGauche={<Eye size={16} />}>
+    <Bouton onClick={p.onApercu} iconeGauche={<Eye size={16} />}>
       Aperçu de l'acte
     </Bouton>
   ) : null;
@@ -82,7 +81,7 @@ export default function ActionsDossier(p: ProprietesActionsDossier) {
       </ItemMenu>
     ),
     mobile && apercuSecondaire && (
-      <ItemMenu key="apercu" icone={Eye} onClick={p.onApercu} desactive={p.apercuEnCours}>
+      <ItemMenu key="apercu" icone={Eye} onClick={p.onApercu}>
         Aperçu de l'acte
       </ItemMenu>
     ),
@@ -108,7 +107,7 @@ export default function ActionsDossier(p: ProprietesActionsDossier) {
         </LienBouton>
       )}
       {!mobile && apercuSecondaire && (
-        <Bouton variante="secondaire" onClick={p.onApercu} chargement={p.apercuEnCours} iconeGauche={<Eye size={16} />}>
+        <Bouton variante="secondaire" onClick={p.onApercu} iconeGauche={<Eye size={16} />}>
           Aperçu de l'acte
         </Bouton>
       )}

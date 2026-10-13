@@ -119,6 +119,14 @@ export default function App() {
             }
           />
           <Route
+            path="/agent/dossiers/:idDossier/apercu-acte"
+            element={
+              <RouteProtegee rolesAutorises={["agent_cec"]}>
+                <ActePdf apercu />
+              </RouteProtegee>
+            }
+          />
+          <Route
             path="/agent/conflits"
             element={
               <RouteProtegee rolesAutorises={["agent_cec"]}>
@@ -205,6 +213,14 @@ export default function App() {
             element={
               <RouteProtegee rolesAutorises={["admin_cec"]}>
                 <ActePdf />
+              </RouteProtegee>
+            }
+          />
+          <Route
+            path="/admin-cec/dossiers/:idDossier/apercu-acte"
+            element={
+              <RouteProtegee rolesAutorises={["admin_cec"]}>
+                <ActePdf apercu />
               </RouteProtegee>
             }
           />

@@ -33,7 +33,6 @@ import { useConnectivite } from "../../lib/connectivite";
 import { signalerCompletionDesactivee } from "../../lib/etatCompletion";
 import { planFormulaire } from "../../lib/formulaire";
 import { mettreEnCacheMiseEnPage, miseEnPageEnCache } from "../../lib/formulairesHorsLigne";
-import { telechargerBlob } from "../../lib/telechargerBlob";
 import { LIENS_AGENT } from "./navigation";
 import { LIENS_ADMIN_CEC } from "../admin_cec/navigation";
 import {
@@ -91,7 +90,6 @@ export default function DetailDossier() {
   const [acte, setActe] = useState<Acte | null>(null);
   const [signataireVisible, setSignataireVisible] = useState<SignataireMairie | null>(null);
   const [chargementSignataire, setChargementSignataire] = useState(false);
-  const [apercuActeEnCours, setApercuActeEnCours] = useState(false);
   const [remiseOuverte, setRemiseOuverte] = useState(false);
   const [annulationOuverte, setAnnulationOuverte] = useState(false);
 
@@ -346,19 +344,6 @@ export default function DetailDossier() {
     }
   }
 
-  async function telechargerApercuActe() {
-    if (!idDossier) return;
-    setApercuActeEnCours(true);
-    try {
-      const blob = await appelApi<Blob>(`/dossiers/${idDossier}/acte/apercu-pdf`);
-      telechargerBlob(blob, "apercu-acte.pdf");
-    } catch (e) {
-      toast.erreur(messageErreur(e));
-    } finally {
-      setApercuActeEnCours(false);
-    }
-  }
-
   async function accepterNouvelleVersion() {
     if (!idDossier) return;
     setDecisionEnCours(true);
@@ -473,8 +458,7 @@ export default function DetailDossier() {
               }
               onValider={valider}
               peutApercevoir={dossier.statut === "complete"}
-              apercuEnCours={apercuActeEnCours}
-              onApercu={telechargerApercuActe}
+              onApercu={() => navigate(`${basePath}/dossiers/${idDossier}/apercu-acte`)}
               peutEmettre={peutEmettreActe}
               onEmettre={() => navigate(`${basePath}/dossiers/${idDossier}/emission-acte`)}
               lienActe={dossier.statut === "acte_emis" ? `${basePath}/dossiers/${idDossier}/acte-pdf` : undefined}
