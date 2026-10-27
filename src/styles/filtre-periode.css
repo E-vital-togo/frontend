@@ -1,0 +1,6 @@
+.eva-filtre-periode { display: flex; align-items: flex-end; flex-wrap: wrap; gap: var(--espace-3); min-width: 0; }
+.eva-filtre-periode .eva-champ { flex: 0 0 168px; margin-bottom: 0; }
+@media (max-width: 560px) {
+  .eva-filtre-periode { width: 100%; }
+  .eva-filtre-periode .eva-champ { flex: 1 1 140px; }
+}

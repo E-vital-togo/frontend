@@ -4,6 +4,7 @@ import { Baby, CloudOff, CloudUpload, Download, FilePlus, Flower2, Search } from
 import MiseEnPage from "../../components/MiseEnPage";
 import BadgeStatut from "../../components/BadgeStatut";
 import BadgeRetrait from "../../components/retrait/BadgeRetrait";
+import FiltrePeriode from "../../components/FiltrePeriode";
 import {
   Alerte,
   Badge,
@@ -91,6 +92,8 @@ export default function ListeDossiers() {
   const [recherche, setRecherche] = useState("");
   const [echeanceUniquement, setEcheanceUniquement] = useState(parametresUrl.get("echeance") === "1");
   const [masquerActesEmis, setMasquerActesEmis] = useState(false);
+  const [dateDebut, setDateDebut] = useState("");
+  const [dateFin, setDateFin] = useState("");
   const retraitUrl = parametresUrl.get("retrait");
   const [retraitFiltre, setRetraitFiltre] = useState<FiltreRetrait>(filtreRetraitDepuis(retraitUrl));
   const [page, setPage] = useState(1);
@@ -126,8 +129,10 @@ export default function ListeDossiers() {
     if (echeanceUniquement) parametres.set("echeance_proche", "true");
     if (masquerActesEmis) parametres.set("masquer_actes_emis", "true");
     if (retraitFiltre) parametres.set("retrait", retraitFiltre);
+    if (dateDebut) parametres.set("date_debut", dateDebut);
+    if (dateFin) parametres.set("date_fin", dateFin);
     return parametres;
-  }, [statutFiltre, evenementFiltre, recherche, echeanceUniquement, masquerActesEmis, retraitFiltre]);
+  }, [statutFiltre, evenementFiltre, recherche, echeanceUniquement, masquerActesEmis, retraitFiltre, dateDebut, dateFin]);
 
   useEffect(() => {
     const parametres = construireParametres();
@@ -187,7 +192,7 @@ export default function ListeDossiers() {
       annule = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statutFiltre, evenementFiltre, recherche, echeanceUniquement, masquerActesEmis, retraitFiltre, page, enLigne, relance]);
+  }, [statutFiltre, evenementFiltre, recherche, echeanceUniquement, masquerActesEmis, retraitFiltre, dateDebut, dateFin, page, enLigne, relance]);
 
   async function exporter(format: "xlsx" | "pdf") {
     setExportEnCours(format);
@@ -366,6 +371,18 @@ export default function ListeDossiers() {
               valeur={retraitFiltre}
               onChanger={changer(setRetraitFiltre)}
               pilules={pilulesRetrait}
+            />
+          </div>
+          <div className="eva-ag-filtre">
+            <span className="eva-ag-filtre__libelle">Dates</span>
+            <FiltrePeriode
+              dateDebut={dateDebut}
+              dateFin={dateFin}
+              onChanger={(debut, fin) => {
+                setPage(1);
+                setDateDebut(debut);
+                setDateFin(fin);
+              }}
             />
           </div>
           <div className="eva-ag-filtre eva-ag-filtre--options">

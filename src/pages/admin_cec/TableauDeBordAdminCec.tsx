@@ -27,7 +27,22 @@ import {
   optionRepartitionMairie,
   optionRepartitionStatut
 } from "../../components/statistiques/optionsTableauDeBord";
-import { Alerte, Badge, Bouton, Carte, CarteStat, Champ, EnteteDePage, EtatVide, GraphiqueECharts, ListeResponsive, PilulesFiltre, Squelette, type ColonneListe } from "../../components/ui";
+import {
+  Alerte,
+  Badge,
+  Bouton,
+  Carte,
+  CarteStat,
+  Champ,
+  EnteteDePage,
+  EtatVide,
+  GraphiqueECharts,
+  ListeResponsive,
+  PilulesFiltre,
+  Squelette,
+  type ColonneListe,
+  type PiluleFiltre
+} from "../../components/ui";
 import { LienBouton } from "../../components/ui/Bouton";
 import { appelApi, ErreurApi } from "../../lib/apiClient";
 import { useCompteurs } from "../../lib/useCompteurs";
@@ -38,13 +53,31 @@ import type {
   ListeOuPaginee,
   StatistiqueEvolutionReponse,
   StatistiqueRepartitionItem,
-  StatistiquesNotifications
+  StatistiquesNotifications,
+  StatutDossier,
+  TypeEvenement
 } from "../../types/domaine";
 import { listeDepuis } from "../../types/domaine";
 
 import "../../styles/statistiques.css";
 
 type Periode = "" | "30j" | "annee" | "perso";
+
+const PILULES_EVENEMENT: PiluleFiltre<TypeEvenement | "">[] = [
+  { valeur: "", libelle: "Tous" },
+  { valeur: "naissance", libelle: "Naissances" },
+  { valeur: "deces", libelle: "Décès" }
+];
+
+const PILULES_STATUT: PiluleFiltre<StatutDossier | "">[] = [
+  { valeur: "", libelle: "Tous" },
+  { valeur: "recu", libelle: "Reçus" },
+  { valeur: "notifie", libelle: "Notifiés" },
+  { valeur: "en_attente_complement", libelle: "En attente de complément" },
+  { valeur: "complete", libelle: "Complets" },
+  { valeur: "acte_emis", libelle: "Actes émis" },
+  { valeur: "sans_suite", libelle: "Sans suite" }
+];
 
 function versIso(date: Date): string {
   const p = (n: number) => String(n).padStart(2, "0");
@@ -80,6 +113,8 @@ export default function TableauDeBordAdminCec() {
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
   const [periode, setPeriode] = useState<Periode>("");
+  const [evenementFiltre, setEvenementFiltre] = useState<TypeEvenement | "">("");
+  const [statutFiltre, setStatutFiltre] = useState<StatutDossier | "">("");
   const [repartitionStatut, setRepartitionStatut] = useState<StatistiqueRepartitionItem[] | null>(null);
   const [repartitionMairie, setRepartitionMairie] = useState<StatistiqueRepartitionItem[] | null>(null);
   const [evolution, setEvolution] = useState<StatistiqueEvolutionReponse | null>(null);
@@ -94,7 +129,15 @@ export default function TableauDeBordAdminCec() {
     const parametres = new URLSearchParams();
     if (dateDebut) parametres.set("date_debut", dateDebut);
     if (dateFin) parametres.set("date_fin", dateFin);
+    if (evenementFiltre) parametres.set("event_type", evenementFiltre);
+    if (statutFiltre) parametres.set("statut", statutFiltre);
     const suffixe = parametres.toString() ? `&${parametres.toString()}` : "";
+
+    // Le tableau des échéances proches suit les mêmes filtres d'événement et
+    // de statut, mais pas la période : c'est une liste d'urgences à traiter.
+    const parametresEcheances = new URLSearchParams({ echeance_proche: "true" });
+    if (evenementFiltre) parametresEcheances.set("event_type", evenementFiltre);
+    if (statutFiltre) parametresEcheances.set("statut", statutFiltre);
 
     let annule = false;
     setChargement(true);
@@ -103,7 +146,7 @@ export default function TableauDeBordAdminCec() {
       appelApi<StatistiqueRepartitionItem[]>(`/dossiers/statistiques/repartition/?dimension=statut${suffixe}`),
       appelApi<StatistiqueRepartitionItem[]>(`/dossiers/statistiques/repartition/?dimension=mairie${suffixe}`),
       appelApi<StatistiqueEvolutionReponse>(`/dossiers/statistiques/evolution/?intervalle=mois&serie=event_type${suffixe}`),
-      appelApi<ListeOuPaginee<Dossier>>("/dossiers/?echeance_proche=true"),
+      appelApi<ListeOuPaginee<Dossier>>(`/dossiers/?${parametresEcheances.toString()}`),
       appelApi<{ delai_moyen_jours: number | null }>(`/dossiers/statistiques/delai-moyen/?${parametres.toString()}`)
     ])
       .then(([statuts, mairies, evol, echeances, delai]) => {
@@ -122,7 +165,7 @@ export default function TableauDeBordAdminCec() {
     return () => {
       annule = true;
     };
-  }, [dateDebut, dateFin, tentative]);
+  }, [dateDebut, dateFin, evenementFiltre, statutFiltre, tentative]);
 
   // Requete separee, volontairement isolee du Promise.all principal : le
   // sous-enregistrement (notifications ASC) est une fonctionnalite plus
@@ -172,7 +215,13 @@ export default function TableauDeBordAdminCec() {
   }
 
   const premierChargement = chargement && repartitionStatut === null;
-  const filtreActif = dateDebut !== "" || dateFin !== "";
+  const filtreActif = dateDebut !== "" || dateFin !== "" || evenementFiltre !== "" || statutFiltre !== "";
+
+  function reinitialiserFiltres() {
+    choisirPeriode("");
+    setEvenementFiltre("");
+    setStatutFiltre("");
+  }
 
   return (
     <MiseEnPage liens={LIENS_ADMIN_CEC}>
@@ -229,12 +278,31 @@ export default function TableauDeBordAdminCec() {
             />
           </Champ>
           {filtreActif && (
-            <Bouton variante="fantome" taille="petit" iconeGauche={<RotateCcw size={14} />} onClick={() => choisirPeriode("")}>
+            <Bouton variante="fantome" taille="petit" iconeGauche={<RotateCcw size={14} />} onClick={reinitialiserFiltres}>
               Réinitialiser
             </Bouton>
           )}
         </div>
-        <p className="eva-st-periode__aide">Le filtre porte sur la date de déclaration. Laissez les dates vides pour voir l'historique complet.</p>
+        <div className="eva-st-periode__filtres">
+          <span className="eva-st-periode__titre">Type d'événement</span>
+          <PilulesFiltre<TypeEvenement | "">
+            ariaLabel="Filtrer par type d'événement"
+            valeur={evenementFiltre}
+            onChanger={setEvenementFiltre}
+            pilules={PILULES_EVENEMENT}
+          />
+        </div>
+        <div className="eva-st-periode__filtres eva-st-periode__filtres--large">
+          <span className="eva-st-periode__titre">Statut</span>
+          <PilulesFiltre<StatutDossier | "">
+            ariaLabel="Filtrer par statut"
+            defilement
+            valeur={statutFiltre}
+            onChanger={setStatutFiltre}
+            pilules={PILULES_STATUT}
+          />
+        </div>
+        <p className="eva-st-periode__aide">La période porte sur la date de déclaration. Laissez les dates vides, « Tous » comme type d'événement et comme statut pour voir l'historique complet.</p>
       </Carte>
 
       {erreur ? (

@@ -4,6 +4,7 @@ import { ArrowRight, FileSpreadsheet, FileText, FolderSearch } from "lucide-reac
 import MiseEnPage from "../../components/MiseEnPage";
 import BadgeStatut from "../../components/BadgeStatut";
 import BadgeRetrait from "../../components/retrait/BadgeRetrait";
+import FiltrePeriode from "../../components/FiltrePeriode";
 import {
   Badge,
   BarreOutils,
@@ -80,6 +81,8 @@ export default function DossiersAdminCec() {
   const [mairieFiltre, setMairieFiltre] = useState("");
   const [recherche, setRecherche] = useState("");
   const [masquerActesEmis, setMasquerActesEmis] = useState(false);
+  const [dateDebut, setDateDebut] = useState("");
+  const [dateFin, setDateFin] = useState("");
   const retraitUrl = parametresUrl.get("retrait");
   const [retraitFiltre, setRetraitFiltre] = useState<FiltreRetrait>(filtreRetraitDepuis(retraitUrl));
   const [page, setPage] = useState(1);
@@ -117,6 +120,8 @@ export default function DossiersAdminCec() {
     if (recherche) parametres.set("search", recherche);
     if (masquerActesEmis) parametres.set("masquer_actes_emis", "true");
     if (retraitFiltre) parametres.set("retrait", retraitFiltre);
+    if (dateDebut) parametres.set("date_debut", dateDebut);
+    if (dateFin) parametres.set("date_fin", dateFin);
     return parametres;
   }
 
@@ -141,7 +146,7 @@ export default function DossiersAdminCec() {
       obsolete = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statutFiltre, evenementFiltre, mairieFiltre, recherche, masquerActesEmis, retraitFiltre, page, rechargement]);
+  }, [statutFiltre, evenementFiltre, mairieFiltre, recherche, masquerActesEmis, retraitFiltre, dateDebut, dateFin, page, rechargement]);
 
   async function exporter(format: "xlsx" | "pdf") {
     setExportEnCours(format);
@@ -161,7 +166,7 @@ export default function DossiersAdminCec() {
   const resultats = dossiers?.results ?? [];
   const total = dossiers?.count ?? 0;
   const affichageMairie = mairies.length > 1;
-  const filtreActif = !!(statutFiltre || evenementFiltre || mairieFiltre || recherche || masquerActesEmis || retraitFiltre);
+  const filtreActif = !!(statutFiltre || evenementFiltre || mairieFiltre || recherche || masquerActesEmis || retraitFiltre || dateDebut || dateFin);
 
   // Le serveur ne renvoie que le total du filtre courant : le compteur
   // n'est donc affiché que sur la pilule active.
@@ -181,6 +186,8 @@ export default function DossiersAdminCec() {
     setRecherche("");
     setMasquerActesEmis(false);
     setRetraitFiltre("");
+    setDateDebut("");
+    setDateFin("");
     setPage(1);
   }
 
@@ -353,6 +360,19 @@ export default function DossiersAdminCec() {
             setRetraitFiltre(v);
           }}
           pilules={PILULES_RETRAIT}
+        />
+      </div>
+
+      <div className="eva-rt-filtre-retrait eva-rt-filtre-retrait--liste">
+        <span className="eva-rt-etiquette-filtre">Date de l'événement</span>
+        <FiltrePeriode
+          dateDebut={dateDebut}
+          dateFin={dateFin}
+          onChanger={(debut, fin) => {
+            setPage(1);
+            setDateDebut(debut);
+            setDateFin(fin);
+          }}
         />
       </div>
 

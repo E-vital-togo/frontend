@@ -95,6 +95,7 @@
   padding: var(--espace-4) var(--espace-5);
 }
 .eva-st-periode__filtres { display: flex; flex-direction: column; gap: var(--espace-2); min-width: 0; }
+.eva-st-periode__filtres--large { flex: 1 1 100%; }
 .eva-st-periode__titre { font-size: 13px; font-weight: 600; color: var(--couleur-gris-service-1); }
 .eva-st-periode__dates { display: flex; align-items: flex-end; gap: var(--espace-3); min-width: 0; }
 .eva-st-periode__dates .eva-champ { flex: 0 0 168px; margin-bottom: 0; }
