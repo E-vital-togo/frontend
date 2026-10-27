@@ -120,8 +120,8 @@ export default function DossiersAdminCec() {
     if (recherche) parametres.set("search", recherche);
     if (masquerActesEmis) parametres.set("masquer_actes_emis", "true");
     if (retraitFiltre) parametres.set("retrait", retraitFiltre);
-    if (dateDebut) parametres.set("date_debut", dateDebut);
-    if (dateFin) parametres.set("date_fin", dateFin);
+    if (dateDebut) parametres.set("date_evenement_min", dateDebut);
+    if (dateFin) parametres.set("date_evenement_max", dateFin);
     return parametres;
   }
 
