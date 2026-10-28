@@ -31,7 +31,9 @@ import {
   type Dossier,
   type ListeOuPaginee,
   type Mairie,
+  type OrigineDossier,
   type ReponsePaginee,
+  type StatistiqueRepartitionItem,
   type StatutDossier,
   type TypeEvenement
 } from "../../types/domaine";
@@ -79,6 +81,9 @@ export default function DossiersAdminCec() {
   const [statutFiltre, setStatutFiltre] = useState<StatutDossier | "">("");
   const [evenementFiltre, setEvenementFiltre] = useState<TypeEvenement | "">((evenementUrl as TypeEvenement | null) || "");
   const [mairieFiltre, setMairieFiltre] = useState("");
+  const [origineFiltre, setOrigineFiltre] = useState<OrigineDossier | "">("");
+  /** Statuts réellement présents pour l'origine choisie (null = toutes les origines, ou pas encore chargé). */
+  const [statutsOrigine, setStatutsOrigine] = useState<Set<string> | null>(null);
   const [recherche, setRecherche] = useState("");
   const [masquerActesEmis, setMasquerActesEmis] = useState(false);
   const [dateDebut, setDateDebut] = useState("");
@@ -112,11 +117,38 @@ export default function DossiersAdminCec() {
       .catch(() => setMairies([]));
   }, []);
 
+  useEffect(() => {
+    // Un dossier DHIS2 et un dossier manuel ne passent pas par les mêmes
+    // statuts : avec une origine choisie, seuls les statuts qui existent
+    // pour cette origine (dans le périmètre) restent proposés.
+    if (!origineFiltre) {
+      setStatutsOrigine(null);
+      return;
+    }
+    let obsolete = false;
+    setStatutsOrigine(null);
+    appelApi<StatistiqueRepartitionItem[]>(`/dossiers/statistiques/repartition/?dimension=statut&origine=${origineFiltre}`)
+      .then((lignes) => {
+        if (obsolete) return;
+        const presents = new Set(lignes.filter((l) => l.valeur > 0).map((l) => l.cle));
+        setStatutsOrigine(presents);
+        // Statut choisi qui n'existe pas pour cette origine : on revient à « Tous ».
+        setStatutFiltre((actuel) => (actuel && !presents.has(actuel) ? "" : actuel));
+      })
+      .catch(() => {
+        if (!obsolete) setStatutsOrigine(null);
+      });
+    return () => {
+      obsolete = true;
+    };
+  }, [origineFiltre]);
+
   function construireParametres(): URLSearchParams {
     const parametres = new URLSearchParams();
     if (statutFiltre) parametres.set("statut", statutFiltre);
     if (evenementFiltre) parametres.set("event_type", evenementFiltre);
     if (mairieFiltre) parametres.set("mairie", mairieFiltre);
+    if (origineFiltre) parametres.set("origine", origineFiltre);
     if (recherche) parametres.set("search", recherche);
     if (masquerActesEmis) parametres.set("masquer_actes_emis", "true");
     if (retraitFiltre) parametres.set("retrait", retraitFiltre);
@@ -146,7 +178,7 @@ export default function DossiersAdminCec() {
       obsolete = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statutFiltre, evenementFiltre, mairieFiltre, recherche, masquerActesEmis, retraitFiltre, dateDebut, dateFin, page, rechargement]);
+  }, [statutFiltre, evenementFiltre, mairieFiltre, origineFiltre, recherche, masquerActesEmis, retraitFiltre, dateDebut, dateFin, page, rechargement]);
 
   async function exporter(format: "xlsx" | "pdf") {
     setExportEnCours(format);
@@ -166,23 +198,24 @@ export default function DossiersAdminCec() {
   const resultats = dossiers?.results ?? [];
   const total = dossiers?.count ?? 0;
   const affichageMairie = mairies.length > 1;
-  const filtreActif = !!(statutFiltre || evenementFiltre || mairieFiltre || recherche || masquerActesEmis || retraitFiltre || dateDebut || dateFin);
+  const filtreActif = !!(statutFiltre || evenementFiltre || mairieFiltre || origineFiltre || recherche || masquerActesEmis || retraitFiltre || dateDebut || dateFin);
 
   // Le serveur ne renvoie que le total du filtre courant : le compteur
   // n'est donc affiché que sur la pilule active.
   const pilules: PiluleFiltre<StatutDossier | "">[] = useMemo(
     () =>
-      LIBELLES_STATUT.map((p) => ({
+      LIBELLES_STATUT.filter((p) => !p.valeur || !statutsOrigine || statutsOrigine.has(p.valeur)).map((p) => ({
         ...p,
         compteur: p.valeur === statutFiltre && dossiers ? dossiers.count : undefined
       })),
-    [statutFiltre, dossiers]
+    [statutFiltre, dossiers, statutsOrigine]
   );
 
   function reinitialiserFiltres() {
     setStatutFiltre("");
     setEvenementFiltre("");
     setMairieFiltre("");
+    setOrigineFiltre("");
     setRecherche("");
     setMasquerActesEmis(false);
     setRetraitFiltre("");
@@ -293,6 +326,19 @@ export default function DossiersAdminCec() {
                 ))}
               </Selecteur>
             )}
+            <Selecteur
+              compact
+              ariaLabel="Filtrer par origine"
+              valeur={origineFiltre}
+              onChange={(v) => {
+                setPage(1);
+                setOrigineFiltre(v as OrigineDossier | "");
+              }}
+            >
+              <option value="">Toutes les origines</option>
+              <option value="dhis2">DHIS2</option>
+              <option value="manuel">Saisie manuelle</option>
+            </Selecteur>
             <label className="eva-ac-case">
               <input
                 type="checkbox"
