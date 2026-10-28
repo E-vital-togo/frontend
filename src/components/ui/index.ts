@@ -32,6 +32,8 @@ export type { VarianteSquelette } from "./Squelette";
 export { default as ListeResponsive } from "./ListeResponsive";
 export type { ColonneListe, EtatTri, SensTri } from "./ListeResponsive";
 export { default as PilulesFiltre } from "./PilulesFiltre";
+export { default as PanneauFiltres, BoutonFiltres, RubriqueFiltre } from "./PanneauFiltres";
+export type { PuceFiltre } from "./PanneauFiltres";
 export type { PiluleFiltre } from "./PilulesFiltre";
 export { default as BarreRecherche } from "./BarreRecherche";
 export { default as BarreOutils } from "./BarreOutils";

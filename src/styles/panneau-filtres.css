@@ -1,0 +1,179 @@
+/* ==========================================================================
+   Panneau de filtres repliable (components/ui/PanneauFiltres.tsx)
+   ========================================================================== */
+
+/* -- Bouton « Filtres » ---------------------------------------------------- */
+.eva-bouton-filtres {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-2);
+  min-height: var(--hauteur-controle);
+  padding: 0 var(--espace-3);
+  border: 1px solid var(--couleur-bordure-forte);
+  border-radius: var(--rayon-champ);
+  background: var(--couleur-blanc);
+  color: var(--couleur-gris-service-1);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color var(--transition-rapide), background var(--transition-rapide), color var(--transition-rapide);
+}
+.eva-bouton-filtres:hover { border-color: var(--couleur-emeraude); color: var(--couleur-emeraude-profond); }
+.eva-bouton-filtres:focus-visible { outline: none; box-shadow: var(--ombre-anneau-focus); }
+.eva-bouton-filtres--actif { border-color: var(--couleur-emeraude); color: var(--couleur-emeraude-profond); }
+.eva-bouton-filtres--ouvert { background: var(--couleur-emeraude-fond-doux); border-color: var(--couleur-emeraude); color: var(--couleur-emeraude-profond); }
+.eva-bouton-filtres__compteur {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--rayon-plein);
+  background: var(--couleur-emeraude);
+  color: var(--couleur-blanc);
+  font-family: var(--police-donnees);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+.eva-bouton-filtres__chevron { transition: transform var(--transition-normale); }
+.eva-bouton-filtres--ouvert .eva-bouton-filtres__chevron { transform: rotate(180deg); }
+
+/* -- Panneau ouvert -------------------------------------------------------- */
+.eva-panneau-filtres {
+  margin: calc(-1 * var(--espace-2)) 0 var(--espace-4);
+  padding: var(--espace-4);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon-standard);
+  background: var(--couleur-blanc);
+  box-shadow: var(--ombre-carte);
+  animation: eva-panneau-filtres-entree var(--transition-normale);
+}
+@keyframes eva-panneau-filtres-entree {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+/* Rangées souples : les listes déroulantes se partagent la largeur (220px
+   minimum), les rubriques à boutons gardent la largeur de leur contenu. */
+.eva-panneau-filtres__grille {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-4) var(--espace-5);
+  align-items: flex-start;
+}
+.eva-panneau-filtres__pied {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--espace-4);
+  padding-top: var(--espace-3);
+  border-top: 1px solid var(--couleur-bordure);
+}
+
+.eva-rubrique-filtre { display: flex; flex-direction: column; gap: var(--espace-2); flex: 1 1 220px; min-width: 0; }
+.eva-rubrique-filtre--ajuste { flex: 0 0 auto; }
+.eva-rubrique-filtre--ajuste .eva-filtres { flex-wrap: nowrap; }
+.eva-rubrique-filtre--large { flex-basis: 100%; }
+.eva-rubrique-filtre__libelle {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--couleur-texte-discret);
+}
+.eva-rubrique-filtre .eva-champ { margin-bottom: 0; }
+
+/* -- Panneau fermé : puces des filtres actifs ------------------------------ */
+.eva-puces-filtres {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--espace-2);
+  margin: calc(-1 * var(--espace-2)) 0 var(--espace-4);
+}
+.eva-puce-filtre {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  min-height: 30px;
+  padding: 0 4px 0 var(--espace-3);
+  border: 1px solid var(--couleur-emeraude-fond-vif, var(--couleur-bordure));
+  border-radius: var(--rayon-plein);
+  background: var(--couleur-emeraude-fond-doux);
+  color: var(--couleur-emeraude-profond);
+  font-size: 13px;
+  font-weight: 500;
+  animation: eva-panneau-filtres-entree var(--transition-rapide);
+}
+.eva-puce-filtre__texte { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eva-puce-filtre__retirer {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: var(--rayon-plein);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.eva-puce-filtre__retirer:hover { background: var(--couleur-blanc); }
+.eva-puce-filtre__retirer:focus-visible { outline: none; box-shadow: var(--ombre-anneau-focus); }
+
+.eva-lien-filtres {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--rayon-petit);
+  background: transparent;
+  color: var(--couleur-emeraude-profond);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.eva-lien-filtres:hover { text-decoration: underline; }
+.eva-lien-filtres:focus-visible { outline: none; box-shadow: var(--ombre-anneau-focus); }
+
+@media (max-width: 560px) {
+  .eva-panneau-filtres { padding: var(--espace-3); }
+  .eva-panneau-filtres__grille { gap: var(--espace-4); }
+  .eva-rubrique-filtre, .eva-rubrique-filtre--ajuste { flex: 1 1 100%; }
+  .eva-rubrique-filtre--ajuste .eva-filtres { flex-wrap: wrap; }
+  .eva-puce-filtre { max-width: calc(100vw - 48px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .eva-panneau-filtres, .eva-puce-filtre { animation: none; }
+  .eva-bouton-filtres__chevron { transition: none; }
+}
+
+/* Barre d'outils avec bouton « Filtres » : sur petit écran, la recherche prend
+   toute la ligne et « Filtres » partage la suivante avec les actions (exports),
+   au lieu d'empiler trois lignes. */
+@media (max-width: 720px) {
+  .eva-barre-outils--avec-filtres > .eva-barre-outils__groupe:first-child { display: contents; }
+  .eva-barre-outils--avec-filtres .eva-recherche { flex: 1 1 100%; width: auto; max-width: none; }
+}
+
+/* Rangée des statuts sous la barre d'outils (toujours visible), compteur à droite. */
+.eva-ligne-statuts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  min-width: 0;
+  margin-bottom: var(--espace-4);
+}
+.eva-ligne-statuts > .eva-filtres { min-width: 0; }
+.eva-ligne-statuts > .eva-compteur { flex: none; }
+.eva-rubrique-filtre .eva-bascule + .eva-bascule { margin-top: var(--espace-1); }
+@media (max-width: 720px) {
+  .eva-ligne-statuts { flex-direction: column; align-items: stretch; }
+  .eva-ligne-statuts > .eva-compteur { align-self: flex-start; }
+}

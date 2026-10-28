@@ -1,15 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowRight, FileSpreadsheet, FileText, FolderSearch } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
 import BadgeStatut from "../../components/BadgeStatut";
 import BadgeRetrait from "../../components/retrait/BadgeRetrait";
-import FiltrePeriode, { parametresPeriode, type ChampDateDossier } from "../../components/FiltrePeriode";
+import FiltrePeriode, { libellePeriode, parametresPeriode, type ChampDateDossier } from "../../components/FiltrePeriode";
 import {
   Badge,
   BarreOutils,
   BarreRecherche,
   Bouton,
+  BoutonFiltres,
+  Interrupteur,
+  PanneauFiltres,
+  RubriqueFiltre,
   EnteteDePage,
   LienBouton,
   ListeResponsive,
@@ -19,6 +23,7 @@ import {
   useToast,
   type ColonneListe,
   type PiluleFiltre,
+  type PuceFiltre,
   type VarianteBadge
 } from "../../components/ui";
 import { appelApi } from "../../lib/apiClient";
@@ -90,6 +95,9 @@ export default function DossiersAdminCec() {
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
   const [champDate, setChampDate] = useState<ChampDateDossier>("evenement");
+  /** Filtres secondaires repliés par défaut : la liste reste visible sans défiler. */
+  const [filtresOuverts, setFiltresOuverts] = useState(false);
+  const idPanneau = useId();
   const retraitUrl = parametresUrl.get("retrait");
   const [retraitFiltre, setRetraitFiltre] = useState<FiltreRetrait>(filtreRetraitDepuis(retraitUrl));
   const [page, setPage] = useState(1);
@@ -235,6 +243,33 @@ export default function DossiersAdminCec() {
     setPage(1);
   }
 
+  // Résumé des filtres du panneau, visible même replié (statut et recherche restent toujours affichés).
+  const pucesFiltres: PuceFiltre[] = [];
+  const retirer = (action: () => void) => () => {
+    setPage(1);
+    action();
+  };
+  if (evenementFiltre) pucesFiltres.push({ cle: "evenement", libelle: evenementFiltre === "naissance" ? "Naissances" : "Décès", onRetirer: retirer(() => setEvenementFiltre("")) });
+  if (mairieFiltre) pucesFiltres.push({ cle: "mairie", libelle: mairies.find((m) => m.id === mairieFiltre)?.nom ?? "Mairie", onRetirer: retirer(() => setMairieFiltre("")) });
+  if (origineFiltre) pucesFiltres.push({ cle: "origine", libelle: origineFiltre === "dhis2" ? "Origine : DHIS2" : "Origine : saisie manuelle", onRetirer: retirer(() => setOrigineFiltre("")) });
+  if (retraitFiltre) pucesFiltres.push({ cle: "retrait", libelle: retraitFiltre === "retire" ? "Actes retirés" : "Actes à retirer", onRetirer: retirer(() => setRetraitFiltre("")) });
+  if (masquerActesEmis) pucesFiltres.push({ cle: "masquer", libelle: "Actes émis masqués", onRetirer: retirer(() => setMasquerActesEmis(false)) });
+  const periode = libellePeriode(champDate, dateDebut, dateFin);
+  if (periode) pucesFiltres.push({ cle: "dates", libelle: periode, onRetirer: retirer(() => { setDateDebut(""); setDateFin(""); }) });
+
+  /** Efface les filtres du panneau ; le statut et la recherche, affichés à part, sont conservés. */
+  function effacerFiltresPanneau() {
+    setPage(1);
+    setEvenementFiltre("");
+    setMairieFiltre("");
+    setOrigineFiltre("");
+    setRetraitFiltre("");
+    setMasquerActesEmis(false);
+    setDateDebut("");
+    setDateFin("");
+    setChampDate("evenement");
+  }
+
   const colonnes: ColonneListe<Dossier>[] = [
     {
       id: "identifiant",
@@ -297,6 +332,7 @@ export default function DossiersAdminCec() {
 
       <BarreOutils
         carte
+        className="eva-barre-outils--avec-filtres"
         recherche={
           <BarreRecherche
             valeur={recherche}
@@ -309,62 +345,7 @@ export default function DossiersAdminCec() {
             ariaLabel="Rechercher un dossier"
           />
         }
-        filtres={
-          <>
-            <Selecteur
-              compact
-              ariaLabel="Filtrer par événement"
-              valeur={evenementFiltre}
-              onChange={(v) => {
-                setPage(1);
-                setEvenementFiltre(v as TypeEvenement | "");
-              }}
-            >
-              <option value="">Tous les événements</option>
-              <option value="naissance">Naissances</option>
-              <option value="deces">Décès</option>
-            </Selecteur>
-            {affichageMairie && (
-              <Selecteur
-                compact
-                ariaLabel="Filtrer par mairie"
-                valeur={mairieFiltre}
-                onChange={(v) => {
-                  setPage(1);
-                  setMairieFiltre(v);
-                }}
-              >
-                <option value="">Toutes les mairies</option>
-                {mairies.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.nom}
-                  </option>
-                ))}
-              </Selecteur>
-            )}
-            <Selecteur
-              compact
-              ariaLabel="Filtrer par origine"
-              valeur={origineFiltre}
-              onChange={(v) => {
-                setPage(1);
-                setOrigineFiltre(v as OrigineDossier | "");
-              }}
-            >
-              <option value="">Toutes les origines</option>
-              <option value="dhis2">DHIS2</option>
-              <option value="manuel">Saisie manuelle</option>
-            </Selecteur>
-            <label className="eva-ac-case">
-              <input
-                type="checkbox"
-                checked={masquerActesEmis}
-                onChange={(e) => changerFiltresActe({ masquerActesEmis: e.target.checked })}
-              />
-              Masquer les actes émis
-            </label>
-          </>
-        }
+        filtres={<BoutonFiltres ouvert={filtresOuverts} onBasculer={() => setFiltresOuverts((o) => !o)} nombreActifs={pucesFiltres.length} controle={idPanneau} />}
         actions={
           <>
             <Bouton
@@ -391,6 +372,81 @@ export default function DossiersAdminCec() {
         }
       />
 
+      <PanneauFiltres id={idPanneau} ouvert={filtresOuverts} puces={pucesFiltres} onToutEffacer={effacerFiltresPanneau}>
+        <RubriqueFiltre libelle="Événement">
+          <Selecteur
+            ariaLabel="Filtrer par événement"
+            valeur={evenementFiltre}
+            onChange={(v) => {
+              setPage(1);
+              setEvenementFiltre(v as TypeEvenement | "");
+            }}
+          >
+            <option value="">Tous les événements</option>
+            <option value="naissance">Naissances</option>
+            <option value="deces">Décès</option>
+          </Selecteur>
+        </RubriqueFiltre>
+        {affichageMairie && (
+          <RubriqueFiltre libelle="Mairie">
+            <Selecteur
+              ariaLabel="Filtrer par mairie"
+              valeur={mairieFiltre}
+              onChange={(v) => {
+                setPage(1);
+                setMairieFiltre(v);
+              }}
+            >
+              <option value="">Toutes les mairies</option>
+              {mairies.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.nom}
+                </option>
+              ))}
+            </Selecteur>
+          </RubriqueFiltre>
+        )}
+        <RubriqueFiltre libelle="Origine">
+          <Selecteur
+            ariaLabel="Filtrer par origine"
+            valeur={origineFiltre}
+            onChange={(v) => {
+              setPage(1);
+              setOrigineFiltre(v as OrigineDossier | "");
+            }}
+          >
+            <option value="">Toutes les origines</option>
+            <option value="dhis2">DHIS2</option>
+            <option value="manuel">Saisie manuelle</option>
+          </Selecteur>
+        </RubriqueFiltre>
+        <RubriqueFiltre libelle="Acte" ajuste>
+          <PilulesFiltre
+            ariaLabel="Filtrer par retrait de l'acte"
+            valeur={retraitFiltre}
+            onChanger={(v) => changerFiltresActe({ retrait: v })}
+            pilules={PILULES_RETRAIT}
+          />
+          <Interrupteur checked={masquerActesEmis} onChange={(v: boolean) => changerFiltresActe({ masquerActesEmis: v })} label="Masquer les actes émis" />
+        </RubriqueFiltre>
+        <RubriqueFiltre libelle="Période" large>
+          <FiltrePeriode
+            dateDebut={dateDebut}
+            dateFin={dateFin}
+            champDate={champDate}
+            onChangerChampDate={(champ) => {
+              setPage(1);
+              setChampDate(champ);
+            }}
+            onChanger={(debut, fin) => {
+              setPage(1);
+              setDateDebut(debut);
+              setDateFin(fin);
+            }}
+          />
+        </RubriqueFiltre>
+      </PanneauFiltres>
+
       <div className="eva-ac-pilules">
         <PilulesFiltre
           ariaLabel="Filtrer par statut"
@@ -404,34 +460,6 @@ export default function DossiersAdminCec() {
             {compterAvecUnite(total, "dossier")}
           </span>
         )}
-      </div>
-
-      <div className="eva-rt-filtre-retrait eva-rt-filtre-retrait--liste">
-        <span className="eva-rt-etiquette-filtre">Retrait de l'acte</span>
-        <PilulesFiltre
-          ariaLabel="Filtrer par retrait de l'acte"
-          valeur={retraitFiltre}
-          onChanger={(v) => changerFiltresActe({ retrait: v })}
-          pilules={PILULES_RETRAIT}
-        />
-      </div>
-
-      <div className="eva-rt-filtre-retrait eva-rt-filtre-retrait--liste">
-        <span className="eva-rt-etiquette-filtre">Dates</span>
-        <FiltrePeriode
-          dateDebut={dateDebut}
-          dateFin={dateFin}
-          champDate={champDate}
-          onChangerChampDate={(champ) => {
-            setPage(1);
-            setChampDate(champ);
-          }}
-          onChanger={(debut, fin) => {
-            setPage(1);
-            setDateDebut(debut);
-            setDateFin(fin);
-          }}
-        />
       </div>
 
       <ListeResponsive<Dossier>

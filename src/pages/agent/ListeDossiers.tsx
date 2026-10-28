@@ -1,26 +1,29 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Baby, CloudOff, CloudUpload, Download, FilePlus, Flower2, Search } from "lucide-react";
 import MiseEnPage from "../../components/MiseEnPage";
 import BadgeStatut from "../../components/BadgeStatut";
 import BadgeRetrait from "../../components/retrait/BadgeRetrait";
-import FiltrePeriode, { parametresPeriode, type ChampDateDossier } from "../../components/FiltrePeriode";
+import FiltrePeriode, { libellePeriode, parametresPeriode, type ChampDateDossier } from "../../components/FiltrePeriode";
 import {
   Alerte,
   Badge,
   BarreOutils,
   BarreRecherche,
   Bouton,
+  BoutonFiltres,
   EnteteDePage,
   Interrupteur,
   LienBouton,
   ListeResponsive,
+  PanneauFiltres,
   Pagination,
   PilulesFiltre,
-  useMediaQuery,
+  RubriqueFiltre,
   useToast,
   type ColonneListe,
-  type PiluleFiltre
+  type PiluleFiltre,
+  type PuceFiltre
 } from "../../components/ui";
 import { appelApi, ErreurApi } from "../../lib/apiClient";
 import { concilierFiltresActe, type FiltresActe } from "../../lib/filtresDossiers";
@@ -84,7 +87,6 @@ export default function ListeDossiers() {
   const enLigne = useConnectivite();
   const navigate = useNavigate();
   const toast = useToast();
-  const mobile = useMediaQuery("(max-width: 720px)");
   const [parametresUrl] = useSearchParams();
   const evenementUrl = parametresUrl.get("event_type");
   const [dossiers, setDossiers] = useState<ReponsePaginee<Dossier> | null>(null);
@@ -96,6 +98,9 @@ export default function ListeDossiers() {
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
   const [champDate, setChampDate] = useState<ChampDateDossier>("evenement");
+  /** Filtres secondaires repliés par défaut : la liste reste visible sans défiler. */
+  const [filtresOuverts, setFiltresOuverts] = useState(false);
+  const idPanneau = useId();
   const retraitUrl = parametresUrl.get("retrait");
   const [retraitFiltre, setRetraitFiltre] = useState<FiltreRetrait>(filtreRetraitDepuis(retraitUrl));
   const [page, setPage] = useState(1);
@@ -247,6 +252,31 @@ export default function ListeDossiers() {
     };
   }
 
+  // Résumé des filtres du panneau, visible même replié (statut et recherche restent toujours affichés).
+  const pucesFiltres: PuceFiltre[] = [];
+  const retirer = (action: () => void) => () => {
+    setPage(1);
+    action();
+  };
+  if (evenementFiltre) pucesFiltres.push({ cle: "evenement", libelle: evenementFiltre === "naissance" ? "Naissances" : "Décès", onRetirer: retirer(() => setEvenementFiltre("")) });
+  if (retraitFiltre) pucesFiltres.push({ cle: "retrait", libelle: retraitFiltre === "retire" ? "Actes retirés" : "Actes à retirer", onRetirer: retirer(() => setRetraitFiltre("")) });
+  if (masquerActesEmis) pucesFiltres.push({ cle: "masquer", libelle: "Actes émis masqués", onRetirer: retirer(() => setMasquerActesEmis(false)) });
+  if (echeanceUniquement) pucesFiltres.push({ cle: "echeance", libelle: "Échéance proche", onRetirer: retirer(() => setEcheanceUniquement(false)) });
+  const periode = libellePeriode(champDate, dateDebut, dateFin);
+  if (periode) pucesFiltres.push({ cle: "dates", libelle: periode, onRetirer: retirer(() => { setDateDebut(""); setDateFin(""); }) });
+
+  /** Efface les filtres du panneau ; le statut et la recherche, affichés à part, sont conservés. */
+  function effacerFiltresPanneau() {
+    setPage(1);
+    setEvenementFiltre("");
+    setRetraitFiltre("");
+    setMasquerActesEmis(false);
+    setEcheanceUniquement(false);
+    setDateDebut("");
+    setDateFin("");
+    setChampDate("evenement");
+  }
+
   const colonnes: ColonneListe<Dossier>[] = [
     {
       id: "id",
@@ -314,98 +344,96 @@ export default function ListeDossiers() {
         }
       />
 
-      <section className="eva-ag-panneau" aria-label="Recherche et filtres">
-        <BarreOutils
-          recherche={
-            <BarreRecherche
-              valeur={recherche}
-              onChanger={changer(setRecherche)}
-              delai={300}
-              placeholder="Nom, identifiant, code de retrait..."
-              ariaLabel="Rechercher un dossier par nom, identifiant ou code de retrait"
-              chargement={chargement && dossiers !== null}
-            />
-          }
-          compteur={dossiers && !aucuneCache ? `${total} dossier${total > 1 ? "s" : ""}` : undefined}
-          actions={
-            <div className="eva-groupe-boutons" role="group" aria-label="Exporter la liste">
-              <Bouton
-                variante="secondaire"
-                taille="petit"
-                onClick={() => exporter("xlsx")}
-                chargement={exportEnCours === "xlsx"}
-                disabled={exportEnCours !== null || !enLigne}
-                iconeGauche={exportEnCours !== "xlsx" && <Download size={15} />}
-                title={enLigne ? "Exporter les dossiers filtrés au format Excel" : "Export indisponible hors ligne"}
-              >
-                Excel
-              </Bouton>
-              <Bouton
-                variante="secondaire"
-                taille="petit"
-                onClick={() => exporter("pdf")}
-                chargement={exportEnCours === "pdf"}
-                disabled={exportEnCours !== null || !enLigne}
-                iconeGauche={exportEnCours !== "pdf" && <Download size={15} />}
-                title={enLigne ? "Exporter les dossiers filtrés au format PDF" : "Export indisponible hors ligne"}
-              >
-                PDF
-              </Bouton>
-            </div>
-          }
+      <BarreOutils
+        carte
+        className="eva-barre-outils--avec-filtres"
+        recherche={
+          <BarreRecherche
+            valeur={recherche}
+            onChanger={changer(setRecherche)}
+            delai={300}
+            placeholder="Nom, identifiant, code de retrait..."
+            ariaLabel="Rechercher un dossier par nom, identifiant ou code de retrait"
+            chargement={chargement && dossiers !== null}
+          />
+        }
+        filtres={<BoutonFiltres ouvert={filtresOuverts} onBasculer={() => setFiltresOuverts((o) => !o)} nombreActifs={pucesFiltres.length} controle={idPanneau} />}
+        actions={
+          <div className="eva-groupe-boutons" role="group" aria-label="Exporter la liste">
+            <Bouton
+              variante="secondaire"
+              taille="petit"
+              onClick={() => exporter("xlsx")}
+              chargement={exportEnCours === "xlsx"}
+              disabled={exportEnCours !== null || !enLigne}
+              iconeGauche={exportEnCours !== "xlsx" && <Download size={15} />}
+              title={enLigne ? "Exporter les dossiers filtrés au format Excel" : "Export indisponible hors ligne"}
+            >
+              Excel
+            </Bouton>
+            <Bouton
+              variante="secondaire"
+              taille="petit"
+              onClick={() => exporter("pdf")}
+              chargement={exportEnCours === "pdf"}
+              disabled={exportEnCours !== null || !enLigne}
+              iconeGauche={exportEnCours !== "pdf" && <Download size={15} />}
+              title={enLigne ? "Exporter les dossiers filtrés au format PDF" : "Export indisponible hors ligne"}
+            >
+              PDF
+            </Bouton>
+          </div>
+        }
+      />
+
+      <PanneauFiltres id={idPanneau} ouvert={filtresOuverts} puces={pucesFiltres} onToutEffacer={effacerFiltresPanneau}>
+        <RubriqueFiltre libelle="Événement" ajuste>
+          <PilulesFiltre ariaLabel="Filtrer par type d'événement" valeur={evenementFiltre} onChanger={changer(setEvenementFiltre)} pilules={pilulesEvenement} />
+        </RubriqueFiltre>
+        <RubriqueFiltre libelle="Acte" ajuste>
+          <PilulesFiltre
+            ariaLabel="Filtrer par retrait de l'acte"
+            valeur={retraitFiltre}
+            onChanger={(v) => changerFiltresActe({ retrait: v })}
+            pilules={pilulesRetrait}
+          />
+          <Interrupteur checked={masquerActesEmis} onChange={(v: boolean) => changerFiltresActe({ masquerActesEmis: v })} label="Masquer les actes émis" />
+        </RubriqueFiltre>
+        <RubriqueFiltre libelle="Échéance">
+          <Interrupteur checked={echeanceUniquement} onChange={changer(setEcheanceUniquement)} label="Échéance proche uniquement" />
+        </RubriqueFiltre>
+        <RubriqueFiltre libelle="Période" large>
+          <FiltrePeriode
+            dateDebut={dateDebut}
+            dateFin={dateFin}
+            champDate={champDate}
+            onChangerChampDate={(champ) => {
+              setPage(1);
+              setChampDate(champ);
+            }}
+            onChanger={(debut, fin) => {
+              setPage(1);
+              setDateDebut(debut);
+              setDateFin(fin);
+            }}
+          />
+        </RubriqueFiltre>
+      </PanneauFiltres>
+
+      <div className="eva-ligne-statuts">
+        <PilulesFiltre
+          ariaLabel="Filtrer par statut"
+          valeur={statutFiltre}
+          onChanger={(v) => changerFiltresActe({ statut: v })}
+          pilules={pilulesStatut}
+          defilement
         />
-        <div className="eva-ag-filtres">
-          <div className="eva-ag-filtre">
-            <span className="eva-ag-filtre__libelle">Événement</span>
-            <PilulesFiltre
-              ariaLabel="Filtrer par type d'événement"
-              valeur={evenementFiltre}
-              onChanger={changer(setEvenementFiltre)}
-              pilules={pilulesEvenement}
-            />
-          </div>
-          <div className="eva-ag-filtre">
-            <span className="eva-ag-filtre__libelle">Statut</span>
-            <PilulesFiltre
-              ariaLabel="Filtrer par statut"
-              valeur={statutFiltre}
-              onChanger={(v) => changerFiltresActe({ statut: v })}
-              pilules={pilulesStatut}
-              defilement={mobile}
-            />
-          </div>
-          <div className="eva-ag-filtre">
-            <span className="eva-ag-filtre__libelle">Retrait</span>
-            <PilulesFiltre
-              ariaLabel="Filtrer par retrait de l'acte"
-              valeur={retraitFiltre}
-              onChanger={(v) => changerFiltresActe({ retrait: v })}
-              pilules={pilulesRetrait}
-            />
-          </div>
-          <div className="eva-ag-filtre">
-            <span className="eva-ag-filtre__libelle">Dates</span>
-            <FiltrePeriode
-              dateDebut={dateDebut}
-              dateFin={dateFin}
-              champDate={champDate}
-              onChangerChampDate={(champ) => {
-                setPage(1);
-                setChampDate(champ);
-              }}
-              onChanger={(debut, fin) => {
-                setPage(1);
-                setDateDebut(debut);
-                setDateFin(fin);
-              }}
-            />
-          </div>
-          <div className="eva-ag-filtre eva-ag-filtre--options">
-            <Interrupteur checked={echeanceUniquement} onChange={changer(setEcheanceUniquement)} label="Échéance proche uniquement" />
-            <Interrupteur checked={masquerActesEmis} onChange={(v: boolean) => changerFiltresActe({ masquerActesEmis: v })} label="Masquer les actes émis" />
-          </div>
-        </div>
-      </section>
+        {dossiers && !aucuneCache && (
+          <span className="eva-compteur" role="status" aria-live="polite">
+            {`${total} dossier${total > 1 ? "s" : ""}`}
+          </span>
+        )}
+      </div>
 
       <div className="eva-ag-messages" aria-live="polite">
         {horsLigne && !chargement && dossiers !== null && (

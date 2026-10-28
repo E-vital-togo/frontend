@@ -1,6 +1,6 @@
 import { useId } from "react";
 import { RotateCcw } from "lucide-react";
-import { Bouton, Champ } from "./ui";
+import { Bouton, Champ, Selecteur } from "./ui";
 import "../styles/filtre-periode.css";
 
 /**
@@ -18,6 +18,19 @@ export function parametresPeriode(champ: ChampDateDossier, debut: string, fin: s
   if (debut) parametres.push([`${prefixe}_min`, debut]);
   if (fin) parametres.push([`${prefixe}_max`, fin]);
   return parametres;
+}
+
+function jourLisible(iso: string): string {
+  const [a, m, j] = iso.split("-");
+  return a && m && j ? `${j}/${m}/${a}` : iso;
+}
+
+/** Texte de la puce « filtre actif » d'une période (ex. « Déclaration : du 01/09/2026 au 30/09/2026 »), null si aucune borne. */
+export function libellePeriode(champ: ChampDateDossier, debut: string, fin: string): string | null {
+  if (!debut && !fin) return null;
+  const quoi = champ === "declaration" ? "Déclaration" : "Naissance / décès";
+  const quand = debut && fin ? `du ${jourLisible(debut)} au ${jourLisible(fin)}` : debut ? `depuis le ${jourLisible(debut)}` : `jusqu'au ${jourLisible(fin)}`;
+  return `${quoi} : ${quand}`;
 }
 
 interface ProprietesFiltrePeriode {
@@ -39,10 +52,10 @@ export default function FiltrePeriode({ dateDebut, dateFin, onChanger, champDate
     <div className="eva-filtre-periode" role="group" aria-label="Période">
       {champDate && onChangerChampDate && (
         <Champ id={`${id}-champ`} label="Filtrer sur">
-          <select id={`${id}-champ`} value={champDate} onChange={(e) => onChangerChampDate(e.target.value as ChampDateDossier)}>
+          <Selecteur id={`${id}-champ`} valeur={champDate} onChange={(v) => onChangerChampDate(v as ChampDateDossier)}>
             <option value="evenement">Date de naissance / du décès</option>
             <option value="declaration">Date de déclaration (date DHIS2)</option>
-          </select>
+          </Selecteur>
         </Champ>
       )}
       <Champ id={`${id}-debut`} label="Depuis le">
