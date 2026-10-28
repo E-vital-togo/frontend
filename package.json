@@ -13,6 +13,7 @@
     "build:selecteur-django": "esbuild src/lib/selecteurDjango.ts --bundle --minify --format=iife --global-name=EvitalSelecteur --target=es2017 --outfile=../backend/static/js/evital_selecteur.js && esbuild src/styles/selecteur.css --minify --outfile=../backend/static/css/evital-selecteur.css",
     "test:telephone": "node scripts/test-telephone.mjs",
     "test:formulaire": "node scripts/test-formulaire.mjs",
+    "test:filtres-dossiers": "node scripts/test-filtres-dossiers.mjs",
     "sync:telephone": "node scripts/sync-telephone.mjs"
   },
   "dependencies": {

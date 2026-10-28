@@ -4,7 +4,7 @@ import { Baby, CloudOff, CloudUpload, Download, FilePlus, Flower2, Search } from
 import MiseEnPage from "../../components/MiseEnPage";
 import BadgeStatut from "../../components/BadgeStatut";
 import BadgeRetrait from "../../components/retrait/BadgeRetrait";
-import FiltrePeriode from "../../components/FiltrePeriode";
+import FiltrePeriode, { parametresPeriode, type ChampDateDossier } from "../../components/FiltrePeriode";
 import {
   Alerte,
   Badge,
@@ -23,6 +23,7 @@ import {
   type PiluleFiltre
 } from "../../components/ui";
 import { appelApi, ErreurApi } from "../../lib/apiClient";
+import { concilierFiltresActe, type FiltresActe } from "../../lib/filtresDossiers";
 import { useConnectivite } from "../../lib/connectivite";
 import {
   dossiersAvecActionsEnAttente,
@@ -94,6 +95,7 @@ export default function ListeDossiers() {
   const [masquerActesEmis, setMasquerActesEmis] = useState(false);
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
+  const [champDate, setChampDate] = useState<ChampDateDossier>("evenement");
   const retraitUrl = parametresUrl.get("retrait");
   const [retraitFiltre, setRetraitFiltre] = useState<FiltreRetrait>(filtreRetraitDepuis(retraitUrl));
   const [page, setPage] = useState(1);
@@ -129,10 +131,9 @@ export default function ListeDossiers() {
     if (echeanceUniquement) parametres.set("echeance_proche", "true");
     if (masquerActesEmis) parametres.set("masquer_actes_emis", "true");
     if (retraitFiltre) parametres.set("retrait", retraitFiltre);
-    if (dateDebut) parametres.set("date_evenement_min", dateDebut);
-    if (dateFin) parametres.set("date_evenement_max", dateFin);
+    for (const [cle, valeur] of parametresPeriode(champDate, dateDebut, dateFin)) parametres.set(cle, valeur);
     return parametres;
-  }, [statutFiltre, evenementFiltre, recherche, echeanceUniquement, masquerActesEmis, retraitFiltre, dateDebut, dateFin]);
+  }, [statutFiltre, evenementFiltre, recherche, echeanceUniquement, masquerActesEmis, retraitFiltre, dateDebut, dateFin, champDate]);
 
   useEffect(() => {
     const parametres = construireParametres();
@@ -192,7 +193,7 @@ export default function ListeDossiers() {
       annule = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statutFiltre, evenementFiltre, recherche, echeanceUniquement, masquerActesEmis, retraitFiltre, dateDebut, dateFin, page, enLigne, relance]);
+  }, [statutFiltre, evenementFiltre, recherche, echeanceUniquement, masquerActesEmis, retraitFiltre, dateDebut, dateFin, champDate, page, enLigne, relance]);
 
   async function exporter(format: "xlsx" | "pdf") {
     setExportEnCours(format);
@@ -229,6 +230,15 @@ export default function ListeDossiers() {
     { valeur: "naissance", libelle: "Naissances", icone: <Baby size={15} aria-hidden="true" /> },
     { valeur: "deces", libelle: "Décès", icone: <Flower2 size={15} aria-hidden="true" /> }
   ];
+
+  /** Change le statut, le retrait ou « Masquer les actes émis » en gardant les trois compatibles. */
+  function changerFiltresActe(changement: Partial<FiltresActe>) {
+    const suivant = concilierFiltresActe({ statut: statutFiltre, retrait: retraitFiltre, masquerActesEmis }, changement);
+    setPage(1);
+    setStatutFiltre(suivant.statut);
+    setRetraitFiltre(suivant.retrait);
+    setMasquerActesEmis(suivant.masquerActesEmis);
+  }
 
   function changer<V>(definir: (valeur: V) => void) {
     return (valeur: V) => {
@@ -281,10 +291,10 @@ export default function ListeDossiers() {
     },
     {
       id: "date",
-      libelle: "Date de l'événement",
+      libelle: champDate === "declaration" ? "Date de déclaration" : "Date de l'événement",
       libelleMobile: "Date",
       numerique: true,
-      rendu: (d) => dateCourte(d.date_evenement)
+      rendu: (d) => dateCourte(champDate === "declaration" ? d.date_declaration : d.date_evenement)
     },
     { id: "echeance", libelle: "Échéance", rendu: (d) => <Echeance dossier={d} /> }
   ];
@@ -359,7 +369,7 @@ export default function ListeDossiers() {
             <PilulesFiltre
               ariaLabel="Filtrer par statut"
               valeur={statutFiltre}
-              onChanger={changer(setStatutFiltre)}
+              onChanger={(v) => changerFiltresActe({ statut: v })}
               pilules={pilulesStatut}
               defilement={mobile}
             />
@@ -369,7 +379,7 @@ export default function ListeDossiers() {
             <PilulesFiltre
               ariaLabel="Filtrer par retrait de l'acte"
               valeur={retraitFiltre}
-              onChanger={changer(setRetraitFiltre)}
+              onChanger={(v) => changerFiltresActe({ retrait: v })}
               pilules={pilulesRetrait}
             />
           </div>
@@ -378,6 +388,11 @@ export default function ListeDossiers() {
             <FiltrePeriode
               dateDebut={dateDebut}
               dateFin={dateFin}
+              champDate={champDate}
+              onChangerChampDate={(champ) => {
+                setPage(1);
+                setChampDate(champ);
+              }}
               onChanger={(debut, fin) => {
                 setPage(1);
                 setDateDebut(debut);
@@ -387,7 +402,7 @@ export default function ListeDossiers() {
           </div>
           <div className="eva-ag-filtre eva-ag-filtre--options">
             <Interrupteur checked={echeanceUniquement} onChange={changer(setEcheanceUniquement)} label="Échéance proche uniquement" />
-            <Interrupteur checked={masquerActesEmis} onChange={changer(setMasquerActesEmis)} label="Masquer les actes émis" />
+            <Interrupteur checked={masquerActesEmis} onChange={(v: boolean) => changerFiltresActe({ masquerActesEmis: v })} label="Masquer les actes émis" />
           </div>
         </div>
       </section>

@@ -4,3 +4,8 @@
   .eva-filtre-periode { width: 100%; }
   .eva-filtre-periode .eva-champ { flex: 1 1 140px; }
 }
+/* Sélecteur de la date filtrée : plus large que les champs de date. */
+.eva-filtre-periode .eva-champ:has(select) { flex: 0 0 230px; }
+@media (max-width: 560px) {
+  .eva-filtre-periode .eva-champ:has(select) { flex: 1 1 100%; }
+}

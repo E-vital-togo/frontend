@@ -3,20 +3,48 @@ import { RotateCcw } from "lucide-react";
 import { Bouton, Champ } from "./ui";
 import "../styles/filtre-periode.css";
 
+/**
+ * Date sur laquelle porte la période d'une liste de dossiers :
+ * - "evenement"   : date réelle de la naissance / du décès (Dossier.date_evenement) ;
+ * - "declaration" : date de déclaration, qui est la date de l'événement dans
+ *   DHIS2 pour un dossier reçu de DHIS2 - celle que filtre dhis2-app.
+ */
+export type ChampDateDossier = "evenement" | "declaration";
+
+/** Paramètres de l'API /dossiers/ pour une période sur le champ choisi. */
+export function parametresPeriode(champ: ChampDateDossier, debut: string, fin: string): Array<[string, string]> {
+  const prefixe = champ === "declaration" ? "date_declaration" : "date_evenement";
+  const parametres: Array<[string, string]> = [];
+  if (debut) parametres.push([`${prefixe}_min`, debut]);
+  if (fin) parametres.push([`${prefixe}_max`, fin]);
+  return parametres;
+}
+
 interface ProprietesFiltrePeriode {
   dateDebut: string;
   dateFin: string;
   onChanger: (debut: string, fin: string) => void;
+  /** Avec ces deux propriétés, un sélecteur propose la date filtrée (événement réel ou déclaration). */
+  champDate?: ChampDateDossier;
+  onChangerChampDate?: (champ: ChampDateDossier) => void;
 }
 
 /**
  * Deux dates (AAAA-MM-JJ, format natif de <input type="date">) qui bornent
  * une liste ; les bornes se contraignent mutuellement. Vide = pas de limite.
  */
-export default function FiltrePeriode({ dateDebut, dateFin, onChanger }: ProprietesFiltrePeriode) {
+export default function FiltrePeriode({ dateDebut, dateFin, onChanger, champDate, onChangerChampDate }: ProprietesFiltrePeriode) {
   const id = useId();
   return (
     <div className="eva-filtre-periode" role="group" aria-label="Période">
+      {champDate && onChangerChampDate && (
+        <Champ id={`${id}-champ`} label="Filtrer sur">
+          <select id={`${id}-champ`} value={champDate} onChange={(e) => onChangerChampDate(e.target.value as ChampDateDossier)}>
+            <option value="evenement">Date de naissance / du décès</option>
+            <option value="declaration">Date de déclaration (date DHIS2)</option>
+          </select>
+        </Champ>
+      )}
       <Champ id={`${id}-debut`} label="Depuis le">
         <input id={`${id}-debut`} type="date" value={dateDebut} max={dateFin || undefined} onChange={(e) => onChanger(e.target.value, dateFin)} />
       </Champ>

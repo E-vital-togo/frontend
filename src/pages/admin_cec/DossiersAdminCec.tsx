@@ -4,7 +4,7 @@ import { ArrowRight, FileSpreadsheet, FileText, FolderSearch } from "lucide-reac
 import MiseEnPage from "../../components/MiseEnPage";
 import BadgeStatut from "../../components/BadgeStatut";
 import BadgeRetrait from "../../components/retrait/BadgeRetrait";
-import FiltrePeriode from "../../components/FiltrePeriode";
+import FiltrePeriode, { parametresPeriode, type ChampDateDossier } from "../../components/FiltrePeriode";
 import {
   Badge,
   BarreOutils,
@@ -22,6 +22,7 @@ import {
   type VarianteBadge
 } from "../../components/ui";
 import { appelApi } from "../../lib/apiClient";
+import { concilierFiltresActe, type FiltresActe } from "../../lib/filtresDossiers";
 import { telechargerBlob } from "../../lib/telechargerBlob";
 import { echeanceActive, joursRestants } from "../../lib/urgence";
 import { LIENS_ADMIN_CEC } from "./navigation";
@@ -88,6 +89,7 @@ export default function DossiersAdminCec() {
   const [masquerActesEmis, setMasquerActesEmis] = useState(false);
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
+  const [champDate, setChampDate] = useState<ChampDateDossier>("evenement");
   const retraitUrl = parametresUrl.get("retrait");
   const [retraitFiltre, setRetraitFiltre] = useState<FiltreRetrait>(filtreRetraitDepuis(retraitUrl));
   const [page, setPage] = useState(1);
@@ -143,6 +145,15 @@ export default function DossiersAdminCec() {
     };
   }, [origineFiltre]);
 
+  /** Change le statut, le retrait ou « Masquer les actes émis » en gardant les trois compatibles. */
+  function changerFiltresActe(changement: Partial<FiltresActe>) {
+    const suivant = concilierFiltresActe({ statut: statutFiltre, retrait: retraitFiltre, masquerActesEmis }, changement);
+    setPage(1);
+    setStatutFiltre(suivant.statut);
+    setRetraitFiltre(suivant.retrait);
+    setMasquerActesEmis(suivant.masquerActesEmis);
+  }
+
   function construireParametres(): URLSearchParams {
     const parametres = new URLSearchParams();
     if (statutFiltre) parametres.set("statut", statutFiltre);
@@ -152,8 +163,7 @@ export default function DossiersAdminCec() {
     if (recherche) parametres.set("search", recherche);
     if (masquerActesEmis) parametres.set("masquer_actes_emis", "true");
     if (retraitFiltre) parametres.set("retrait", retraitFiltre);
-    if (dateDebut) parametres.set("date_evenement_min", dateDebut);
-    if (dateFin) parametres.set("date_evenement_max", dateFin);
+    for (const [cle, valeur] of parametresPeriode(champDate, dateDebut, dateFin)) parametres.set(cle, valeur);
     return parametres;
   }
 
@@ -178,7 +188,7 @@ export default function DossiersAdminCec() {
       obsolete = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statutFiltre, evenementFiltre, mairieFiltre, origineFiltre, recherche, masquerActesEmis, retraitFiltre, dateDebut, dateFin, page, rechargement]);
+  }, [statutFiltre, evenementFiltre, mairieFiltre, origineFiltre, recherche, masquerActesEmis, retraitFiltre, dateDebut, dateFin, champDate, page, rechargement]);
 
   async function exporter(format: "xlsx" | "pdf") {
     setExportEnCours(format);
@@ -221,6 +231,7 @@ export default function DossiersAdminCec() {
     setRetraitFiltre("");
     setDateDebut("");
     setDateFin("");
+    setChampDate("evenement");
     setPage(1);
   }
 
@@ -248,7 +259,12 @@ export default function DossiersAdminCec() {
         </span>
       )
     },
-    { id: "date", libelle: "Date de l'événement", alignement: "droite", rendu: (d) => <span className="texte-mono">{formaterDate(d.date_evenement)}</span> },
+    {
+      id: "date",
+      libelle: champDate === "declaration" ? "Date de déclaration" : "Date de l'événement",
+      alignement: "droite",
+      rendu: (d) => <span className="texte-mono">{formaterDate(champDate === "declaration" ? d.date_declaration : d.date_evenement)}</span>
+    },
     {
       id: "echeance",
       libelle: "Échéance",
@@ -343,10 +359,7 @@ export default function DossiersAdminCec() {
               <input
                 type="checkbox"
                 checked={masquerActesEmis}
-                onChange={(e) => {
-                  setPage(1);
-                  setMasquerActesEmis(e.target.checked);
-                }}
+                onChange={(e) => changerFiltresActe({ masquerActesEmis: e.target.checked })}
               />
               Masquer les actes émis
             </label>
@@ -383,10 +396,7 @@ export default function DossiersAdminCec() {
           ariaLabel="Filtrer par statut"
           defilement
           valeur={statutFiltre}
-          onChanger={(v) => {
-            setPage(1);
-            setStatutFiltre(v);
-          }}
+          onChanger={(v) => changerFiltresActe({ statut: v })}
           pilules={pilules}
         />
         {dossiers && !erreur && (
@@ -401,19 +411,21 @@ export default function DossiersAdminCec() {
         <PilulesFiltre
           ariaLabel="Filtrer par retrait de l'acte"
           valeur={retraitFiltre}
-          onChanger={(v) => {
-            setPage(1);
-            setRetraitFiltre(v);
-          }}
+          onChanger={(v) => changerFiltresActe({ retrait: v })}
           pilules={PILULES_RETRAIT}
         />
       </div>
 
       <div className="eva-rt-filtre-retrait eva-rt-filtre-retrait--liste">
-        <span className="eva-rt-etiquette-filtre">Date de l'événement</span>
+        <span className="eva-rt-etiquette-filtre">Dates</span>
         <FiltrePeriode
           dateDebut={dateDebut}
           dateFin={dateFin}
+          champDate={champDate}
+          onChangerChampDate={(champ) => {
+            setPage(1);
+            setChampDate(champ);
+          }}
           onChanger={(debut, fin) => {
             setPage(1);
             setDateDebut(debut);
