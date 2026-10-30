@@ -283,7 +283,7 @@ export default function TableauDeBordAdminCec() {
             </Bouton>
           )}
         </div>
-        <div className="eva-st-periode__filtres">
+        <div className="eva-st-periode__filtres eva-st-periode__filtres--large">
           <span className="eva-st-periode__titre">Type d'événement</span>
           <PilulesFiltre<TypeEvenement | "">
             ariaLabel="Filtrer par type d'événement"
