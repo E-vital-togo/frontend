@@ -671,3 +671,122 @@ export interface DecesSignale {
   deces: ResumeDossierLie;
   confirmee_le: string | null;
 }
+
+// --- Dédoublonnage et rapprochement des notifications (apps.dedoublonnage) ---------------------
+export interface CritereDoublonDetail {
+  code: string;
+  libelle: string;
+  poids: number;
+  score: number | null;
+  valeur_ce_dossier: string;
+  valeur_autre: string;
+  statut: "compare" | "absent_ce_dossier" | "absent_autre";
+}
+
+export interface ResumeDossierDoublon {
+  dossier_id: string;
+  identifiant: string;
+  event_type: string;
+  origine: string;
+  nom: string;
+  naissance: string;
+  mere: string;
+  sexe: string;
+  date_evenement: string | null;
+  date_declaration: string | null;
+  statut: string;
+  statut_libelle: string;
+  mairie: string;
+  formation_sanitaire: string;
+  numero_acte: number | null;
+  annee_registre: number | null;
+  consultable: boolean;
+}
+
+export interface DoublonSuspect {
+  id: string;
+  score: number;
+  forte: boolean;
+  motif: "ressemblance" | "multiple_excedentaire";
+  motif_libelle: string;
+  statut: "propose" | "confirme" | "ecarte";
+  statut_libelle: string;
+  detail: CritereDoublonDetail[];
+  decide_le: string | null;
+  decide_par: string | null;
+  ce_dossier_est_le_doublon: boolean | null;
+  autre: ResumeDossierDoublon;
+}
+
+export interface DoublonsDossier {
+  active: boolean;
+  niveau_blocage: NiveauBlocageLiaison;
+  moment: MomentLiaison;
+  seuil_forte: number;
+  suspects: DoublonSuspect[];
+  ecartes: number;
+  en_double: boolean;
+  naissance_multiple: {
+    nombre_attendu: number;
+    nombre_dossiers: number;
+    excedent: boolean;
+    freres: ResumeDossierDoublon[];
+  } | null;
+  calcul_en_attente: boolean;
+  avertissement: string | null;
+}
+
+export interface DetailsNotificationCommunautaire {
+  id: string;
+  dhis2_event_uid: string;
+  event_type: string;
+  statut: string;
+  date_notification: string | null;
+  date_evenement: string | null;
+  formation_sanitaire: string;
+  commune: string;
+  recue_le: string;
+  valeurs: { libelle: string; code: string; valeur: string }[];
+}
+
+export interface NotificationCandidate {
+  id: string;
+  score: number;
+  forte: boolean;
+  detail: CritereDoublonDetail[];
+  notification: DetailsNotificationCommunautaire;
+}
+
+export interface NotificationsDossier {
+  active: boolean;
+  seuil_forte: number;
+  aucune_le: string | null;
+  candidats: NotificationCandidate[];
+  liee:
+    | (DetailsNotificationCommunautaire & {
+        proposition_id: string | null;
+        rapprochee_par_la_mairie: boolean;
+        cloture_dhis2: string | null;
+        cloture_dhis2_statut: string | null;
+      })
+    | null;
+}
+
+// --- Identité nationale (apps.interop, MOSIP / ANID) -------------------------------------------
+export interface IdentiteNationaleDossier {
+  actif: boolean;
+  niu: string | null;
+  source: string | null;
+  desactivee: boolean;
+  verification_disponible: boolean;
+  echanges: {
+    processus: string;
+    processus_libelle: string;
+    statut: string;
+    statut_libelle: string;
+    cree_le: string;
+    termine_le: string | null;
+    erreur: string;
+  }[];
+  verifications?: { role: string; niu: string; resultat: boolean; erreur: string; date: string }[];
+}

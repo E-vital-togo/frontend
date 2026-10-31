@@ -12,6 +12,9 @@ import PanneauDemandes from "../../components/dossier/PanneauDemandes";
 import PanneauFormulaire from "../../components/dossier/PanneauFormulaire";
 import PanneauHistorique from "../../components/dossier/PanneauHistorique";
 import PanneauLiaison from "../../components/dossier/PanneauLiaison";
+import PanneauDoublons from "../../components/dossier/PanneauDoublons";
+import PanneauIdentiteNationale from "../../components/dossier/PanneauIdentiteNationale";
+import RapprochementNotification from "../../components/dossier/RapprochementNotification";
 import PanneauNotifications from "../../components/dossier/PanneauNotifications";
 import PropositionDhis2 from "../../components/dossier/PropositionDhis2";
 import SqueletteDossier from "../../components/dossier/SqueletteDossier";
@@ -42,6 +45,7 @@ import {
   type ChampFormulaireEffectif,
   type DemandeModificationActe,
   type Dossier,
+  type DoublonsDossier,
   type LiaisonDeces,
   type ListeOuPaginee,
   type MiseEnPage as MiseEnPageFormulaire,
@@ -96,6 +100,8 @@ export default function DetailDossier() {
   const [annulationOuverte, setAnnulationOuverte] = useState(false);
   // Liaison naissance / décès (décès uniquement) : sert à avertir avant « complet » ou « émission » au niveau « moyen ».
   const [liaisonDeces, setLiaisonDeces] = useState<LiaisonDeces | null>(null);
+  // Dédoublonnage : avertissement avant « complet » / « émission » au niveau « moyen », dossier confirmé en double.
+  const [doublons, setDoublons] = useState<DoublonsDossier | null>(null);
 
   const nbModifications = Object.keys(valeursModifiees).length;
   useProtectionDepart(nbModifications > 0, nbModifications);
@@ -322,6 +328,18 @@ export default function DetailDossier() {
   }
 
   async function emettre() {
+    if (doublons?.en_double) {
+      toast.erreur("Ce dossier a été confirmé comme doublon d'un autre dossier : aucun acte ne peut être émis.");
+      return;
+    }
+    if (doublons?.avertissement && doublons.moment === "emission") {
+      const ok = await confirmer({
+        titre: "Doublons possibles non tranchés",
+        description: `${doublons.avertissement} Voulez-vous quand même émettre l'acte ?`,
+        libelleConfirmer: "Émettre quand même"
+      });
+      if (!ok) return;
+    }
     if (liaisonDeces?.avertissement && liaisonDeces.moment === "emission") {
       const ok = await confirmer({
         titre: "Naissance non retrouvée",
@@ -346,7 +364,8 @@ export default function DetailDossier() {
         ? ` Attention : ${pluriel(nbModifications, "modification non enregistrée", "modifications non enregistrées")} ne ${nbModifications > 1 ? "seront" : "sera"} pas prise${nbModifications > 1 ? "s" : ""} en compte.`
         : "";
     const avertissementLiaison =
-      liaisonDeces?.avertissement && liaisonDeces.moment === "complet" ? ` Attention : ${liaisonDeces.avertissement}` : "";
+      (liaisonDeces?.avertissement && liaisonDeces.moment === "complet" ? ` Attention : ${liaisonDeces.avertissement}` : "") +
+      (doublons?.avertissement && doublons.moment === "complet" ? ` Attention : ${doublons.avertissement}` : "");
     const ok = await confirmer({
       titre: "Marquer ce dossier comme complet ?",
       description: `L'agent pourra ensuite procéder à l'émission de l'acte. Cette étape confirme que toutes les informations nécessaires ont été vérifiées.${avertissement}${avertissementLiaison}`,
@@ -536,6 +555,22 @@ export default function DetailDossier() {
             onSituation={setLiaisonDeces}
           />
         )}
+
+        {idDossier && !horsLigne && enLigne && (
+          <RapprochementNotification idDossier={idDossier} peutDecider={dossier.statut !== "sans_suite"} version={dossier.version} />
+        )}
+
+        {idDossier && !horsLigne && enLigne && (
+          <PanneauDoublons
+            idDossier={idDossier}
+            basePath={basePath}
+            peutDecider={dossier.statut !== "sans_suite"}
+            version={dossier.version}
+            onEtat={setDoublons}
+          />
+        )}
+
+        {idDossier && !horsLigne && enLigne && <PanneauIdentiteNationale idDossier={idDossier} version={dossier.version} />}
 
         <Onglets
           ariaLabel="Sections du dossier"
