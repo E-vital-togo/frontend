@@ -28,7 +28,7 @@ const COLONNES: ColonneListe<NotificationDossier>[] = [
     libelle: "Date",
     principale: true,
     nowrap: true,
-    rendu: (n) => <span className="texte-mono">{formaterDateHeure(n.created_at)}</span>
+    rendu: (n) => <span className="texte-chiffres">{formaterDateHeure(n.created_at)}</span>
   },
   { id: "type", libelle: "Type", rendu: (n) => LIBELLES_TYPE[n.type] || n.type },
   { id: "canal", libelle: "Canal", rendu: (n) => (n.canal === "sms" ? "SMS" : "WhatsApp") },

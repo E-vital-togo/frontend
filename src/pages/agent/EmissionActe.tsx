@@ -28,14 +28,16 @@ export default function EmissionActe() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [erreurChargement, setErreurChargement] = useState<string | null>(null);
   const [relance, setRelance] = useState(0);
+  const [nouveauRegistre, setNouveauRegistre] = useState(false);
 
   useEffect(() => {
     if (!idDossier) return;
     setErreurChargement(null);
-    appelApi<NumerosActeProposes>(`/dossiers/${idDossier}/acte/numeros-proposes`)
+    const parametres = nouveauRegistre ? "?nouveau_registre=1" : "";
+    appelApi<NumerosActeProposes>(`/dossiers/${idDossier}/acte/numeros-proposes${parametres}`)
       .then(setNumeros)
       .catch((e: unknown) => setErreurChargement(e instanceof Error ? e.message : "Erreur inattendue."));
-  }, [idDossier, relance]);
+  }, [idDossier, relance, nouveauRegistre]);
 
   useEffect(() => {
     appelApi<ListeOuPaginee<SignataireMairie>>("/signataires/?actif=true")
@@ -78,6 +80,10 @@ export default function EmissionActe() {
       navigate(`/agent/dossiers/${idDossier}/acte-pdf`);
     } catch (e) {
       setErreur(e instanceof ErreurApi ? e.message : "Une erreur inattendue est survenue. Réessayez.");
+      // Numéro pris entre-temps (autre agent, ou saisie en double) : on recharge les numéros libres.
+      if (e instanceof ErreurApi && (e.code === "numero_acte_deja_utilise" || e.code === "feuillet_deja_utilise")) {
+        setRelance((n) => n + 1);
+      }
     } finally {
       setEnCours(false);
     }
@@ -146,7 +152,7 @@ export default function EmissionActe() {
         }}
       >
         <div className="eva-pile">
-          <Carte titre="Numérotation du registre" description="Reprenez les numéros du registre papier si ceux proposés ne correspondent pas.">
+          <Carte titre="Numérotation du registre" description="Le feuillet repart à 1 dans chaque nouveau registre ; le numéro d'acte suit sur toute l'année. Reprenez les numéros du registre papier si ceux proposés ne correspondent pas.">
             <div className="eva-grille eva-grille--2 eva-grille--serree eva-ag-numeros">
               <Champ id="numero-registre" label="Numéro de registre">
                 <input id="numero-registre" type="number" className="texte-mono" value={numeros.numero_registre} onChange={(e) => modifierNumero("numero_registre", e.target.value)} />
@@ -161,6 +167,9 @@ export default function EmissionActe() {
                 <input id="annee-registre" type="number" className="texte-mono" value={numeros.annee_registre} onChange={(e) => modifierNumero("annee_registre", e.target.value)} />
               </Champ>
             </div>
+            <Bouton type="button" variante="secondaire" onClick={() => setNouveauRegistre((v) => !v)}>
+              {nouveauRegistre ? "Rester sur le registre en cours" : "Ouvrir un nouveau registre"}
+            </Bouton>
           </Carte>
 
           <Carte titre="Établissement de l'acte" description="Personne qui signe l'acte et date d'établissement.">

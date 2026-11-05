@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { useEtatCompletion } from "../lib/etatCompletion";
 import type { Role } from "../types/domaine";
 import "../styles/auth.css";
+import { useTitrePage } from "../lib/useTitrePage";
 
 const DESTINATION_PAR_ROLE: Partial<Record<Role, string>> = {
   agent_cec: "/agent",
@@ -25,6 +26,7 @@ const DESTINATION_PAR_ROLE: Partial<Record<Role, string>> = {
  * d'une panne.
  */
 export default function PageAccueil() {
+  useTitrePage("Accueil");
   const { utilisateur, enChargement } = useAuth();
   const { active: completionActive } = useEtatCompletion();
   if (enChargement) return null;

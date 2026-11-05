@@ -281,7 +281,7 @@ export default function UtilisateursAdminCec() {
             <span>
               {u.prenoms} {u.nom}
             </span>
-            <span className="eva-ac-identite__detail texte-mono">{u.email}</span>
+            <span className="eva-ac-identite__detail texte-chiffres">{u.email}</span>
           </span>
         </span>
       )
@@ -310,7 +310,7 @@ export default function UtilisateursAdminCec() {
       masquerMobile: true,
       triable: true,
       valeurTri: (u) => new Date(u.date_joined),
-      rendu: (u) => <span className="texte-mono">{formaterDate(u.date_joined)}</span>
+      rendu: (u) => <span className="texte-chiffres">{formaterDate(u.date_joined)}</span>
     },
     {
       id: "actions",
@@ -429,8 +429,8 @@ export default function UtilisateursAdminCec() {
                 <Champ id="email" label="Email" requis>
                   <input id="email" type="email" required autoComplete="off" value={nouveau.email} onChange={(e) => setNouveau({ ...nouveau, email: e.target.value })} />
                 </Champ>
-                <Champ id="password" label="Mot de passe initial" requis aide="Au moins 10 caractères. La personne pourra le changer depuis son compte.">
-                  <input id="password" type="password" required minLength={10} autoComplete="new-password" value={nouveau.password} onChange={(e) => setNouveau({ ...nouveau, password: e.target.value })} />
+                <Champ id="password" label="Mot de passe initial" requis aide="Au moins 12 caractères. La personne pourra le changer depuis son compte.">
+                  <input id="password" type="password" required minLength={12} autoComplete="new-password" value={nouveau.password} onChange={(e) => setNouveau({ ...nouveau, password: e.target.value })} />
                 </Champ>
               </div>
             </fieldset>

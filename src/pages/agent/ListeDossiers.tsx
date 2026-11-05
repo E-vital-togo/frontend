@@ -25,7 +25,7 @@ import {
   type PiluleFiltre,
   type PuceFiltre
 } from "../../components/ui";
-import { appelApi, ErreurApi } from "../../lib/apiClient";
+import { appelApi, ErreurApi, telechargerDocument } from "../../lib/apiClient";
 import { concilierFiltresActe, type FiltresActe } from "../../lib/filtresDossiers";
 import { useConnectivite } from "../../lib/connectivite";
 import {
@@ -41,6 +41,7 @@ import { LIENS_AGENT } from "./navigation";
 import type { Dossier, ReponsePaginee, StatutDossier, TypeEvenement } from "../../types/domaine";
 import "../../styles/agent.css";
 import "../../styles/retrait.css";
+import { referenceDossier } from "../../lib/referenceDossier";
 
 /** Filtre de retrait de l'acte (paramètre `retrait` du serveur) : "" = tous. */
 type FiltreRetrait = "" | "a_retirer" | "retire";
@@ -172,7 +173,11 @@ export default function ListeDossiers() {
           // Chaque dossier de la liste est aussi gardé individuellement :
           // c'est ce cache-là que lit DetailDossier, donc ouvrir une fiche
           // hors ligne ne demande plus de l'avoir déjà ouverte avant.
-          await Promise.all(donnees.results.map((dossier) => mettreEnCacheDossier(dossier)));
+          // Sauf les dossiers qui ont des saisies pas encore envoyées : leur copie
+          // locale est plus récente que celle du serveur (sinon la saisie
+          // disparaîtrait de l'écran à la prochaine coupure).
+          const proteges = await dossiersAvecActionsEnAttente();
+          await Promise.all(donnees.results.filter((dossier) => !proteges.has(dossier.id)).map((dossier) => mettreEnCacheDossier(dossier)));
           // Formulaires de la page en une seule requête, en arrière-plan :
           // l'affichage de la liste ne doit pas attendre un préchargement
           // qui ne servira que si le réseau tombe ensuite.
@@ -205,7 +210,7 @@ export default function ListeDossiers() {
     try {
       const parametres = construireParametres();
       parametres.set("format", format);
-      const blob = await appelApi<Blob>(`/dossiers/export/?${parametres.toString()}`);
+      const blob = await telechargerDocument(`/dossiers/export/?${parametres.toString()}`);
       telechargerBlob(blob, `dossiers.${format}`);
       toast.succes(`L'export ${format === "xlsx" ? "Excel" : "PDF"} est prêt.`);
     } catch (e) {
@@ -280,12 +285,12 @@ export default function ListeDossiers() {
   const colonnes: ColonneListe<Dossier>[] = [
     {
       id: "id",
-      libelle: "Identifiant",
+      libelle: "N° de dossier",
       principale: true,
       nowrap: true,
       rendu: (d) => (
-        <Link to={`/agent/dossiers/${d.id}`} className="eva-ag-lien-dossier texte-mono" aria-label={`Ouvrir le dossier ${d.id.slice(0, 8)}`}>
-          {d.id.slice(0, 8)}
+        <Link to={`/agent/dossiers/${d.id}`} className="eva-ag-lien-dossier texte-mono" aria-label={`Ouvrir le dossier ${referenceDossier(d)}`}>
+          {referenceDossier(d)}
         </Link>
       )
     },

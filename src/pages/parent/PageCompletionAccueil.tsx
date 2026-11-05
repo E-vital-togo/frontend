@@ -9,8 +9,10 @@ import { useConnectivite } from "../../lib/connectivite";
 import { appelApiPublic, ErreurApiPublique } from "../../lib/apiPublic";
 import { signalerCompletionDesactivee, useEtatCompletion } from "../../lib/etatCompletion";
 import "../../styles/auth.css";
+import { useTitrePage } from "../../lib/useTitrePage";
 
 export default function PageCompletionAccueil() {
+  useTitrePage("Compléter une déclaration");
   const navigate = useNavigate();
   const enLigne = useConnectivite();
   const etatCompletion = useEtatCompletion();

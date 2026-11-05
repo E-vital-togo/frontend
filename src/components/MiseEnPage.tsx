@@ -6,7 +6,8 @@ import Avatar from "./ui/Avatar";
 import MenuDeroulant, { EnteteMenu, ItemMenu, SeparateurMenu } from "./ui/MenuDeroulant";
 import { useMediaQuery } from "./ui/useMediaQuery";
 import { useAuth } from "../context/AuthContext";
-import { dossiersAvecActionsEnAttente, listerActionsEchouees, listerActionsEnAttente, purgerCacheExpire } from "../lib/db";
+import { compterActionsEnAttente, dossiersAvecActionsEnAttente, listerActionsEchouees, listerActionsEnAttente, purgerCacheExpire, purgerCacheSession } from "../lib/db";
+import { useConfirmation } from "./ui/ConfirmationProvider";
 import { precacherFormulaires } from "../lib/formulairesHorsLigne";
 import { synchroniser, surRetourConnexion } from "../lib/syncService";
 import { useCompteurs } from "../lib/useCompteurs";
@@ -34,6 +35,7 @@ function pluriel(nombre: number, singulier: string, plurielTexte: string): strin
 
 export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
   const { utilisateur, deconnecter } = useAuth();
+  const confirmer = useConfirmation();
   const navigate = useNavigate();
   const location = useLocation();
   const compteurs = useCompteurs();
@@ -149,7 +151,20 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
     if (!estMobile) setBarreOuverte(false);
   }, [estMobile]);
 
-  function seDeconnecter() {
+  async function seDeconnecter() {
+    if (utilisateur?.role === "agent_cec") {
+      const enAttente = await compterActionsEnAttente().catch(() => 0);
+      if (enAttente > 0) {
+        const confirme = await confirmer({
+          titre: "Des saisies ne sont pas encore envoyées",
+          description: `${enAttente} action(s) faite(s) hors ligne n'ont pas encore été synchronisées. Elles restent sur ce poste, à votre nom, et partiront à votre prochaine connexion ici. Se déconnecter quand même ?`,
+          libelleConfirmer: "Se déconnecter"
+        });
+        if (!confirme) return;
+      }
+      // Dossiers gardés hors ligne : effacés du poste à la déconnexion (poste partagé).
+      await purgerCacheSession().catch(() => undefined);
+    }
     deconnecter();
     navigate("/connexion");
   }
@@ -311,14 +326,14 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
                 <strong>
                   {utilisateur?.prenoms} {utilisateur?.nom}
                 </strong>
-                <span className="texte-mono">{utilisateur?.email}</span>
+                <span className="texte-chiffres">{utilisateur?.email}</span>
                 {utilisateur && <span>{LIBELLES_ROLE[utilisateur.role]}</span>}
               </EnteteMenu>
               <ItemMenu vers={CHEMIN_COMPTE} icone={UserCircle2}>
                 Mon compte
               </ItemMenu>
               <SeparateurMenu />
-              <ItemMenu icone={LogOut} danger onClick={seDeconnecter}>
+              <ItemMenu icone={LogOut} danger onClick={() => void seDeconnecter()}>
                 Déconnexion
               </ItemMenu>
             </MenuDeroulant>
@@ -414,6 +429,9 @@ export default function MiseEnPage({ liens, children }: ProprietesMiseEnPage) {
         </nav>
         <main className="eva-principal" id="contenu" tabIndex={-1} ref={refPrincipal}>
           {children}
+          <footer className="eva-pied-institution">
+            République Togolaise · RECVIT, Registre de l'État Civil et des Faits Vitaux
+          </footer>
         </main>
       </div>
     </div>

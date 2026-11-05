@@ -11,12 +11,14 @@ import { appelApiPublic } from "../../lib/apiPublic";
 import { useConnectivite } from "../../lib/connectivite";
 import type { CodeRetraitTrouve } from "../../types/domaine";
 import "../../styles/auth.css";
+import { useTitrePage } from "../../lib/useTitrePage";
 
 const LONGUEUR_CODE = 6;
 /** Pause avant de pouvoir demander un nouveau SMS (evite les envois en rafale). */
 const PAUSE_RENVOI_MS = 30_000;
 
 export default function PageRetrouverCode() {
+  useTitrePage("Code de retrait perdu");
   const enLigne = useConnectivite();
   const [etape, setEtape] = useState<"telephone" | "code">("telephone");
   const [telephone, setTelephone] = useState("");

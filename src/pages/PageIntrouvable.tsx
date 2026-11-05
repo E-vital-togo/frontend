@@ -3,8 +3,10 @@ import { ArrowLeft, Compass, Home } from "lucide-react";
 import EcranResultat from "../components/auth/EcranResultat";
 import { Bouton, LienBouton, PageAuth } from "../components/ui";
 import "../styles/auth.css";
+import { useTitrePage } from "../lib/useTitrePage";
 
 export default function PageIntrouvable() {
+  useTitrePage("Page introuvable");
   const navigate = useNavigate();
 
   return (

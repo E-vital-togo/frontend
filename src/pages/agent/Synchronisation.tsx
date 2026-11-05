@@ -149,7 +149,7 @@ export default function Synchronisation() {
   const colonnesAttente: ColonneListe<ActionEnAttente>[] = [
     { id: "action", libelle: "Action", principale: true, rendu: (a) => libelleAction(a) },
     { id: "dossier", libelle: "Dossier", rendu: (a) => <CelluleDossier dossierId={a.dossierId} /> },
-    { id: "date", libelle: "Saisie le", libelleMobile: "Saisie le", nowrap: true, rendu: (a) => <span className="texte-mono">{formaterDateHeure(a.horodatageClient)}</span> },
+    { id: "date", libelle: "Saisie le", libelleMobile: "Saisie le", nowrap: true, rendu: (a) => <span className="texte-chiffres">{formaterDateHeure(a.horodatageClient)}</span> },
     {
       id: "actions",
       libelle: "Actions",
@@ -178,7 +178,7 @@ export default function Synchronisation() {
       rendu: (a) => <Badge variante={a.statut === "conflit" ? "attente" : "danger"} point>{a.statut === "conflit" ? "Conflit de version" : "Rejetée"}</Badge>
     },
     { id: "dossier", libelle: "Dossier", rendu: (a) => <CelluleDossier dossierId={a.dossierId} /> },
-    { id: "date", libelle: "Échec le", nowrap: true, rendu: (a) => <span className="texte-mono">{formaterDateHeure(a.horodatageEchec)}</span> },
+    { id: "date", libelle: "Échec le", nowrap: true, rendu: (a) => <span className="texte-chiffres">{formaterDateHeure(a.horodatageEchec)}</span> },
     {
       id: "raison",
       libelle: "Raison",

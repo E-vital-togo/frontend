@@ -55,6 +55,7 @@ import {
   type ValeurChamp
 } from "../../types/domaine";
 import "../../styles/dossier.css";
+import { useTitrePage } from "../../lib/useTitrePage";
 
 function messageErreur(e: unknown, defaut = "Erreur inattendue."): string {
   return e instanceof ErreurApi ? e.message : defaut;
@@ -65,6 +66,7 @@ function pluriel(nombre: number, singulier: string, plurielTexte = `${singulier}
 }
 
 export default function DetailDossier() {
+  useTitrePage("Dossier");
   const { idDossier } = useParams<{ idDossier: string }>();
   const navigate = useNavigate();
   const toast = useToast();
@@ -489,9 +491,11 @@ export default function DetailDossier() {
             <ActionsDossier
               peutValider={peutValider}
               explicationValidationBloquee={
-                champsObligatoiresManquants.length > 0
-                  ? `Champs obligatoires manquants : ${champsObligatoiresManquants.map((c) => c.label).join(", ")}.`
-                  : undefined
+                champs.length === 0
+                  ? "Le formulaire de ce dossier est vide : rien à vérifier pour l'instant."
+                  : champsObligatoiresManquants.length > 0
+                    ? `Champs obligatoires manquants : ${champsObligatoiresManquants.map((c) => c.label).join(", ")}.`
+                    : undefined
               }
               onValider={valider}
               peutApercevoir={dossier.statut === "complete"}

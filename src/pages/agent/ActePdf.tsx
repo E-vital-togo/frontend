@@ -5,7 +5,7 @@ import MiseEnPage from "../../components/MiseEnPage";
 import DemandeCorrectionActe from "../../components/DemandeCorrectionActe";
 import { AncreBouton, Alerte, Bouton, Carte, Champ, EnteteDePage, LienBouton, Selecteur, Squelette } from "../../components/ui";
 import { useAuth } from "../../context/AuthContext";
-import { appelApi, ErreurApi } from "../../lib/apiClient";
+import { ErreurApi, telechargerDocument } from "../../lib/apiClient";
 import { LIENS_AGENT } from "./navigation";
 import { LIENS_ADMIN_CEC } from "../admin_cec/navigation";
 import "../../styles/agent.css";
@@ -38,6 +38,9 @@ export default function ActePdf({ apercu = false }: ProprietesActePdf) {
 
   const [urlPdf, setUrlPdf] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  // Erreur durable (dossier pas au bon statut, droits, acte absent) : relancer
+  // ne changerait rien, on ne propose donc pas « Réessayer ».
+  const [erreurDurable, setErreurDurable] = useState(false);
   const [voletSelectionne, setVoletSelectionne] = useState("");
   const [relance, setRelance] = useState(0);
 
@@ -45,17 +48,28 @@ export default function ActePdf({ apercu = false }: ProprietesActePdf) {
     if (!idDossier) return;
     let urlObjet: string | undefined;
 
+    let abandonne = false;
+
     setUrlPdf(null);
     setErreur(null);
+    setErreurDurable(false);
     const parametres = !apercu && voletSelectionne ? `?volet=${voletSelectionne}` : "";
-    appelApi<Blob>(`/dossiers/${idDossier}/acte/${apercu ? "apercu-pdf" : "pdf"}${parametres}`)
+    // Le serveur peut preparer le PDF en arriere-plan (reponse 202) :
+    // telechargerDocument redemande jusqu'a ce qu'il soit pret.
+    telechargerDocument(`/dossiers/${idDossier}/acte/${apercu ? "apercu-pdf" : "pdf"}${parametres}`, () => abandonne)
       .then((blob) => {
+        if (abandonne) return;
         urlObjet = URL.createObjectURL(blob);
         setUrlPdf(urlObjet);
       })
-      .catch((e: unknown) => setErreur(e instanceof ErreurApi || e instanceof Error ? e.message : "Erreur inattendue."));
+      .catch((e: unknown) => {
+        if (abandonne) return;
+        setErreur(e instanceof ErreurApi || e instanceof Error ? e.message : "Erreur inattendue.");
+        setErreurDurable(e instanceof ErreurApi && e.statut >= 400 && e.statut < 500 && e.statut !== 408 && e.statut !== 429);
+      });
 
     return () => {
+      abandonne = true;
       if (urlObjet) URL.revokeObjectURL(urlObjet);
     };
   }, [idDossier, voletSelectionne, relance, apercu]);
@@ -132,7 +146,7 @@ export default function ActePdf({ apercu = false }: ProprietesActePdf) {
               Retour au dossier
             </LienBouton>
           )}
-          {apercu && estAgent && (
+          {apercu && estAgent && !erreur && (
             <LienBouton to={`${basePath}/dossiers/${idDossier}/emission-acte`} iconeGauche={<FileSignature size={16} />}>
               Émettre l'acte
             </LienBouton>
@@ -147,9 +161,15 @@ export default function ActePdf({ apercu = false }: ProprietesActePdf) {
             titre="Le document n'a pas pu être généré"
             icone={<FileWarning size={18} aria-hidden="true" />}
             actions={
-              <Bouton variante="secondaire" taille="petit" onClick={() => setRelance((n) => n + 1)}>
-                Réessayer
-              </Bouton>
+              erreurDurable ? (
+                <LienBouton to={`${basePath}/dossiers/${idDossier}`} variante="secondaire" taille="petit">
+                  Retour au dossier
+                </LienBouton>
+              ) : (
+                <Bouton variante="secondaire" taille="petit" onClick={() => setRelance((n) => n + 1)}>
+                  Réessayer
+                </Bouton>
+              )
             }
           >
             {erreur}

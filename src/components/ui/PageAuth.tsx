@@ -23,7 +23,7 @@ interface ProprietesPageAuth {
   retour?: { libelle: string; vers?: string; onClick?: () => void };
   /** Pied de carte : liens secondaires ("Mot de passe oublie ?"), centre. */
   pied?: ReactNode;
-  /** Ligne de signature sous la carte (defaut : "Naissances - Décès - Statistiques" ; `false` pour la masquer). */
+  /** Ligne de signature sous la carte (defaut : "République Togolaise" ; `false` pour la masquer). */
   signature?: string | false;
   children: ReactNode;
 }
@@ -44,7 +44,7 @@ export default function PageAuth({
   alignementHaut,
   retour,
   pied,
-  signature = "Naissances - Décès - Statistiques",
+  signature = "République Togolaise · Naissances, décès, statistiques",
   children
 }: ProprietesPageAuth) {
   return (

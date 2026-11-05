@@ -105,6 +105,8 @@ export interface ReponseRetrait {
 
 export interface Dossier {
   id: string;
+  /** Numéro lisible attribué par le serveur (« 2026-000123 ») ; absent d'une copie locale ancienne. */
+  reference?: string;
   nom?: string | null;
   origine: OrigineDossier;
   type_dossier: TypeDossier;

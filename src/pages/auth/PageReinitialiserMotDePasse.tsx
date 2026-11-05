@@ -7,6 +7,7 @@ import { decrireErreur, type MessageErreur } from "../../components/auth/message
 import { Alerte, Bouton, LienBouton, PageAuth } from "../../components/ui";
 import { appelApi, ErreurApi } from "../../lib/apiClient";
 import "../../styles/auth.css";
+import { useTitrePage } from "../../lib/useTitrePage";
 
 const LONGUEUR_MINIMALE = 10;
 
@@ -18,6 +19,7 @@ const LONGUEUR_MINIMALE = 10;
  * pouvait terminer une reinitialisation de mot de passe oublie.
  */
 export default function PageReinitialiserMotDePasse() {
+  useTitrePage("Réinitialisation du mot de passe");
   const { uidb64, token } = useParams<{ uidb64: string; token: string }>();
   const [nouveauMotDePasse, setNouveauMotDePasse] = useState("");
   const [confirmation, setConfirmation] = useState("");

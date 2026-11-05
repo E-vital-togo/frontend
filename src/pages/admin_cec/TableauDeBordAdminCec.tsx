@@ -36,13 +36,13 @@ import {
   Champ,
   EnteteDePage,
   EtatVide,
-  GraphiqueECharts,
   ListeResponsive,
   PilulesFiltre,
   Squelette,
   type ColonneListe,
   type PiluleFiltre
 } from "../../components/ui";
+import GraphiqueECharts from "../../components/ui/GraphiqueECharts";
 import { LienBouton } from "../../components/ui/Bouton";
 import { appelApi, ErreurApi } from "../../lib/apiClient";
 import { useCompteurs } from "../../lib/useCompteurs";
@@ -60,6 +60,7 @@ import type {
 import { listeDepuis } from "../../types/domaine";
 
 import "../../styles/statistiques.css";
+import { referenceDossier } from "../../lib/referenceDossier";
 
 type Periode = "" | "30j" | "annee" | "perso";
 
@@ -89,7 +90,12 @@ const COLONNES_ECHEANCES: ColonneListe<Dossier>[] = [
     id: "evenement",
     libelle: "Événement",
     principale: true,
-    rendu: (d) => <Badge variante="neutre">{d.event_type === "naissance" ? "Naissance" : "Décès"}</Badge>
+    rendu: (d) => (
+      <span className="eva-st-evenement">
+        <Badge variante="neutre">{d.event_type === "naissance" ? "Naissance" : "Décès"}</Badge>
+        <span className="eva-st-evenement__nom">{d.nom || `Dossier n° ${referenceDossier(d)}`}</span>
+      </span>
+    )
   },
   { id: "mairie", libelle: "Mairie", rendu: (d) => d.mairie_nom || d.mairie },
   { id: "statut", libelle: "Statut", rendu: (d) => <BadgeStatut statut={d.statut} /> },
@@ -370,7 +376,7 @@ export default function TableauDeBordAdminCec() {
                 icone={<Clock size={20} />}
                 valeur={echeancesProches.length}
                 libelle="Échéances proches (zone)"
-                alerte={echeancesProches.length > 0}
+                variante={echeancesProches.length > 0 ? "attention" : "defaut"}
                 detail={enRetard > 0 ? `dont ${enRetard} en retard` : "Aucun retard"}
               />
               <CarteStat

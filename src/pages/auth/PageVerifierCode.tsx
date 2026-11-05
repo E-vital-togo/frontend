@@ -9,6 +9,7 @@ import { useAuth } from "../../context/AuthContext";
 import { ErreurApi } from "../../lib/apiClient";
 import type { Role } from "../../types/domaine";
 import "../../styles/auth.css";
+import { useTitrePage } from "../../lib/useTitrePage";
 
 const DESTINATION_PAR_ROLE: Partial<Record<Role, string>> = {
   agent_cec: "/agent",
@@ -26,6 +27,7 @@ interface EtatConnexion {
 }
 
 export default function PageVerifierCode() {
+  useTitrePage("Code de vérification");
   const { validerCode } = useAuth();
   const navigate = useNavigate();
   const { state } = useLocation();

@@ -26,7 +26,7 @@ import {
   type PuceFiltre,
   type VarianteBadge
 } from "../../components/ui";
-import { appelApi } from "../../lib/apiClient";
+import { appelApi, telechargerDocument } from "../../lib/apiClient";
 import { concilierFiltresActe, type FiltresActe } from "../../lib/filtresDossiers";
 import { telechargerBlob } from "../../lib/telechargerBlob";
 import { echeanceActive, joursRestants } from "../../lib/urgence";
@@ -45,6 +45,7 @@ import {
 } from "../../types/domaine";
 import "../../styles/admin-cec-pilotage.css";
 import "../../styles/retrait.css";
+import { referenceDossier } from "../../lib/referenceDossier";
 
 /** Filtre de retrait de l'acte (paramètre `retrait` du serveur) : "" = tous. */
 type FiltreRetrait = "" | "a_retirer" | "retire";
@@ -203,7 +204,7 @@ export default function DossiersAdminCec() {
     try {
       const parametres = construireParametres();
       parametres.set("format", format);
-      const blob = await appelApi<Blob>(`/dossiers/export/?${parametres.toString()}`);
+      const blob = await telechargerDocument(`/dossiers/export/?${parametres.toString()}`);
       telechargerBlob(blob, `dossiers.${format}`);
       toast.succes(`Export ${format === "xlsx" ? "Excel" : "PDF"} téléchargé.`);
     } catch (e) {
@@ -277,7 +278,7 @@ export default function DossiersAdminCec() {
       principale: true,
       rendu: (d) => (
         <span className="eva-ac-identite__texte">
-          <span className="texte-mono">{d.id.slice(0, 8)}</span>
+          <span className="texte-mono">{referenceDossier(d)}</span>
           {d.nom && <span className="eva-ac-identite__detail">{d.nom}</span>}
         </span>
       )
@@ -298,7 +299,7 @@ export default function DossiersAdminCec() {
       id: "date",
       libelle: champDate === "declaration" ? "Date de déclaration" : "Date de l'événement",
       alignement: "droite",
-      rendu: (d) => <span className="texte-mono">{formaterDate(champDate === "declaration" ? d.date_declaration : d.date_evenement)}</span>
+      rendu: (d) => <span className="texte-chiffres">{formaterDate(champDate === "declaration" ? d.date_declaration : d.date_evenement)}</span>
     },
     {
       id: "echeance",

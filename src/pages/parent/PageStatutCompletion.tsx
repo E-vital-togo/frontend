@@ -10,6 +10,7 @@ import { appelApiPublic, ErreurApiPublique } from "../../lib/apiPublic";
 import { signalerCompletionDesactivee, useEtatCompletion } from "../../lib/etatCompletion";
 import type { StatutDossier } from "../../types/domaine";
 import "../../styles/auth.css";
+import { useTitrePage } from "../../lib/useTitrePage";
 
 interface ReponseStatutCompletion {
   statut: StatutDossier;
@@ -85,6 +86,7 @@ function indexEtape(statut: StatutDossier): number {
 }
 
 export default function PageStatutCompletion() {
+  useTitrePage("Suivi de la déclaration");
   const { code } = useParams<{ code: string }>();
   const [statut, setStatut] = useState<ReponseStatutCompletion | null>(null);
   const [erreur, setErreur] = useState<MessageErreur | null>(null);

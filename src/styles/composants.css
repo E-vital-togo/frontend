@@ -97,7 +97,7 @@
 /* Alignements et types de cellule */
 .eva-liste__cellule--centre { text-align: center !important; }
 .eva-liste__cellule--droite { text-align: right !important; }
-.eva-liste__cellule--numerique { font-family: var(--police-donnees); font-variant-numeric: tabular-nums; text-align: right !important; }
+.eva-liste__cellule--numerique { font-family: var(--police-titrage); font-variant-numeric: tabular-nums; text-align: right !important; }
 .eva-liste__cellule--principale { font-weight: 600; color: var(--couleur-encre); }
 .eva-liste__cellule--nowrap { white-space: nowrap; }
 .eva-liste__cellule--actions { width: 1%; white-space: nowrap; text-align: right !important; }
@@ -307,15 +307,15 @@ th[aria-sort="ascending"] .eva-liste__tri svg, th[aria-sort="descending"] .eva-l
   border-radius: var(--rayon-plein);
   background: var(--couleur-neutre-fond);
   color: var(--couleur-gris-service-1);
-  font-family: var(--police-donnees);
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
+/* Pilule active : compteur blanc plein, texte emeraude (blanc sur voile clair : 3,5:1, insuffisant). */
 .eva-pilule--active .eva-pilule__compteur, .eva-pilule[aria-pressed="true"] .eva-pilule__compteur {
-  background: rgba(255, 255, 255, 0.22);
-  color: var(--couleur-blanc);
+  background: var(--couleur-blanc);
+  color: var(--couleur-emeraude-profond);
 }
 .eva-pilule--alerte .eva-pilule__compteur { background: var(--couleur-erreur); color: var(--couleur-blanc); }
 .eva-pilule:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -613,7 +613,7 @@ th[aria-sort="ascending"] .eva-liste__tri svg, th[aria-sort="descending"] .eva-l
   text-decoration: underline;
   cursor: pointer;
 }
-.eva-auth__signature { margin: var(--espace-6) 0 0; font-family: var(--police-donnees); font-size: 11.5px; letter-spacing: 0.04em; color: var(--couleur-texte-discret); text-align: center; }
+.eva-auth__signature { margin: var(--espace-6) 0 0; font-size: 12.5px; color: var(--couleur-texte-discret); text-align: center; }
 .eva-auth__retour { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 var(--espace-4); padding: 6px 8px 6px 4px; border: 0; border-radius: var(--rayon-petit); background: none; color: var(--couleur-texte-discret); font: inherit; font-size: 13px; text-decoration: none; cursor: pointer; }
 .eva-auth__retour:hover { color: var(--couleur-emeraude); }
 .eva-auth .eva-champ input:not([type="checkbox"]):not([type="radio"]) { min-height: 46px; font-size: 15px; }
@@ -622,4 +622,20 @@ th[aria-sort="ascending"] .eva-liste__tri svg, th[aria-sort="descending"] .eva-l
 @media (max-width: 720px) {
   .eva-auth { justify-content: flex-start; padding-top: var(--espace-8); }
   .eva-auth__carte { padding: var(--espace-7) var(--espace-5) var(--espace-6); border-radius: var(--rayon-grand); }
+}
+
+/* Mention institutionnelle en bas de chaque page connectee. */
+.eva-pied-institution { margin-top: var(--espace-8, 48px); padding: var(--espace-4) 0 var(--espace-2); border-top: 1px solid var(--couleur-bordure, #D9E3DD); font-size: 12.5px; color: var(--couleur-texte-discret); text-align: center; }
+
+/* Telephone : la barre d'enregistrement ne reste collee en bas de l'ecran
+   que s'il y a quelque chose a enregistrer (sinon elle masquait le contenu). */
+@media (max-width: 640px) {
+  .eva-barre-enregistrement:not(.est-modifiee):not(.est-en-erreur) { position: static; }
+}
+
+/* Onglets sur petit ecran (320 px) : plus serres, et le debordement reste
+   defilable avec un fondu qui signale la suite. */
+@media (max-width: 400px) {
+  .eva-onglets { gap: var(--espace-3); -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
+  .eva-onglet { font-size: 13px; }
 }

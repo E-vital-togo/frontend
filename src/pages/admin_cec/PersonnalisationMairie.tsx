@@ -106,7 +106,7 @@ export default function PersonnalisationMairie() {
       setMairies((precedent) => precedent.map((m) => (m.id === mairieId ? misAJour : m)));
       setNom(misAJour.nom);
       viderFichier();
-      toast.succes("Mairie personnalisée. Les prochains actes générés utiliseront ce logo.");
+      toast.succes("Mairie personnalisée.");
     } catch (e) {
       setErreurEnregistrement(messageErreur(e, "L'enregistrement a échoué. Vos modifications sont conservées, réessayez."));
     } finally {
@@ -117,7 +117,7 @@ export default function PersonnalisationMairie() {
   if (chargement) {
     return (
       <MiseEnPage liens={LIENS_ADMIN_CEC}>
-        <EnteteDePage titre="Personnalisation" sousTitre="Nom affiché et logo utilisés sur les actes PDF générés pour une mairie de votre périmètre." />
+        <EnteteDePage titre="Personnalisation" sousTitre="Nom et logo d'une mairie de votre périmètre. L'acte d'état civil est un formulaire national : il porte le nom de la mairie, jamais son logo." />
         <div className="eva-grille eva-grille--2-1 eva-grille--debut">
           <Squelette variante="carte" />
           <Squelette variante="carte" />
@@ -130,7 +130,7 @@ export default function PersonnalisationMairie() {
     <MiseEnPage liens={LIENS_ADMIN_CEC}>
       <EnteteDePage
         titre="Personnalisation"
-        sousTitre="Nom affiché et logo utilisés sur les actes PDF générés pour une mairie de votre périmètre."
+        sousTitre="Nom et logo d'une mairie de votre périmètre. L'acte d'état civil est un formulaire national : il porte le nom de la mairie, jamais son logo."
         badges={mairies.length === 1 && mairieActive ? <Badge variante="neutre">{mairieActive.nom}</Badge> : undefined}
       />
 
@@ -164,11 +164,11 @@ export default function PersonnalisationMairie() {
                 </Champ>
               )}
 
-              <Champ id="nom-mairie" label="Nom affiché" requis aide="Apparaît sur les actes PDF, les SMS et le formulaire de complétion en ligne.">
+              <Champ id="nom-mairie" label="Nom affiché" requis aide="Apparaît sur les actes (ligne « Centre d'état civil »), les SMS et le formulaire de complétion en ligne.">
                 <input id="nom-mairie" required value={nom} onChange={(e) => setNom(e.target.value)} />
               </Champ>
 
-              <Champ id="logo-mairie" label="Logo" aide="Image PNG ou JPEG, affichée en en-tête des actes générés pour cette mairie.">
+              <Champ id="logo-mairie" label="Logo" aide="Image PNG ou JPEG. Elle ne figure pas sur les actes (formulaire national).">
                 <input
                   key={cleChampFichier}
                   ref={refChampFichier}
@@ -183,13 +183,13 @@ export default function PersonnalisationMairie() {
                 <div className="eva-ac-fichier" role="status">
                   <Upload size={16} aria-hidden="true" />
                   <span className="eva-ac-fichier__nom">{fichierLogo.name}</span>
-                  <span className="eva-ac-fichier__taille texte-mono">{formaterTaille(fichierLogo.size)}</span>
+                  <span className="eva-ac-fichier__taille texte-chiffres">{formaterTaille(fichierLogo.size)}</span>
                   <Bouton type="button" variante="fantome" taille="petit" iconeSeule iconeGauche={<X size={14} />} aria-label="Retirer le fichier choisi" onClick={viderFichier} />
                 </div>
               )}
             </Carte>
 
-            <Carte titre="Aperçu de l'en-tête" description="Rendu indicatif sur un acte PDF.">
+            <Carte titre="Aperçu" description="Rendu indicatif du nom et du logo de la mairie.">
               <div className="eva-ac-apercu">
                 <div className="eva-ac-apercu__logo">
                   {logoAffiche ? (

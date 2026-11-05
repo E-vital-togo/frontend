@@ -52,7 +52,7 @@
 .eva-ag-echeance__valeur--rouge { color: var(--couleur-erreur); }
 .eva-ag-echeance__valeur--orange { color: var(--couleur-citron-texte); }
 .eva-ag-echeance__valeur--verte { color: var(--couleur-succes-texte); }
-.eva-ag-echeance__date { font-family: var(--police-donnees); font-size: 11.5px; color: var(--couleur-texte-discret); }
+.eva-ag-echeance__date { font-family: var(--police-titrage); font-variant-numeric: tabular-nums; font-size: 11.5px; color: var(--couleur-texte-discret); }
 
 /* ---- Parcours de retrait ---- */
 .eva-ag-parcours { display: flex; flex-direction: column; gap: var(--espace-6); max-width: 760px; }
@@ -230,7 +230,7 @@
 /* ---- Acte (PDF) ---- */
 .eva-ag-barre-acte.eva-carte { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--espace-4); flex-wrap: wrap; margin-bottom: var(--espace-4); padding: var(--espace-4) var(--espace-5); }
 .eva-ag-barre-acte__choix { flex: 1 1 320px; max-width: 480px; margin: 0; }
-.eva-ag-barre-acte__actions { flex: none; }
+.eva-ag-barre-acte__actions { flex: 0 1 auto; flex-wrap: wrap; min-width: 0; }
 .eva-ag-apercu { min-width: 0; }
 .eva-ag-apercu__cadre {
   display: block;

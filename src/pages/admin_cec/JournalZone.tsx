@@ -14,7 +14,7 @@ const COLONNES: ColonneListe<EntreeJournalZone>[] = [
     libelle: "Date",
     principale: true,
     nowrap: true,
-    rendu: (e) => <span className="texte-mono">{formaterDateHeure(e.created_at)}</span>
+    rendu: (e) => <span className="texte-chiffres">{formaterDateHeure(e.created_at)}</span>
   },
   { id: "auteur", libelle: "Auteur", rendu: (e) => e.auteur || "-" },
   { id: "action", libelle: "Action", rendu: (e) => e.libelle },
@@ -26,9 +26,6 @@ const COLONNES: ColonneListe<EntreeJournalZone>[] = [
         <Badge variante={e.succes ? "succes" : "danger"} point>
           {e.succes ? "Réussie" : "Échec"}
         </Badge>
-        <span className="eva-ac-resultat__code texte-mono" title="Code de réponse du serveur">
-          {e.statut}
-        </span>
       </span>
     )
   }

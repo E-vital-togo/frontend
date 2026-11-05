@@ -8,16 +8,15 @@ import {
   Champ,
   EnteteDePage,
   EtatVide,
-  GraphiqueECharts,
   Interrupteur,
   ListeResponsive,
   Modale,
   Onglets,
   Selecteur,
   Squelette,
-  type ColonneListe,
-  type PoigneeGraphique
+  type ColonneListe
 } from "../../../components/ui";
+import GraphiqueECharts, { type PoigneeGraphique } from "../../../components/ui/GraphiqueECharts";
 import GraphiqueCarte from "../../../components/GraphiqueCarte";
 import PanneauStyleCarte from "../../../components/PanneauStyleCarte";
 import SectionRepliable from "../../../components/statistiques/SectionRepliable";

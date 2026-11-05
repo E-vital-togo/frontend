@@ -21,8 +21,9 @@ export type { Onglet } from "./Onglets";
 export { default as Frise } from "./Frise";
 export type { ElementFrise } from "./Frise";
 export { default as EnteteDePage } from "./EnteteDePage";
-export { default as GraphiqueECharts } from "./GraphiqueECharts";
-export type { PoigneeGraphique } from "./GraphiqueECharts";
+// GraphiqueECharts n'est volontairement PAS reexporte ici : il charge ECharts
+// (plus de la moitie du poids du bundle). L'importer directement depuis
+// "./GraphiqueECharts", dans les seules pages chargees a la demande.
 
 // Composants de la fondation du systeme de design (voir docs/design-system-react.md)
 export { default as Icone } from "./Icone";

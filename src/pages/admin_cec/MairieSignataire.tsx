@@ -334,7 +334,7 @@ export default function MairieSignataire() {
     { id: "acte", libelle: "N° d'acte", alignement: "droite", rendu: (a) => <span className="texte-mono">{a.numero_acte}</span> },
     { id: "registre", libelle: "Registre", alignement: "droite", rendu: (a) => <span className="texte-mono">{a.numero_registre}</span> },
     { id: "annee", libelle: "Année", alignement: "droite", rendu: (a) => <span className="texte-mono">{a.annee_registre}</span> },
-    { id: "date", libelle: "Établi le", alignement: "droite", rendu: (a) => <span className="texte-mono">{formaterDate(a.date_etablissement)}</span> },
+    { id: "date", libelle: "Établi le", alignement: "droite", rendu: (a) => <span className="texte-chiffres">{formaterDate(a.date_etablissement)}</span> },
     {
       id: "statut",
       libelle: "Statut",

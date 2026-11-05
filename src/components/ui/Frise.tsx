@@ -22,7 +22,7 @@ export default function Frise({ elements }: { elements: ElementFrise[] }) {
           <span className="eva-frise__point" aria-hidden="true">
             {el.icone}
           </span>
-          <div className="eva-frise__date texte-mono">{el.date}</div>
+          <div className="eva-frise__date texte-chiffres">{el.date}</div>
           {el.titre && <div className="eva-frise__titre">{el.titre}</div>}
           <div className="eva-frise__contenu">{el.contenu}</div>
         </div>

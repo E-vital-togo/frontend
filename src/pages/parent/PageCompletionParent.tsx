@@ -13,8 +13,10 @@ import { signalerCompletionDesactivee, useEtatCompletion } from "../../lib/etatC
 import { champsManquants, planFormulaire, valeurEffective } from "../../lib/formulaire";
 import type { ChampFormulaireEffectif, MiseEnPage, ReponseFormulaireEffectif } from "../../types/domaine";
 import "../../styles/auth.css";
+import { useTitrePage } from "../../lib/useTitrePage";
 
 export default function PageCompletionParent() {
+  useTitrePage("Complétion de la déclaration");
   const { code } = useParams<{ code: string }>();
   const enLigne = useConnectivite();
   const etatCompletion = useEtatCompletion();

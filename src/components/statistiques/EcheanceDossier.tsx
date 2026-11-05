@@ -25,7 +25,7 @@ export default function EcheanceDossier({ dateLimite }: { dateLimite: string }) 
       <Badge variante={variante} point>
         {libelle}
       </Badge>
-      <span className="eva-st-echeance__date texte-mono">{formaterDate(dateLimite)}</span>
+      <span className="eva-st-echeance__date texte-chiffres">{formaterDate(dateLimite)}</span>
     </span>
   );
 }

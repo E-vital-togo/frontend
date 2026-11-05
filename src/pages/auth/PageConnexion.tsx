@@ -10,8 +10,10 @@ import { appelApi } from "../../lib/apiClient";
 import { useConnectivite } from "../../lib/connectivite";
 import { listerActionsEnAttente } from "../../lib/db";
 import "../../styles/auth.css";
+import { useTitrePage } from "../../lib/useTitrePage";
 
 export default function PageConnexion() {
+  useTitrePage("Connexion");
   const { demarrerConnexion } = useAuth();
   const navigate = useNavigate();
   const enLigne = useConnectivite();

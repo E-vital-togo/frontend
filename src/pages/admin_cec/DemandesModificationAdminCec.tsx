@@ -184,7 +184,7 @@ export default function DemandesModificationAdminCec() {
       alignement: "droite",
       triable: true,
       valeurTri: (d) => new Date(d.created_at),
-      rendu: (d) => <span className="texte-mono">{formaterDate(d.created_at)}</span>
+      rendu: (d) => <span className="texte-chiffres">{formaterDate(d.created_at)}</span>
     },
     {
       id: "actions",

@@ -146,7 +146,7 @@ export default function NotificationsEchouees() {
       nowrap: true,
       triable: true,
       valeurTri: (n) => new Date(n.created_at),
-      rendu: (n) => <span className="texte-mono">{formaterDateHeure(n.created_at)}</span>
+      rendu: (n) => <span className="texte-chiffres">{formaterDateHeure(n.created_at)}</span>
     },
     {
       id: "type",

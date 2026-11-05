@@ -154,7 +154,7 @@ html .eva-auth .eva-champ input.eva-acces-entree-code::placeholder { letter-spac
 .eva-acces-pied__lien a { white-space: nowrap; }
 .eva-acces-pied__note + .eva-acces-pied__lien { margin-top: var(--espace-3); }
 .eva-acces-bloc { display: block; margin-top: var(--espace-1); overflow-wrap: anywhere; }
-.eva-acces-email { font-family: var(--police-donnees); font-size: 13px; overflow-wrap: anywhere; }
+.eva-acces-email { font-size: 13px; overflow-wrap: break-word; }
 .eva-acces-espace-haut { margin-top: var(--espace-4); }
 .eva-acces-espace-bas { margin-bottom: var(--espace-4); }
 .eva-acces-rappel-code { margin: var(--espace-5) 0 0; text-align: center; font-size: 13px; color: var(--couleur-texte-discret); }

@@ -5,7 +5,7 @@ import { accentuer } from "../components/auth/messagesAuth";
 import MiseEnPage from "../components/MiseEnPage";
 import { Alerte, Avatar, Badge, Bouton, Carte, Champ, EnteteDePage, Squelette } from "../components/ui";
 import { useToast } from "../components/ui/ToastProvider";
-import { appelApi, ErreurApi } from "../lib/apiClient";
+import { appelApi, ErreurApi, stockerJetons } from "../lib/apiClient";
 import { useAuth } from "../context/AuthContext";
 import { LIENS_AGENT } from "./agent/navigation";
 import { LIENS_ADMIN_CEC } from "./admin_cec/navigation";
@@ -79,10 +79,12 @@ export default function PageMonCompte() {
     }
     setChangementEnCours(true);
     try {
-      await appelApi("/auth/changer-mot-de-passe", {
+      // Le serveur ferme toutes les autres sessions et renvoie de nouveaux jetons pour celle-ci.
+      const reponse = await appelApi<{ access?: string; refresh?: string }>("/auth/changer-mot-de-passe", {
         methode: "POST",
         corps: { ancien_mot_de_passe: ancienMotDePasse, nouveau_mot_de_passe: nouveauMotDePasse }
       });
+      if (reponse.access) stockerJetons({ access: reponse.access, refresh: reponse.refresh });
       setAncienMotDePasse("");
       setNouveauMotDePasse("");
       setConfirmationMotDePasse("");
@@ -150,7 +152,7 @@ export default function PageMonCompte() {
             <li>
               <Mail size={16} aria-hidden="true" />
               <span className="eva-sr-only">Email : </span>
-              <span className="texte-mono">{profil.email}</span>
+              <span className="texte-chiffres">{profil.email}</span>
             </li>
             {depuis && (
               <li>
@@ -179,7 +181,7 @@ export default function PageMonCompte() {
                 <input id="prenoms" required autoComplete="given-name" value={prenoms} onChange={(e) => setPrenoms(e.target.value)} />
               </Champ>
               <Champ id="email-lecture" label="Email">
-                <input id="email-lecture" value={profil.email} disabled className="texte-mono" />
+                <input id="email-lecture" value={profil.email} disabled className="texte-chiffres" />
               </Champ>
             </Carte>
           </form>
@@ -200,7 +202,7 @@ export default function PageMonCompte() {
                 </Alerte>
               )}
               <ChampMotDePasse id="ancien-mdp" label="Mot de passe actuel" requis autoComplete="current-password" valeur={ancienMotDePasse} onChange={setAncienMotDePasse} />
-              <ChampMotDePasse id="nouveau-mdp" label="Nouveau mot de passe" requis autoComplete="new-password" aide="Au moins 10 caractères." valeur={nouveauMotDePasse} onChange={setNouveauMotDePasse} />
+              <ChampMotDePasse id="nouveau-mdp" label="Nouveau mot de passe" requis autoComplete="new-password" aide="Au moins 12 caractères." valeur={nouveauMotDePasse} onChange={setNouveauMotDePasse} />
               <ChampMotDePasse
                 id="confirmation-mdp"
                 label="Confirmer le nouveau mot de passe"

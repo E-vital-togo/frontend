@@ -33,7 +33,32 @@ interface ReponseSyncBatch {
  * qui traite les actions dans l'ordre chronologique et journalise chaque
  * conflit dans ConflitSync sans jamais ecraser la version en ligne).
  */
-export async function synchroniser(): Promise<ReponseSyncBatch> {
+let synchronisationEnCours: Promise<ReponseSyncBatch> | null = null;
+
+/**
+ * Une seule synchronisation a la fois : dans cet onglet (promesse partagee)
+ * et entre onglets (Web Locks API). Un second appel pendant qu'une
+ * synchronisation tourne ne renvoie rien de plus : la file sera de toute
+ * facon videe par celle en cours. Le serveur est lui aussi idempotent
+ * (apps.sync : registre des actions deja traitees).
+ */
+export function synchroniser(): Promise<ReponseSyncBatch> {
+  synchronisationEnCours ??= executerAvecVerrou().finally(() => {
+    synchronisationEnCours = null;
+  });
+  return synchronisationEnCours;
+}
+
+async function executerAvecVerrou(): Promise<ReponseSyncBatch> {
+  if (typeof navigator !== "undefined" && navigator.locks) {
+    return navigator.locks.request("recvit-synchronisation", { ifAvailable: true }, (verrou) =>
+      verrou ? synchroniserMaintenant() : Promise.resolve({ resultats: [] })
+    );
+  }
+  return synchroniserMaintenant();
+}
+
+async function synchroniserMaintenant(): Promise<ReponseSyncBatch> {
   const actions = await listerActionsEnAttente();
   if (actions.length === 0) {
     return { resultats: [] };

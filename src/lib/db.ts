@@ -98,8 +98,8 @@ class BaseLocaleEVital extends Dexie {
   instantanesRequetes!: EntityTable<InstantaneRequete, "cle">;
   actionsEchouees!: EntityTable<ActionEchouee, "localId">;
 
-  constructor() {
-    super("evital-agent-cec");
+  constructor(nom: string) {
+    super(nom);
     this.version(1).stores({
       actionsEnAttente: "++localId, idClient, type, dossierId, horodatageClient",
       dossiersEnCache: "id, version, statut, eventType"
@@ -118,13 +118,83 @@ class BaseLocaleEVital extends Dexie {
   }
 }
 
-export const baseLocale = new BaseLocaleEVital();
+/** Ancienne base unique, partagee par tous les agents d'un meme poste (avant novembre 2026). */
+const NOM_BASE_PARTAGEE = "evital-agent-cec";
+const CLE_UTILISATEUR = "evital_utilisateur";
+
+function identifiantUtilisateur(): string {
+  try {
+    const utilisateur = JSON.parse(localStorage.getItem(CLE_UTILISATEUR) || "null") as { id?: string } | null;
+    return utilisateur?.id || "anonyme";
+  } catch {
+    return "anonyme";
+  }
+}
+
+let ouverte: { utilisateur: string; base: BaseLocaleEVital } | null = null;
+
+/**
+ * Une base par agent (`recvit-agent-<id>`) : sur un poste de mairie partage,
+ * un agent ne voit jamais les dossiers en cache d'un collegue, et ses actions
+ * hors ligne ne partent jamais sous l'identite de l'agent suivant.
+ */
+function baseLocale(): BaseLocaleEVital {
+  const utilisateur = identifiantUtilisateur();
+  if (ouverte?.utilisateur !== utilisateur) {
+    ouverte?.base.close();
+    ouverte = { utilisateur, base: new BaseLocaleEVital(`recvit-agent-${utilisateur}`) };
+    if (utilisateur !== "anonyme") void reprendreBasePartagee(ouverte.base);
+    // Demande au navigateur de ne pas evincer la file hors ligne quand le disque se remplit.
+    void navigator.storage?.persist?.().catch(() => undefined);
+  }
+  return ouverte.base;
+}
+
+/**
+ * Transition unique : les actions encore en file dans l'ancienne base
+ * partagee sont reprises par le premier agent qui se connecte apres la mise
+ * a jour (comportement d'avant, une derniere fois, pour ne rien perdre), puis
+ * l'ancienne base est supprimee avec les dossiers qu'elle gardait en cache.
+ */
+async function reprendreBasePartagee(cible: BaseLocaleEVital): Promise<void> {
+  try {
+    if (!(await Dexie.exists(NOM_BASE_PARTAGEE))) return;
+    const ancienne = new BaseLocaleEVital(NOM_BASE_PARTAGEE);
+    const [enAttente, echouees] = await Promise.all([ancienne.actionsEnAttente.toArray(), ancienne.actionsEchouees.toArray()]);
+    await cible.transaction("rw", cible.actionsEnAttente, cible.actionsEchouees, async () => {
+      await cible.actionsEnAttente.bulkAdd(enAttente.map(({ localId: _l, ...action }) => action));
+      await cible.actionsEchouees.bulkAdd(echouees.map(({ localId: _l, ...action }) => action));
+    });
+    ancienne.close();
+    await Dexie.delete(NOM_BASE_PARTAGEE);
+  } catch {
+    // Au pire, l'ancienne base reste en place et sera reprise a la prochaine ouverture.
+  }
+}
+
+/** Nombre d'actions de l'agent connecte pas encore parties au serveur. */
+export async function compterActionsEnAttente(): Promise<number> {
+  return baseLocale().actionsEnAttente.count();
+}
+
+/**
+ * A la deconnexion : efface les dossiers et reponses en cache de cet agent
+ * (donnees personnelles sur un poste partage). Sa file d'actions est gardee,
+ * dans SA base : elle partira a sa prochaine connexion sur ce poste.
+ */
+export async function purgerCacheSession(): Promise<void> {
+  const base = baseLocale();
+  await base.transaction("rw", base.dossiersEnCache, base.instantanesRequetes, async () => {
+    await base.dossiersEnCache.clear();
+    await base.instantanesRequetes.clear();
+  });
+}
 
 export async function mettreEnFileAction(
   action: Omit<ActionEnAttente, "idClient" | "horodatageClient"> & { idClient?: string }
 ): Promise<number> {
   const { localId: _localId, ...reste } = action as ActionEnAttente;
-  const id = await baseLocale.actionsEnAttente.add({
+  const id = await baseLocale().actionsEnAttente.add({
     ...reste,
     idClient: action.idClient || crypto.randomUUID(),
     horodatageClient: new Date().toISOString()
@@ -136,11 +206,11 @@ export async function mettreEnFileAction(
 }
 
 export async function listerActionsEnAttente(): Promise<ActionEnAttente[]> {
-  return baseLocale.actionsEnAttente.orderBy("horodatageClient").toArray();
+  return baseLocale().actionsEnAttente.orderBy("horodatageClient").toArray();
 }
 
 export async function viderActionsAppliquees(idsClients: string[]): Promise<void> {
-  await baseLocale.actionsEnAttente.where("idClient").anyOf(idsClients).delete();
+  await baseLocale().actionsEnAttente.where("idClient").anyOf(idsClients).delete();
 }
 
 /**
@@ -152,10 +222,10 @@ export async function archiverActionsEchouees(
   entrees: { action: ActionEnAttente; statut: "conflit" | "erreur"; code?: string; message?: string }[]
 ): Promise<void> {
   if (entrees.length === 0) return;
-  await baseLocale.transaction("rw", baseLocale.actionsEnAttente, baseLocale.actionsEchouees, async () => {
+  await baseLocale().transaction("rw", baseLocale().actionsEnAttente, baseLocale().actionsEchouees, async () => {
     for (const { action, statut, code, message } of entrees) {
       const { localId: _localId, ...reste } = action;
-      await baseLocale.actionsEchouees.add({
+      await baseLocale().actionsEchouees.add({
         ...reste,
         statut,
         code,
@@ -163,7 +233,7 @@ export async function archiverActionsEchouees(
         horodatageEchec: new Date().toISOString()
       });
     }
-    await baseLocale.actionsEnAttente
+    await baseLocale().actionsEnAttente
       .where("idClient")
       .anyOf(entrees.map((e) => e.action.idClient))
       .delete();
@@ -171,11 +241,11 @@ export async function archiverActionsEchouees(
 }
 
 export async function listerActionsEchouees(): Promise<ActionEchouee[]> {
-  return baseLocale.actionsEchouees.orderBy("horodatageEchec").reverse().toArray();
+  return baseLocale().actionsEchouees.orderBy("horodatageEchec").reverse().toArray();
 }
 
 export async function supprimerActionEchouee(localId: number): Promise<void> {
-  await baseLocale.actionsEchouees.delete(localId);
+  await baseLocale().actionsEchouees.delete(localId);
 }
 
 /**
@@ -185,19 +255,19 @@ export async function supprimerActionEchouee(localId: number): Promise<void> {
  * parte au serveur.
  */
 export async function supprimerActionEnAttente(localId: number): Promise<void> {
-  await baseLocale.actionsEnAttente.delete(localId);
+  await baseLocale().actionsEnAttente.delete(localId);
 }
 
 export async function mettreEnCacheDossier(dossier: Dossier): Promise<string> {
-  return baseLocale.dossiersEnCache.put({ ...dossier, horodatageCache: new Date().toISOString() });
+  return baseLocale().dossiersEnCache.put({ ...dossier, horodatageCache: new Date().toISOString() });
 }
 
 export async function dossierEnCache(id: string): Promise<DossierEnCache | undefined> {
-  return baseLocale.dossiersEnCache.get(id);
+  return baseLocale().dossiersEnCache.get(id);
 }
 
 export async function listerDossiersEnCache(): Promise<DossierEnCache[]> {
-  return baseLocale.dossiersEnCache.toArray();
+  return baseLocale().dossiersEnCache.toArray();
 }
 
 /**
@@ -206,15 +276,15 @@ export async function listerDossiersEnCache(): Promise<DossierEnCache[]> {
  * ou filtree cote client.
  */
 export async function mettreEnCacheInstantane<T>(cle: string, donnees: T): Promise<void> {
-  await baseLocale.instantanesRequetes.put({ cle, donnees, horodatage: new Date().toISOString() });
+  await baseLocale().instantanesRequetes.put({ cle, donnees, horodatage: new Date().toISOString() });
 }
 
 export async function supprimerInstantane(cle: string): Promise<void> {
-  await baseLocale.instantanesRequetes.delete(cle);
+  await baseLocale().instantanesRequetes.delete(cle);
 }
 
 export async function instantaneEnCache<T>(cle: string): Promise<{ donnees: T; horodatage: string } | undefined> {
-  const entree = await baseLocale.instantanesRequetes.get(cle);
+  const entree = await baseLocale().instantanesRequetes.get(cle);
   if (!entree) return undefined;
   return { donnees: entree.donnees as T, horodatage: entree.horodatage };
 }
@@ -228,7 +298,7 @@ export async function instantaneEnCache<T>(cle: string): Promise<{ donnees: T; h
  * a la prochaine coupure, alors qu'elle est bien en file.
  */
 export async function dossiersAvecActionsEnAttente(): Promise<Set<string>> {
-  const actions = await baseLocale.actionsEnAttente.toArray();
+  const actions = await baseLocale().actionsEnAttente.toArray();
   return new Set(actions.map((action) => action.dossierId).filter((id): id is string => !!id));
 }
 
@@ -243,20 +313,20 @@ export async function purgerCacheExpire(): Promise<void> {
   const proteges = await dossiersAvecActionsEnAttente();
   const clesProtegees = new Set([...proteges].flatMap((id) => [cleCacheFormulaire(id), cleCacheMiseEnPage(id)]));
 
-  const instantanes = await baseLocale.instantanesRequetes.toArray();
+  const instantanes = await baseLocale().instantanesRequetes.toArray();
   const clesExpirees = instantanes
     .filter((entree) => entree.horodatage < limite && !clesProtegees.has(entree.cle))
     .map((entree) => entree.cle);
   if (clesExpirees.length > 0) {
-    await baseLocale.instantanesRequetes.bulkDelete(clesExpirees);
+    await baseLocale().instantanesRequetes.bulkDelete(clesExpirees);
   }
 
-  const dossiers = await baseLocale.dossiersEnCache.toArray();
+  const dossiers = await baseLocale().dossiersEnCache.toArray();
   const idsExpires = dossiers
     .filter((dossier) => !dossier.horodatageCache || dossier.horodatageCache < limite)
     .filter((dossier) => !proteges.has(dossier.id))
     .map((dossier) => dossier.id);
   if (idsExpires.length > 0) {
-    await baseLocale.dossiersEnCache.bulkDelete(idsExpires);
+    await baseLocale().dossiersEnCache.bulkDelete(idsExpires);
   }
 }

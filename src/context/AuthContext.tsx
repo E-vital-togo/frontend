@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { appelApi, effacerJetons, jetonAcces, stockerJetons, surSessionExpiree } from "../lib/apiClient";
+import { appelApi, effacerJetons, fermerSessionServeur, jetonAcces, stockerJetons, surSessionExpiree } from "../lib/apiClient";
 import type { Utilisateur } from "../types/domaine";
 
 const CLE_UTILISATEUR = "evital_utilisateur";
@@ -75,7 +75,7 @@ export function FournisseurAuth({ children }: { children: ReactNode }) {
   }
 
   function deconnecter() {
-    effacerJetons();
+    void fermerSessionServeur();
     localStorage.removeItem(CLE_UTILISATEUR);
     setUtilisateur(null);
   }

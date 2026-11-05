@@ -263,6 +263,10 @@ function construireOptionCamembert(resultat: PivotResultat, type: "camembert" | 
   };
 }
 
+function echapperHtml(texte: string): string {
+  return texte.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
+}
+
 function construireOptionNuage(resultat: PivotResultat, libellesMesures: Record<string, string>): EChartsOption {
   const [dim] = resultat.dimensions;
   const [mesureX, mesureY] = resultat.mesures;
@@ -276,7 +280,8 @@ function construireOptionNuage(resultat: PivotResultat, libellesMesures: Record<
       trigger: "item",
       formatter: (parametres) => {
         const p = parametres as unknown as { data: [number, number]; name: string };
-        return `${p.name}<br/>${libellesMesures[mesureX] ?? mesureX} : ${p.data[0]}<br/>${libellesMesures[mesureY] ?? mesureY} : ${p.data[1]}`;
+        // Infobulle en HTML : le nom vient des donnees (territoire, valeur saisie), il est echappe.
+        return `${echapperHtml(p.name)}<br/>${echapperHtml(libellesMesures[mesureX] ?? mesureX)} : ${echapperHtml(String(p.data[0]))}<br/>${echapperHtml(libellesMesures[mesureY] ?? mesureY)} : ${echapperHtml(String(p.data[1]))}`;
       }
     },
     xAxis: { type: "value", name: libellesMesures[mesureX] ?? mesureX, ...STYLE_AXE_VALEURS, nameTextStyle: { color: COULEURS_GRAPHIQUE.discret }, axisLabel: { fontSize: 11, color: COULEURS_GRAPHIQUE.discret } },

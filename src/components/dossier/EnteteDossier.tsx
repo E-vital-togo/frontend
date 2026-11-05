@@ -6,6 +6,7 @@ import { Badge, EnteteDePage } from "../ui";
 import { formaterDate, resumeEcheance } from "./utilitaires";
 import type { Acte, Dossier } from "../../types/domaine";
 import "../../styles/dossier.css";
+import { referenceDossier } from "../../lib/referenceDossier";
 
 interface ProprietesEnteteDossier {
   dossier: Dossier;
@@ -20,7 +21,7 @@ interface ProprietesEnteteDossier {
 /** En-tête du dossier : fil d'Ariane, titre, badges d'état, fiche récapitulative et actions. */
 export default function EnteteDossier({ dossier, basePath, acte, horsLigne, actions }: ProprietesEnteteDossier) {
   const typeDossier = dossier.event_type === "naissance" ? "naissance" : "décès";
-  const reference = dossier.id.slice(0, 8);
+  const reference = referenceDossier(dossier);
   const titre = dossier.nom || `Dossier de ${typeDossier}`;
   const echeance = resumeEcheance(dossier);
 

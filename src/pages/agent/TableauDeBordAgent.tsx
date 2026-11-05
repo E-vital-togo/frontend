@@ -19,6 +19,7 @@ import { LIENS_AGENT } from "./navigation";
 import { listeDepuis, type Dossier, type ListeOuPaginee } from "../../types/domaine";
 
 import "../../styles/statistiques.css";
+import { referenceDossier } from "../../lib/referenceDossier";
 
 const CLE_CACHE_ECHEANCES = "tableau_bord_agent::dossiers_echeance_proche";
 
@@ -30,7 +31,7 @@ const COLONNES: ColonneListe<Dossier>[] = [
     rendu: (d) => (
       <span className="eva-st-evenement">
         <Badge variante="neutre">{d.event_type === "naissance" ? "Naissance" : "Décès"}</Badge>
-        {d.nom && <span className="eva-st-evenement__nom">{d.nom}</span>}
+        <span className="eva-st-evenement__nom">{d.nom || `Dossier n° ${referenceDossier(d)}`}</span>
       </span>
     )
   },
@@ -147,7 +148,7 @@ export default function TableauDeBordAgent() {
               icone={<Clock size={20} />}
               valeur={compteurs.echeances}
               libelle="Échéances proches"
-              alerte={compteurs.echeances > 0}
+              variante={compteurs.echeances > 0 ? "attention" : "defaut"}
               detail={compteurs.echeances > 0 ? "Dossiers à traiter en priorité" : "Aucune échéance à surveiller"}
               vers="/agent/dossiers"
             />

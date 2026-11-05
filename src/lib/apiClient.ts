@@ -44,6 +44,29 @@ export function jetonAcces(): string | null {
   return localStorage.getItem(CLE_ACCES);
 }
 
+/**
+ * Previent le serveur de la deconnexion (jeton de rafraichissement en liste
+ * noire, jeton d'acces refuse) puis efface les jetons locaux. Hors ligne ou
+ * serveur muet : les jetons locaux sont effaces quand meme.
+ */
+export async function fermerSessionServeur(): Promise<void> {
+  const acces = jetonAcces();
+  const refresh = localStorage.getItem(CLE_RAFRAICHISSEMENT);
+  try {
+    if (acces) {
+      await fetchAvecTimeout(`${BASE_URL}/auth/logout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${acces}` },
+        body: JSON.stringify({ refresh })
+      });
+    }
+  } catch {
+    // Reseau absent : rien a faire de plus cote client.
+  } finally {
+    effacerJetons();
+  }
+}
+
 export class ErreurApi extends Error {
   code?: string;
   statut: number;
@@ -153,7 +176,22 @@ type ResultatRafraichissement =
  *                      backend suffisait a deconnecter un agent en plein
  *                      travail.
  */
-async function rafraichirJeton(): Promise<ResultatRafraichissement> {
+let rafraichissementEnCours: Promise<ResultatRafraichissement> | null = null;
+
+/**
+ * Un seul rafraichissement a la fois, partage par tous les appels en 401 :
+ * le serveur fait tourner le jeton de rafraichissement et met l'ancien en
+ * liste noire, donc deux rafraichissements paralleles avec le meme jeton
+ * feraient echouer le second et fermeraient la session a tort.
+ */
+function rafraichirJeton(): Promise<ResultatRafraichissement> {
+  rafraichissementEnCours ??= rafraichirJetonUneFois().finally(() => {
+    rafraichissementEnCours = null;
+  });
+  return rafraichissementEnCours;
+}
+
+async function rafraichirJetonUneFois(): Promise<ResultatRafraichissement> {
   const refresh = localStorage.getItem(CLE_RAFRAICHISSEMENT);
   if (!refresh) return { etat: "session_morte" };
 
@@ -170,8 +208,10 @@ async function rafraichirJeton(): Promise<ResultatRafraichissement> {
 
   if (reponse.ok) {
     try {
-      const donnees = (await reponse.json()) as { access: string };
-      stockerJetons({ access: donnees.access });
+      // Rotation cote serveur : le nouveau jeton de rafraichissement remplace
+      // l'ancien, desormais en liste noire.
+      const donnees = (await reponse.json()) as { access: string; refresh?: string };
+      stockerJetons({ access: donnees.access, refresh: donnees.refresh });
       return { etat: "ok", jeton: donnees.access };
     } catch {
       return { etat: "indisponible" };
@@ -281,4 +321,46 @@ export async function appelApi<T = unknown>(chemin: string, options: OptionsAppe
     return (await reponse.json()) as T;
   }
   return (await reponse.blob()) as unknown as T;
+}
+
+interface DocumentEnPreparation {
+  statut: "en_preparation";
+  reessayer_apres?: number;
+  suivi?: string;
+}
+
+// Au-dela, l'ecran rend la main : le document reste en preparation cote
+// serveur et un nouvel essai le trouvera souvent pret.
+const ATTENTE_DOCUMENT_MAX_MS = 120_000;
+
+function estEnPreparation(valeur: unknown): valeur is DocumentEnPreparation {
+  return typeof valeur === "object" && valeur !== null && (valeur as { statut?: unknown }).statut === "en_preparation";
+}
+
+/**
+ * Telecharge un document que le serveur peut preparer en arriere-plan (PDF
+ * d'acte, export de dossiers) : tant qu'il repond 202 « en_preparation »,
+ * on redemande apres le delai indique, sur l'adresse de suivi s'il en donne
+ * une. `estAbandonne` permet a un ecran demonte d'arreter l'attente.
+ */
+export async function telechargerDocument(chemin: string, estAbandonne: () => boolean = () => false): Promise<Blob> {
+  const debut = Date.now();
+  let cible = chemin;
+  for (;;) {
+    const resultat = await appelApi<Blob | DocumentEnPreparation>(cible);
+    if (resultat instanceof Blob) return resultat;
+    if (!estEnPreparation(resultat)) {
+      throw new ErreurApi("Réponse inattendue du serveur.", "reponse_inattendue", 200);
+    }
+    if (resultat.suivi) cible = resultat.suivi;
+    if (Date.now() - debut > ATTENTE_DOCUMENT_MAX_MS) {
+      throw new ErreurApi(
+        "Le document est encore en préparation. Réessayez dans un moment.",
+        "preparation_longue",
+        202
+      );
+    }
+    await new Promise((resoudre) => window.setTimeout(resoudre, (resultat.reessayer_apres ?? 2) * 1000));
+    if (estAbandonne()) throw new ErreurApi("Téléchargement abandonné.", "abandon", 0);
+  }
 }

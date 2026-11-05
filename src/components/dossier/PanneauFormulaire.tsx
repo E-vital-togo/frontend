@@ -3,6 +3,7 @@ import { ClipboardX } from "lucide-react";
 import FormulaireDossier from "../FormulaireDossier";
 import { Alerte, Carte, EtatVide } from "../ui";
 import type { ChampFormulaireEffectif, MiseEnPage } from "../../types/domaine";
+import { useConnectivite } from "../../lib/connectivite";
 import "../../styles/dossier.css";
 
 interface ProprietesPanneauFormulaire {
@@ -31,6 +32,7 @@ export default function PanneauFormulaire({
   manquantsAvantValidation,
   modificationsEnAttente
 }: ProprietesPanneauFormulaire) {
+  const enLigne = useConnectivite();
   return (
     <div className="eva-dd-panneau">
       {manquantsAvantValidation.length > 0 && (
@@ -72,7 +74,11 @@ export default function PanneauFormulaire({
             variante="neutre"
             icone={<ClipboardX size={24} />}
             titre="Aucun champ à afficher"
-            description="Le formulaire de ce dossier n'est pas disponible. S'il a été ouvert hors ligne, reconnectez-vous pour le charger."
+            description={
+              enLigne
+                ? "Aucun champ n'est configuré pour ce type de dossier. L'Admin Général règle les champs des formulaires."
+                : "Le formulaire de ce dossier n'est pas conservé sur l'appareil. Il s'affichera au retour du réseau."
+            }
           />
         )}
       </Carte>

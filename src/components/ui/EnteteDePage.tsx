@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import FilAriane, { type ElementFilAriane } from "./FilAriane";
+import { texteTitre, useTitrePage } from "../../lib/useTitrePage";
 
 interface ProprietesEnteteDePage {
   titre: ReactNode;
@@ -10,10 +11,13 @@ interface ProprietesEnteteDePage {
   filAriane?: ElementFilAriane[];
   /** Badges affiches a cote du titre (ex: statut du dossier). */
   badges?: ReactNode;
+  /** Titre de l'onglet du navigateur, quand `titre` n'est pas un simple texte. */
+  titreOnglet?: string;
 }
 
 /** En-tete standard de chaque page : titre (h1), sous-titre, actions, fil d'Ariane optionnel. */
-export default function EnteteDePage({ titre, sousTitre, actions, filAriane, badges }: ProprietesEnteteDePage) {
+export default function EnteteDePage({ titre, sousTitre, actions, filAriane, badges, titreOnglet }: ProprietesEnteteDePage) {
+  useTitrePage(titreOnglet ?? texteTitre(titre));
   return (
     <>
       {filAriane && filAriane.length > 0 && <FilAriane elements={filAriane} />}

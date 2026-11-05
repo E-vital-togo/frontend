@@ -45,14 +45,9 @@ export default defineConfig({
   // Seules ces deux variables d'environnement (Vercel ou .env) sont exposees au
   // code du navigateur, sans prefixe VITE_ : voir src/lib/config.ts.
   envPrefix: ["API_BASE_URL", "FRONTEND_BASE_URL"],
+  // Serveur de developpement local uniquement (la prod est un build statique) :
+  // Vite garde sa protection par defaut contre tout Host: inconnu.
   server: {
-    port: 5173,
-    // Vite rejette par defaut tout Host: inconnu (anti DNS-rebinding) ; on
-    // liste ici les domaines ngrok fixes derriere lesquels nginx (voir
-    // reverse-proxy/) relaie les requetes du front.
-    allowedHosts: [
-      "jaunt-jolly-expulsion.ngrok-free.dev",
-      "flashy-circular-divisibly.ngrok-free.dev"
-    ]
+    port: 5173
   }
 });

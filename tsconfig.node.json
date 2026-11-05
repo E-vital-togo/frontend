@@ -1,6 +1,10 @@
 {
   "compilerOptions": {
     "composite": true,
+    // Sorties de `tsc -b` hors du depot : sinon un vite.config.js genere a cote
+    // du .ts serait charge EN PRIORITE par Vite (config perimee).
+    "outDir": "./node_modules/.tmp/tsconfig.node",
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
     "target": "ES2022",
     "lib": ["ES2022"],
     "module": "ESNext",

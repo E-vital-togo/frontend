@@ -153,7 +153,7 @@ html, body, #root {
 body {
   margin: 0;
   font-family: var(--police-titrage);
-  font-size: 14px;
+  font-size: 0.9375rem; /* 15 px, meme corps de texte que les pages Django */
   line-height: 1.5;
   background: var(--couleur-papier);
   color: var(--couleur-encre);
@@ -173,6 +173,12 @@ h1, h2, h3, h4 {
 p {
   margin: 0;
   line-height: 1.5;
+}
+
+/* Dates, e-mails, tailles : police du texte, chiffres de largeur fixe (le
+   monospace est reserve aux codes : n° de dossier, codes de retrait). */
+.texte-chiffres {
+  font-variant-numeric: tabular-nums;
 }
 
 .texte-mono {
@@ -752,7 +758,7 @@ input, select, textarea {
   color: var(--couleur-emeraude);
 }
 .chiffre-cle, .eva-carte-stat__valeur {
-  font-family: var(--police-donnees);
+  font-family: var(--police-titrage); font-variant-numeric: tabular-nums;
   font-size: 30px;
   line-height: 1.15;
   font-weight: 600;
@@ -842,7 +848,7 @@ table.eva-tableau td.eva-tableau__cellule-large,
 table.eva-tableau td.eva-tableau__large { white-space: normal; min-width: 200px; }
 table.eva-tableau .eva-tableau__souple { white-space: normal; min-width: 120px; }
 table.eva-tableau .eva-tableau__tronque { max-width: 340px; overflow: hidden; text-overflow: ellipsis; }
-table.eva-tableau .eva-tableau__num { font-family: var(--police-donnees); font-variant-numeric: tabular-nums; text-align: right; }
+table.eva-tableau .eva-tableau__num { font-family: var(--police-titrage); font-variant-numeric: tabular-nums; text-align: right; }
 table.eva-tableau .eva-tableau__centre { text-align: center; }
 table.eva-tableau .eva-tableau__principal { font-weight: 600; color: var(--couleur-encre); }
 table.eva-tableau .eva-tableau__secondaire { color: var(--couleur-texte-discret); font-size: 12.5px; }
@@ -1229,7 +1235,7 @@ table.eva-tableau .eva-tableau__actions .eva-groupe-boutons { justify-content: f
 .eva-frise__item--attention .eva-frise__point { background: var(--couleur-citron-profond); }
 .eva-frise__item--erreur .eva-frise__point { background: var(--couleur-erreur); }
 .eva-frise__item--neutre .eva-frise__point { background: var(--couleur-gris-service-2-marque); }
-.eva-frise__date { font-size: 11.5px; font-family: var(--police-donnees); color: var(--couleur-texte-discret); }
+.eva-frise__date { font-size: 11.5px; font-family: var(--police-titrage); font-variant-numeric: tabular-nums; color: var(--couleur-texte-discret); }
 .eva-frise__titre { margin-top: 2px; font-size: 13.5px; font-weight: 600; color: var(--couleur-encre); }
 .eva-frise__contenu { font-size: 13.5px; margin-top: 2px; }
 

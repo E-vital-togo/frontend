@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useParams } from "react-router-dom";
 import { FournisseurAuth } from "./context/AuthContext";
 import { FournisseurToast } from "./components/ui/ToastProvider";
 import { FournisseurConfirmation } from "./components/ui/ConfirmationProvider";
@@ -51,6 +51,21 @@ const TableauDeBordAdminCec = lazy(() => import("./pages/admin_cec/TableauDeBord
 const TableauDeBordStats = lazy(() => import("./pages/admin_cec/statistiques/TableauDeBordStats"));
 const ConstructeurGraphique = lazy(() => import("./pages/admin_cec/statistiques/ConstructeurGraphique"));
 
+/**
+ * Page remontee a neuf a chaque changement de dossier (`key`) : sans cela,
+ * React reutilise le meme composant d'un dossier a l'autre, et les saisies en
+ * cours du premier pouvaient etre enregistrees sur le second.
+ */
+function DetailDossierParIdentifiant() {
+  const { idDossier } = useParams<{ idDossier: string }>();
+  return <DetailDossier key={idDossier} />;
+}
+
+function EmissionActeParIdentifiant() {
+  const { idDossier } = useParams<{ idDossier: string }>();
+  return <EmissionActe key={idDossier} />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -98,7 +113,7 @@ export default function App() {
             path="/agent/dossiers/:idDossier"
             element={
               <RouteProtegee rolesAutorises={["agent_cec"]}>
-                <DetailDossier />
+                <DetailDossierParIdentifiant />
               </RouteProtegee>
             }
           />
@@ -106,7 +121,7 @@ export default function App() {
             path="/agent/dossiers/:idDossier/emission-acte"
             element={
               <RouteProtegee rolesAutorises={["agent_cec"]}>
-                <EmissionActe />
+                <EmissionActeParIdentifiant />
               </RouteProtegee>
             }
           />
@@ -204,7 +219,7 @@ export default function App() {
             path="/admin-cec/dossiers/:idDossier"
             element={
               <RouteProtegee rolesAutorises={["admin_cec"]}>
-                <DetailDossier />
+                <DetailDossierParIdentifiant />
               </RouteProtegee>
             }
           />

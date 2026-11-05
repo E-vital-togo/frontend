@@ -24,7 +24,6 @@ import {
   Champ,
   EnteteDePage,
   EtatVide,
-  GraphiqueECharts,
   ItemMenu,
   LienBouton,
   MenuDeroulant,
@@ -33,9 +32,9 @@ import {
   Selecteur,
   Spinner,
   Squelette,
-  useMediaQuery,
-  type PoigneeGraphique
+  useMediaQuery
 } from "../../../components/ui";
+import GraphiqueECharts, { type PoigneeGraphique } from "../../../components/ui/GraphiqueECharts";
 import GraphiqueCarte from "../../../components/GraphiqueCarte";
 import { typeGraphique as descriptionType } from "../../../components/statistiques/typesGraphique";
 import { telechargerBlob } from "../../../lib/telechargerBlob";
