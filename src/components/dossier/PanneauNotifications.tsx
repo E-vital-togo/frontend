@@ -11,7 +11,8 @@ import "../../styles/completion-desactivee.css";
 const LIBELLES_TYPE: Record<string, string> = {
   initiale: "Notification initiale",
   relance: "Relance",
-  confirmation: "Confirmation"
+  confirmation: "Confirmation",
+  acte_disponible: "Acte disponible"
 };
 
 const STATUTS: Record<string, { libelle: string; variante: "succes" | "danger" | "attente" | "neutre"; detail?: string }> = {

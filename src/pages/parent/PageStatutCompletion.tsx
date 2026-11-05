@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { AlertTriangle, BadgeCheck, Check, CircleHelp, ClipboardCheck, FileText, Hourglass, Inbox, Landmark, RefreshCw, WifiOff } from "lucide-react";
+import BlocQrGuichet from "../../components/parent/BlocQrGuichet";
 import EcranCompletionIndisponible from "../../components/auth/EcranCompletionIndisponible";
 import EcranResultat from "../../components/auth/EcranResultat";
 import { decrireErreur, estErreurReseau, type MessageErreur } from "../../components/auth/messagesAuth";
@@ -15,6 +16,14 @@ import { useTitrePage } from "../../lib/useTitrePage";
 interface ReponseStatutCompletion {
   statut: StatutDossier;
   mairie: string;
+  /** Numéro de télédéclaration (« 2026-000123 »). */
+  reference?: string;
+  /** QR signé lu au guichet (onglet « Scanner un QR ») ; vide si la clé de signature manquait à la création. */
+  qr_payload?: string;
+  /** Vrai : le QR ne s'affiche qu'après un code SMS (réglage de l'Admin Général). */
+  qr_otp_requis?: boolean;
+  /** Numéro du dossier, partiellement masqué, quand le code SMS est exigé. */
+  telephone_masque?: string;
 }
 
 const ETAPES: Array<{ statuts: StatutDossier[]; libelle: string }> = [
@@ -242,9 +251,13 @@ export default function PageStatutCompletion() {
         </Bouton>
       </div>
       {code && (
-        <p className="eva-acces-rappel-code">
-          Code de retrait : <strong className="texte-mono">{code}</strong>
-        </p>
+        <BlocQrGuichet
+          code={code}
+          reference={statut.reference}
+          qrPayload={statut.statut !== "sans_suite" ? statut.qr_payload : ""}
+          otpRequis={statut.statut !== "sans_suite" && statut.qr_otp_requis}
+          telephoneMasque={statut.telephone_masque}
+        />
       )}
     </PageAuth>
   );

@@ -271,7 +271,7 @@ export interface DemandeModificationActe {
 export interface NotificationDossier {
   id: string;
   dossier: string;
-  type: "initiale" | "relance" | "confirmation";
+  type: "initiale" | "relance" | "confirmation" | "acte_disponible";
   canal: "sms" | "whatsapp";
   fournisseur_utilise: string;
   /** `desactivee` : SMS volontairement non envoye (completion parent coupee par l'administration), jamais un echec. */

@@ -30,7 +30,8 @@ type FiltreEvenement = "" | "naissance" | "deces";
 const LIBELLES_TYPE: Record<string, string> = {
   initiale: "Notification initiale",
   relance: "Relance",
-  confirmation: "Confirmation"
+  confirmation: "Confirmation",
+  acte_disponible: "Acte disponible"
 };
 
 const LIBELLES_CANAL: Record<string, string> = { sms: "SMS", whatsapp: "WhatsApp" };
@@ -40,6 +41,8 @@ export default function NotificationsEchouees() {
   const confirmer = useConfirmation();
   const navigate = useNavigate();
   const { active: completionActive } = useEtatCompletion();
+  // Le SMS « acte disponible » a son propre reglage : il reste reessayable quand la completion parent est coupee.
+  const reessayable = (n: NotificationEchouee) => completionActive || n.type === "acte_disponible";
   const [parametresUrl, setParametresUrl] = useSearchParams();
   const evenementFiltre = (parametresUrl.get("event_type") || "") as FiltreEvenement;
   const [notifications, setNotifications] = useState<NotificationEchouee[]>([]);
@@ -77,7 +80,8 @@ export default function NotificationsEchouees() {
       tous: notifications.length,
       initiale: notifications.filter((n) => n.type === "initiale").length,
       relance: notifications.filter((n) => n.type === "relance").length,
-      confirmation: notifications.filter((n) => n.type === "confirmation").length
+      confirmation: notifications.filter((n) => n.type === "confirmation").length,
+      acte_disponible: notifications.filter((n) => n.type === "acte_disponible").length
     }),
     [notifications]
   );
@@ -86,7 +90,8 @@ export default function NotificationsEchouees() {
     { valeur: "", libelle: "Toutes", compteur: decompte.tous },
     { valeur: "initiale", libelle: "Initiales", compteur: decompte.initiale },
     { valeur: "relance", libelle: "Relances", compteur: decompte.relance },
-    { valeur: "confirmation", libelle: "Confirmations", compteur: decompte.confirmation }
+    { valeur: "confirmation", libelle: "Confirmations", compteur: decompte.confirmation },
+    { valeur: "acte_disponible", libelle: "Actes disponibles", compteur: decompte.acte_disponible }
   ];
 
   const pilulesEvenement: PiluleFiltre<FiltreEvenement>[] = [
@@ -184,8 +189,8 @@ export default function NotificationsEchouees() {
             taille="petit"
             onClick={() => reessayerUne(n)}
             chargement={enCoursId === n.id}
-            disabled={enCoursId !== null || reessaiGroupeEnCours || !completionActive}
-            title={!completionActive ? "Nouvel essai indisponible : notifications désactivées par l'administration" : undefined}
+            disabled={enCoursId !== null || reessaiGroupeEnCours || !reessayable(n)}
+            title={!reessayable(n) ? "Nouvel essai indisponible : notifications désactivées par l'administration" : undefined}
             iconeGauche={<RefreshCw size={14} />}
           >
             Réessayer
@@ -210,8 +215,8 @@ export default function NotificationsEchouees() {
             <Bouton
               onClick={reessayerToutes}
               chargement={reessaiGroupeEnCours}
-              disabled={enCoursId !== null || !completionActive}
-              title={!completionActive ? "Nouvel essai indisponible : notifications désactivées par l'administration" : undefined}
+              disabled={enCoursId !== null || !notifications.some(reessayable)}
+              title={!notifications.some(reessayable) ? "Nouvel essai indisponible : notifications désactivées par l'administration" : undefined}
               iconeGauche={<RefreshCw size={16} />}
             >
               Tout réessayer ({notifications.length})
