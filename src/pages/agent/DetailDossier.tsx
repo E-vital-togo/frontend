@@ -20,7 +20,7 @@ import PropositionDhis2 from "../../components/dossier/PropositionDhis2";
 import SqueletteDossier from "../../components/dossier/SqueletteDossier";
 import { champEstVide } from "../../components/dossier/utilitaires";
 import { useProtectionDepart } from "../../components/dossier/useProtectionDepart";
-import { Badge, BarreEnregistrement, Bouton, EtatVide, LienBouton, Modale, Onglets } from "../../components/ui";
+import { Badge, BarreEnregistrement, Bouton, EtatVide, LienBouton, Modale, Onglets, useMediaQuery } from "../../components/ui";
 import { useConfirmation } from "../../components/ui/ConfirmationProvider";
 import { useToast } from "../../components/ui/ToastProvider";
 import { useAuth } from "../../context/AuthContext";
@@ -77,6 +77,8 @@ export default function DetailDossier() {
   const basePath = estAgent ? "/agent" : "/admin-cec";
 
   const enLigne = useConnectivite();
+  // Téléphone : barre d'enregistrement compacte (libellés courts) pour laisser voir le formulaire.
+  const mobile = useMediaQuery("(max-width: 720px)");
   const [dossier, setDossier] = useState<Dossier | null>(null);
   const [champs, setChamps] = useState<ChampFormulaireEffectif[]>([]);
   // Étapes du formulaire ; null = liste plate (configuration linéaire, ancien serveur, ancien cache).
@@ -640,11 +642,15 @@ export default function DetailDossier() {
           erreur={erreurEnregistrement}
           onEnregistrer={enregistrer}
           onAnnuler={annulerModifications}
-          libelleAnnuler="Annuler les modifications"
+          libelleAnnuler={mobile ? "Annuler" : "Annuler les modifications"}
           libelleEnregistrer={enLigne ? "Enregistrer" : "Enregistrer hors ligne"}
-          messageModifie={`${pluriel(nbModifications, "modification non enregistrée", "modifications non enregistrées")}${
-            enLigne ? "" : " (hors ligne : elles seront mises en file d'attente)"
-          }`}
+          messageModifie={
+            mobile
+              ? `${pluriel(nbModifications, "modif.", "modif.")} non enregistrée${nbModifications > 1 ? "s" : ""}${enLigne ? "" : " (hors ligne)"}`
+              : `${pluriel(nbModifications, "modification non enregistrée", "modifications non enregistrées")}${
+                  enLigne ? "" : " (hors ligne : elles seront mises en file d'attente)"
+                }`
+          }
           avertirAvantDepart
         />
       </div>

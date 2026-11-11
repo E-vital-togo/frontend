@@ -208,6 +208,37 @@
   .eva-dd-pied-actions { width: 100%; }
   .eva-dd-pied-actions > .eva-bouton { flex: 1 1 auto; }
   .eva-dd-choix__saisie { padding-left: 0; }
+
+  /* Alerte des champs manquants : titre court, liste repliée et bornée */
+  .eva-dd-bascule-manquants {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 2px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .eva-dd-bascule-manquants svg { transition: transform var(--transition-normale); }
+  .eva-dd-bascule-manquants svg.est-ouvert { transform: rotate(180deg); }
+  .eva-dd-liste-manquants { max-height: 30vh; overflow-y: auto; }
+
+  /* Barre d'enregistrement : une seule ligne fine au lieu de deux */
+  .eva-dd > .eva-barre-enregistrement {
+    flex-wrap: nowrap;
+    gap: var(--espace-2);
+    padding: 6px 8px 6px 12px;
+    border-radius: var(--rayon-standard);
+  }
+  .eva-dd > .eva-barre-enregistrement .eva-barre-enregistrement__etat { flex: 1 1 auto; gap: 6px; font-size: 12.5px; line-height: 1.3; }
+  .eva-dd > .eva-barre-enregistrement .eva-barre-enregistrement__etat::before { width: 7px; height: 7px; }
+  .eva-dd > .eva-barre-enregistrement .eva-barre-enregistrement__actions { width: auto; flex: none; flex-wrap: nowrap; gap: 6px; }
+  .eva-dd > .eva-barre-enregistrement .eva-bouton { flex: none; min-height: 36px; padding: 0 10px; font-size: 13px; gap: 4px; }
 }
 
 /* ---- Liaison naissance / décès (components/dossier/PanneauLiaison.tsx). Préfixe : eva-dd-liaison ---- */
