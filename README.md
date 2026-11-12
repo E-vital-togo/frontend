@@ -17,6 +17,8 @@ npm run dev
 `npm run type-check` verifie les types sans generer de build (utile en CI).
 `npm run build` fait `tsc -b` puis `vite build` : la compilation echoue si un type ne passe pas.
 
+Test reel (Chrome, vrai backend) : `tests/reel/cec.mjs`, lance par `backend/outils/tests_reels/lancer.sh 239` et `lancer.sh 241` (DHIS2 de production et local).
+
 ## Structure
 
 - `src/types/domaine.ts` - tous les types metier, alignes sur les serializers DRF du backend (Dossier, Utilisateur, Acte, DemandeModificationActe, ConflitSync, NouvelleVersionDossier, statistiques...)
