@@ -24,6 +24,8 @@
 .eva-dd-entete .eva-entete-page__titre { gap: var(--espace-2) var(--espace-3); }
 .eva-dd-entete .eva-entete-page__titre .eva-badge { font-size: 12.5px; }
 .eva-dd-entete .eva-fil-ariane { margin-bottom: var(--espace-2); }
+/* Certificat de vie : simple mention dans le sous-titre, volontairement discrète. */
+.eva-dd-mention-vie { font-style: italic; text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
 
 /* Fiche récapitulative */
 .eva-dd-fiche {

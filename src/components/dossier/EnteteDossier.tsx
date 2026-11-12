@@ -57,7 +57,19 @@ export default function EnteteDossier({ dossier, basePath, acte, horsLigne, acti
         }
         sousTitre={
           <>
-            Dossier de {typeDossier} <span aria-hidden="true">·</span> Référence{" "}
+            Dossier de {typeDossier} <span aria-hidden="true">·</span>{" "}
+            {dossier.certificat_de_vie && (
+              <>
+                <span
+                  className="eva-dd-mention-vie"
+                  title="Certificat de vie : naissance certifiée après coup par un médecin ou une sage-femme qui n'a pas fait l'accouchement."
+                >
+                  certificat de vie
+                </span>{" "}
+                <span aria-hidden="true">·</span>{" "}
+              </>
+            )}
+            Référence{" "}
             <span className="texte-mono" title={dossier.id}>
               {reference}
             </span>

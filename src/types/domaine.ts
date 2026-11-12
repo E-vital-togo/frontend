@@ -130,6 +130,8 @@ export interface Dossier {
   etat_retrait?: EtatRetrait;
   retire_le?: string | null;
   retrait?: ResumeRetrait;
+  /** Naissance issue d'un certificat de vie (détail du dossier seulement ; absent = certificat de naissance). */
+  certificat_de_vie?: boolean;
 }
 
 // Miroir d'apps.catalogue.contraintes.TypeChamp (backend) : determine le
