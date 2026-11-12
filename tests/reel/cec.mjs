@@ -64,15 +64,15 @@ const discret = await page.evaluate(() => {
   return { italique: s.fontStyle, taille: s.fontSize, infobulle: m.getAttribute("title") ?? "" };
 });
 verifier(discret && discret.italique === "italic" && discret.infobulle.startsWith("Certificat de vie"), "mention discrète (italique, infobulle)", discret);
-await page.screenshot({ path: `${SORTIE}/20-cec-dossier-certificat-de-vie.png` });
+await page.screenshot({ path: `${SORTIE}/30-cec-dossier-certificat-de-vie.png` });
 
 const enteteNaiss = await ouvrir(naissance);
 verifier(enteteNaiss.includes("Dossier de naissance") && !enteteNaiss.includes("certificat de vie"), "dossier ordinaire : aucune mention", enteteNaiss.slice(0, 300));
-await page.screenshot({ path: `${SORTIE}/21-cec-dossier-ordinaire.png` });
+await page.screenshot({ path: `${SORTIE}/31-cec-dossier-ordinaire.png` });
 
 await page.goto(`${FRONTEND}/agent/dossiers`, { waitUntil: "networkidle2", timeout: 120000 });
 await page.waitForFunction((n) => document.body.innerText.includes(n), { timeout: 60000 }, `CEC Vie${marque}`).then(() => verifier(true, "liste des dossiers de l'agent"), () => verifier(false, "liste des dossiers de l'agent"));
-await page.screenshot({ path: `${SORTIE}/22-cec-liste-dossiers.png` });
+await page.screenshot({ path: `${SORTIE}/32-cec-liste-dossiers.png` });
 verifier(erreursJs.length === 0, "aucune erreur JavaScript dans le frontend", erreursJs);
 await navigateur.close();
 console.log(`\n${echecs ? echecs + " échec(s)" : "Tout est OK"} dans le frontend CEC ; captures : ${SORTIE}`);
