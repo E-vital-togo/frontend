@@ -6,3 +6,6 @@ dev-dist/
 *.tsbuildinfo
 vite.config.js
 vite.config.d.ts
+
+# Tests reels (navigateur contre un vrai backend) : locaux uniquement, jamais dans le depot.
+tests/reel/
