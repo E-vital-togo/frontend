@@ -300,3 +300,21 @@
   .eva-ac-echec { max-width: none; }
   .eva-ac-echec > svg { display: none; }
 }
+
+/* ------------------------------------------------------------------------
+   Controle des registres (loi n° 2009-010, art. 38)
+   ------------------------------------------------------------------------ */
+.eva-ac-constat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.eva-ac-constat__detail {
+  font-size: 13px;
+  color: var(--couleur-texte-discret);
+}
+.eva-ac-controle-titre {
+  margin: 0 0 var(--espace-2);
+  font-size: 16px;
+}

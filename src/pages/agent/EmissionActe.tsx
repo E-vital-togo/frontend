@@ -5,7 +5,13 @@ import MiseEnPage from "../../components/MiseEnPage";
 import { Alerte, Bouton, Carte, Champ, EnteteDePage, LienBouton, Selecteur, Squelette, useConfirmation } from "../../components/ui";
 import { appelApi, ErreurApi } from "../../lib/apiClient";
 import { LIENS_AGENT } from "./navigation";
-import { listeDepuis, type ListeOuPaginee, type NumerosActeProposes, type SignataireMairie } from "../../types/domaine";
+import {
+  listeDepuis,
+  type ListeOuPaginee,
+  type NumerosActeProposes,
+  type PropositionEmissionActe,
+  type SignataireMairie
+} from "../../types/domaine";
 import "../../styles/agent.css";
 
 type ChampNumerique = keyof NumerosActeProposes;
@@ -20,6 +26,7 @@ export default function EmissionActe() {
   const navigate = useNavigate();
   const confirmer = useConfirmation();
   const [numeros, setNumeros] = useState<NumerosActeProposes | null>(null);
+  const [bornesDate, setBornesDate] = useState<{ min: string | null; max: string } | null>(null);
   const [signataires, setSignataires] = useState<SignataireMairie[]>([]);
   const [signatairesCharges, setSignatairesCharges] = useState(false);
   const [signataireId, setSignataireId] = useState("");
@@ -34,8 +41,11 @@ export default function EmissionActe() {
     if (!idDossier) return;
     setErreurChargement(null);
     const parametres = nouveauRegistre ? "?nouveau_registre=1" : "";
-    appelApi<NumerosActeProposes>(`/dossiers/${idDossier}/acte/numeros-proposes${parametres}`)
-      .then(setNumeros)
+    appelApi<PropositionEmissionActe>(`/dossiers/${idDossier}/acte/numeros-proposes${parametres}`)
+      .then(({ date_etablissement_min, date_etablissement_max, ...proposes }) => {
+        setNumeros(proposes);
+        setBornesDate({ min: date_etablissement_min, max: date_etablissement_max });
+      })
       .catch((e: unknown) => setErreurChargement(e instanceof Error ? e.message : "Erreur inattendue."));
   }, [idDossier, relance, nouveauRegistre]);
 
@@ -194,8 +204,21 @@ export default function EmissionActe() {
                   ))}
                 </Selecteur>
               </Champ>
-              <Champ id="date-etablissement" label="Date d'établissement" requis>
-                <input id="date-etablissement" type="date" required value={dateEtablissement} onChange={(e) => setDateEtablissement(e.target.value)} />
+              <Champ
+                id="date-etablissement"
+                label="Date d'établissement"
+                requis
+                aide={bornesDate?.min ? `Entre le ${formaterDate(bornesDate.min)} (déclaration ou événement) et aujourd'hui.` : "Au plus tard aujourd'hui."}
+              >
+                <input
+                  id="date-etablissement"
+                  type="date"
+                  required
+                  min={bornesDate?.min ?? undefined}
+                  max={bornesDate?.max}
+                  value={dateEtablissement}
+                  onChange={(e) => setDateEtablissement(e.target.value)}
+                />
               </Champ>
             </div>
           </Carte>

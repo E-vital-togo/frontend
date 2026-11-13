@@ -13,6 +13,7 @@ import {
   valeurEffective,
   type EtapeRendue
 } from "../lib/formulaire";
+import { champsAffiches } from "../lib/conditions";
 import type { ChampFormulaireEffectif, MiseEnPage } from "../types/domaine";
 
 interface ProprietesFormulaireDossier {
@@ -93,12 +94,14 @@ export default function FormulaireDossier({
   actionFinale,
   sautLibre = false
 }: ProprietesFormulaireDossier) {
-  const plan = useMemo(() => planFormulaire(champs, miseEnPage), [champs, miseEnPage]);
+  const valeurDe = useCallback((champ: ChampFormulaireEffectif) => valeurEffective(champ, valeurs), [valeurs]);
+  // Champs masqués par leur condition d'affichage : absents du plan, donc ni
+  // affichés, ni validés, ni dans le récapitulatif (voir lib/conditions.ts).
+  const affiches = useMemo(() => champsAffiches(champs, valeurDe), [champs, valeurDe]);
+  const plan = useMemo(() => planFormulaire(affiches, miseEnPage), [affiches, miseEnPage]);
   const identifiant = useId().replace(/:/g, "");
   const racineRef = useRef<HTMLDivElement>(null);
   const titreRef = useRef<HTMLHeadingElement>(null);
-
-  const valeurDe = useCallback((champ: ChampFormulaireEffectif) => valeurEffective(champ, valeurs), [valeurs]);
 
   const nbEtapes = plan.etapes.length;
   const enEtapes = plan.mode === "etapes";

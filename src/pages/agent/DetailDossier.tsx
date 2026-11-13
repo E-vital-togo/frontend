@@ -35,7 +35,8 @@ import {
 } from "../../lib/db";
 import { useConnectivite } from "../../lib/connectivite";
 import { signalerCompletionDesactivee } from "../../lib/etatCompletion";
-import { planFormulaire } from "../../lib/formulaire";
+import { planFormulaire, valeurEffective } from "../../lib/formulaire";
+import { champsAffiches, valeursAEnvoyer } from "../../lib/conditions";
 import { mettreEnCacheMiseEnPage, miseEnPageEnCache } from "../../lib/formulairesHorsLigne";
 import { LIENS_AGENT } from "./navigation";
 import { LIENS_ADMIN_CEC } from "../admin_cec/navigation";
@@ -263,7 +264,8 @@ export default function DetailDossier() {
     if (!idDossier || !dossier) return;
     setEnregistrement(true);
     setErreurEnregistrement(null);
-    const entrees = Object.entries(valeursModifiees);
+    // Valeur d'un champ masqué par sa condition d'affichage : jamais envoyée (voir lib/conditions.ts).
+    const entrees = Object.entries(valeursAEnvoyer(champs, valeursModifiees, (c) => valeurEffective(c, valeursModifiees)));
 
     try {
       if (enLigne) {
@@ -461,7 +463,11 @@ export default function DetailDossier() {
 
   const peutValider =
     dossier.statut === "recu" || dossier.statut === "notifie" || dossier.statut === "en_attente_complement";
-  const champsObligatoiresManquants = champs.filter((c) => c.obligatoire && champEstVide(c.valeur_actuelle));
+  // Valeurs ENREGISTREES (comme le serveur au moment de « Marquer comme complet ») ; un champ masqué par
+  // sa condition d'affichage n'est pas exigé.
+  const champsObligatoiresManquants = champsAffiches(champs, (c) => c.valeur_actuelle).filter(
+    (c) => c.obligatoire && champEstVide(c.valeur_actuelle)
+  );
   const enEtapes = planFormulaire(champs, miseEnPage).mode === "etapes";
   const peutEmettreActe = estAgent && dossier.statut === "complete";
   const peutRelancer = dossier.statut !== "acte_emis" && dossier.statut !== "sans_suite";

@@ -1,4 +1,4 @@
-import { AlertTriangle, BarChart3, BellOff, FileEdit, FolderOpen, Image, LayoutDashboard, Megaphone, ScrollText, UserCheck, Users } from "lucide-react";
+import { AlertTriangle, BarChart3, BellOff, ClipboardCheck, FileEdit, FolderOpen, Image, LayoutDashboard, Megaphone, ScrollText, UserCheck, Users } from "lucide-react";
 import type { LienNavigation } from "../../types/domaine";
 
 export const LIENS_ADMIN_CEC: LienNavigation[] = [
@@ -36,6 +36,7 @@ export const LIENS_ADMIN_CEC: LienNavigation[] = [
   },
   { chemin: "/admin-cec/campagnes-relance", libelle: "Campagnes de relance", icone: Megaphone },
   { chemin: "/admin-cec/conflits", libelle: "Conflits de synchronisation", icone: AlertTriangle, cleCompteur: "conflits" },
+  { chemin: "/admin-cec/controle-registres", libelle: "Contrôle des registres", icone: ClipboardCheck },
   { chemin: "/admin-cec/journal", libelle: "Journal de la zone", icone: ScrollText },
   { chemin: "/admin-cec/personnalisation", libelle: "Personnalisation", icone: Image },
   { chemin: "/admin-cec/signataires", libelle: "Signataires", icone: UserCheck }

@@ -28,6 +28,7 @@ import DossiersAdminCec from "./pages/admin_cec/DossiersAdminCec";
 import NotificationsEchouees from "./pages/admin_cec/NotificationsEchouees";
 import CampagnesRelance from "./pages/admin_cec/CampagnesRelance";
 import JournalZone from "./pages/admin_cec/JournalZone";
+import ControleRegistres from "./pages/admin_cec/ControleRegistres";
 import PersonnalisationMairie from "./pages/admin_cec/PersonnalisationMairie";
 import MairieSignataire from "./pages/admin_cec/MairieSignataire";
 
@@ -260,6 +261,14 @@ export default function App() {
             element={
               <RouteProtegee rolesAutorises={["admin_cec"]}>
                 <CampagnesRelance />
+              </RouteProtegee>
+            }
+          />
+          <Route
+            path="/admin-cec/controle-registres"
+            element={
+              <RouteProtegee rolesAutorises={["admin_cec"]}>
+                <ControleRegistres />
               </RouteProtegee>
             }
           />

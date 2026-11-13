@@ -160,6 +160,8 @@ export interface ContraintesChamp {
   autorise_passe?: boolean;
   min_selections?: number;
   max_selections?: number;
+  /** Casse imposée à la saisie (voir lib/casse.ts). */
+  casse?: "majuscules" | "initiales";
 }
 
 export interface OptionChampEffective {
@@ -189,6 +191,8 @@ export interface ChampFormulaireEffectif {
   largeur?: LargeurChamp;
   placeholder?: string;
   aide?: string;
+  /** Absente ou null : toujours affiché (voir lib/conditions.ts). */
+  condition_affichage?: import("../lib/conditions").Condition | null;
 }
 
 export interface EtapeMiseEnPage {
@@ -229,6 +233,14 @@ export interface NumerosActeProposes {
   numero_feuillet: number;
   numero_acte: number;
   annee_registre: number;
+}
+
+/** Réponse de /acte/numeros-proposes : les numéros, plus les bornes de la date d'établissement. */
+export interface PropositionEmissionActe extends NumerosActeProposes {
+  /** Au plus tôt : la déclaration ou l'événement (le plus tardif des deux). */
+  date_etablissement_min: string | null;
+  /** Au plus tard : aujourd'hui. */
+  date_etablissement_max: string;
 }
 
 export interface Acte {
@@ -793,4 +805,73 @@ export interface IdentiteNationaleDossier {
     erreur: string;
   }[];
   verifications?: { role: string; niu: string; resultat: boolean; erreur: string; date: string }[];
+}
+
+/* --- Contrôle des registres (Admin CEC, loi n° 2009-010, art. 38) ------- */
+
+export type DecoupageControle = "trimestre" | "semestre" | "annee";
+export type GraviteControle = "anomalie" | "a_verifier";
+export type RegleControle = "hors_delai" | "avant_evenement" | "avant_declaration" | "date_evenement_inconnue" | "saisie_decalee";
+
+export interface ActeControle {
+  id: string;
+  event_type: TypeEvenement;
+  libelle_evenement: string;
+  mairie: string;
+  annee_registre: number;
+  numero_registre: number;
+  numero_feuillet: number;
+  numero_acte: number;
+  statut: "actif" | "annule";
+  date_etablissement: string;
+  date_saisie: string;
+  signataire: string;
+  dossier_id: string;
+  reference_dossier: string;
+  nom: string;
+  type_dossier: "declaration" | "jugement";
+  date_evenement: string | null;
+  date_declaration: string | null;
+}
+
+export interface ConstatControle {
+  regle: RegleControle;
+  libelle_regle: string;
+  gravite: GraviteControle;
+  libelle_gravite: string;
+  detail: string;
+  acte: ActeControle;
+}
+
+export interface NumerosManquantsControle {
+  mairie: string;
+  event_type: TypeEvenement;
+  libelle_evenement: string;
+  annee_registre: number;
+  nature: "acte" | "feuillet";
+  numero_registre: number | null;
+  nombre: number;
+  plages: string;
+}
+
+export interface RapportControleRegistres {
+  periode: { decoupage: DecoupageControle; annee: number; numero: number; debut: string; fin: string; libelle: string; code: string };
+  delais_legaux: Partial<Record<TypeEvenement, number>>;
+  regles: Array<{ code: RegleControle; gravite: GraviteControle; libelle: string }>;
+  mairies: string[];
+  resume: {
+    actes_controles: number;
+    actes_conformes: number;
+    actes_avec_anomalie: number;
+    actes_a_verifier: number;
+    actes_annules: number;
+    actes_par_jugement: number;
+    numeros_manquants: number;
+    par_regle: Record<RegleControle, number>;
+  };
+  constats: ConstatControle[];
+  constats_total: number;
+  tronque: boolean;
+  numeros_manquants: NumerosManquantsControle[];
+  genere_le: string;
 }

@@ -2,6 +2,7 @@ import { useRef, type ReactElement } from "react";
 import { AlertCircle } from "lucide-react";
 import ChampTelephone from "./ui/ChampTelephone";
 import Selecteur from "./ui/Selecteur";
+import { appliquerCasse } from "../lib/casse";
 import ChampSuggestions from "./ui/ChampSuggestions";
 import { useToast } from "./ui/ToastProvider";
 import { colonnesChamp, estCoche, versTexte } from "../lib/formulaire";
@@ -71,6 +72,17 @@ export default function ChampDynamique({ champ, valeur, onChange, verrouille = f
     }
     onChange(code, valeurBrute);
   }
+
+  // Casse imposee (nom en capitales, prenoms avec initiale) : appliquee a la
+  // sortie du champ, pour ne pas deplacer le curseur pendant la frappe.
+  const casse = contraintes.casse;
+  const surSortie = casse
+    ? (e: { target: { value: string } }) => {
+        const corrige = appliquerCasse(e.target.value, casse);
+        if (corrige !== e.target.value) changer(corrige);
+      }
+    : undefined;
+  const styleCasse = casse === "majuscules" ? ({ textTransform: "uppercase" } as const) : undefined;
 
   let controle: ReactElement;
   switch (type_champ) {
@@ -222,6 +234,8 @@ export default function ChampDynamique({ champ, valeur, onChange, verrouille = f
           value={versTexte(valeur)}
           disabled={readonly}
           {...accessibilite}
+          style={styleCasse}
+          onBlur={surSortie}
           onChange={(e) => changer(e.target.value)}
         />
       );
@@ -239,6 +253,8 @@ export default function ChampDynamique({ champ, valeur, onChange, verrouille = f
           value={versTexte(valeur)}
           disabled={readonly}
           {...accessibilite}
+          style={styleCasse}
+          onBlur={surSortie}
           onChange={(e) => changer(e.target.value)}
         />
       );

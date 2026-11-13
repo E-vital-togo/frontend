@@ -11,6 +11,7 @@ import { appelApiPublic, ErreurApiPublique } from "../../lib/apiPublic";
 import { useConnectivite } from "../../lib/connectivite";
 import { signalerCompletionDesactivee, useEtatCompletion } from "../../lib/etatCompletion";
 import { champsManquants, planFormulaire, valeurEffective } from "../../lib/formulaire";
+import { champsAffiches, valeursAEnvoyer } from "../../lib/conditions";
 import type { ChampFormulaireEffectif, MiseEnPage, ReponseFormulaireEffectif } from "../../types/domaine";
 import "../../styles/auth.css";
 import { useTitrePage } from "../../lib/useTitrePage";
@@ -61,7 +62,9 @@ export default function PageCompletionParent() {
   async function soumettre(evenement: FormEvent<HTMLFormElement>) {
     evenement.preventDefault();
     if (!code || !champs) return;
-    const manquants = champsManquants(champs, (c) => valeurEffective(c, valeurs));
+    const valeurDe = (c: ChampFormulaireEffectif) => valeurEffective(c, valeurs);
+    // Seuls les champs affichés (condition d'affichage) sont exigés et envoyés.
+    const manquants = champsManquants(champsAffiches(champs, valeurDe), valeurDe);
     if (manquants.length > 0) {
       setErreursChamps(Object.fromEntries(manquants.map((c) => [c.data_element_code, "Ce champ est obligatoire."])));
       setErreur({
@@ -76,7 +79,7 @@ export default function PageCompletionParent() {
     setErreursChamps({});
     try {
       const corps = {
-        valeurs: Object.entries(valeurs).map(([data_element_code, valeur]) => ({ data_element_code, valeur }))
+        valeurs: Object.entries(valeursAEnvoyer(champs, valeurs, valeurDe)).map(([data_element_code, valeur]) => ({ data_element_code, valeur }))
       };
       await appelApiPublic(`/completion/${code}`, { method: "POST", body: JSON.stringify(corps) });
 
