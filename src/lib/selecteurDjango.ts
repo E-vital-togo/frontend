@@ -12,8 +12,8 @@
  *
  *  - <select> (simple ou `multiple`) : le <select> natif RESTE la source de verite (valeur, name, required,
  *    disabled, form, soumission, `form.reset()`, label `for`). Il est masque (classe eva-sel-natif, hors flux,
- *    aria-hidden) et un declencheur + un panneau (portail dans <body>, position fixe, feuille basse sous 560px)
- *    prennent sa place visuelle. Un choix met a jour le <select> puis emet `input` et `change` (donc les
+ *    aria-hidden) et un declencheur + un panneau (portail dans <body>, ou dans le <dialog> ouvert qui
+ *    contient le champ ; position fixe, feuille basse sous 560px) prennent sa place visuelle. Un choix met a jour le <select> puis emet `input` et `change` (donc les
  *    `onchange="this.form.submit()"` et les ecouteurs existants fonctionnent). Les changements faits par
  *    d'autres scripts (value, selectedIndex, options ajoutees/retirees, selected, disabled) sont suivis
  *    (accesseurs + MutationObserver).
@@ -282,11 +282,22 @@ class Panneau {
 
   /* ---- construction ---- */
 
+  /**
+   * Conteneur du portail. Un <dialog> ouvert par showModal() est dans la couche superieure du navigateur :
+   * un panneau rattache a <body> passerait dessous, quel que soit son z-index, et serait inaccessible.
+   * Le panneau est alors place dans le dialogue lui-meme (sans transform une fois ouvert, la position
+   * fixe reste relative a la fenetre et le panneau n'est pas rogne par son overflow).
+   */
+  private hote(): HTMLElement {
+    return this.p.racine.closest<HTMLElement>("dialog[open]") ?? document.body;
+  }
+
   private construire() {
     const p = this.p;
+    const hote = this.hote();
     if (this.mobile) {
       this.voile = noeud("div", "eva-sel__voile", { "aria-hidden": "true" });
-      document.body.appendChild(this.voile);
+      hote.appendChild(this.voile);
       this.ancienOverflow = document.body.style.overflow;
       document.body.style.overflow = "hidden";
     }
@@ -376,7 +387,7 @@ class Panneau {
 
     this.annonce = noeud("div", "eva-sel__sr", { role: "status", "aria-live": "polite" });
     panneau.appendChild(this.annonce);
-    document.body.appendChild(panneau);
+    hote.appendChild(panneau);
     this.element = panneau;
   }
 
